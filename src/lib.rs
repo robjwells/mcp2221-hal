@@ -62,7 +62,13 @@ impl MCP2221 {
     pub fn read_flash_data(&mut self) -> Result<FlashData, Error> {
         self.set_command(Command::ReadFlashData(ReadFlashDataSubCode::ChipSettings));
         let _ = self._try_transfer()?;
-        Ok(FlashData::from_buffers(&self.read_buffer))
+        let chip_settings = self.read_buffer;
+
+        self.set_command(Command::ReadFlashData(ReadFlashDataSubCode::GPSettings));
+        let _ = self._try_transfer()?;
+        let gp_settings = self.read_buffer;
+
+        Ok(FlashData::from_buffers(&chip_settings, &gp_settings))
     }
 
     /// Write the appropriate command byte to write_buffer[1].
@@ -71,9 +77,11 @@ impl MCP2221 {
     /// actual MCP command is at write_buffer[1..=65].
     fn set_command(&mut self, c: Command) {
         use Command::*;
+        use ReadFlashDataSubCode::*;
         let (command_byte, sub_command_byte): (u8, Option<u8>) = match c {
             StatusSetParameters => (0x10, None),
-            ReadFlashData(ReadFlashDataSubCode::ChipSettings) => (0xB0, Some(0x00)),
+            ReadFlashData(ChipSettings) => (0xB0, Some(0x00)),
+            ReadFlashData(GPSettings) => (0xB0, Some(0x01)),
         };
         self.write_buffer[1] = command_byte;
     }
@@ -97,6 +105,7 @@ enum Command {
 
 enum ReadFlashDataSubCode {
     ChipSettings,
+    GPSettings,
 }
 
 #[derive(Debug)]
@@ -108,6 +117,18 @@ pub enum LogicLevel {
 impl From<bool> for LogicLevel {
     fn from(value: bool) -> Self {
         if value { Self::High } else { Self::Low }
+    }
+}
+
+#[derive(Debug)]
+pub enum GpioDirection {
+    Input,
+    Output,
+}
+
+impl From<bool> for GpioDirection {
+    fn from(value: bool) -> Self {
+        if value { Self::Input } else { Self::Output }
     }
 }
 
@@ -187,17 +208,21 @@ pub mod status {
 }
 
 pub mod flash_data {
-    use crate::LogicLevel;
+    use bit_field::BitField;
+
+    use crate::{GpioDirection, LogicLevel};
 
     #[derive(Debug)]
     pub struct FlashData {
-        chip_setting: ChipSettings,
+        chip_settings: ChipSettings,
+        gp_settings: GPSettings,
     }
 
     impl FlashData {
-        pub(crate) fn from_buffers(chip_settings: &[u8; 64]) -> Self {
+        pub(crate) fn from_buffers(chip_settings: &[u8; 64], gp_settings: &[u8; 64]) -> Self {
             Self {
-                chip_setting: ChipSettings::from_buffer(chip_settings),
+                chip_settings: ChipSettings::from_buffer(chip_settings),
+                gp_settings: GPSettings::from_buffer(gp_settings),
             }
         }
     }
@@ -414,6 +439,198 @@ pub mod flash_data {
     impl From<bool> for AdcVoltageReferenceSource {
         fn from(value: bool) -> Self {
             if value { Self::VDD } else { Self::VRM }
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct GPSettings {
+        /// GP0 power-up output value.
+        ///
+        /// When GP0 is set as an output GPIO, this value will be present at
+        /// the GP0 pin at power-up/reset.
+        ///
+        /// Byte 4 bit 4.
+        gp0_power_up_value: LogicLevel,
+        /// GP0 power-up direction.
+        ///
+        /// Works only when GP0 is set for GPIO operation.
+        ///
+        /// Byte 4 bit 3.
+        gp0_power_up_direction: GpioDirection,
+        /// GP0 designation.
+        ///
+        /// Setting of the pin's function.
+        ///
+        /// Byte 4 bits 0..=2.
+        gp0_power_up_designation: GP0Designation,
+        /// GP1 power-up output value.
+        ///
+        /// When GP1 is set as an output GPIO, this value will be present at
+        /// the GP1 pin at power-up/reset.
+        ///
+        /// Byte 5 bit 4.
+        gp1_power_up_value: LogicLevel,
+        /// GP1 power-up direction.
+        ///
+        /// Works only when GP1 is set for GPIO operation.
+        ///
+        /// Byte 5 bit 3.
+        gp1_power_up_direction: GpioDirection,
+        /// GP1 designation.
+        ///
+        /// Setting of the pin's function.
+        ///
+        /// Byte 5 bits 0..=2.
+        gp1_power_up_designation: GP1Designation,
+        /// GP2 power-up output value.
+        ///
+        /// When GP2 is set as an output GPIO, this value will be present at
+        /// the GP2 pin at power-up/reset.
+        ///
+        /// Byte 6 bit 4.
+        gp2_power_up_value: LogicLevel,
+        /// GP2 power-up direction.
+        ///
+        /// Works only when GP2 is set for GPIO operation.
+        ///
+        /// Byte 6 bit 3.
+        gp2_power_up_direction: GpioDirection,
+        /// GP2 designation.
+        ///
+        /// Setting of the pin's function.
+        ///
+        /// Byte 6 bits 0..=2.
+        gp2_power_up_designation: GP2Designation,
+        /// GP3 power-up output value.
+        ///
+        /// When GP3 is set as an output GPIO, this value will be present at
+        /// the GP3 pin at power-up/reset.
+        ///
+        /// Byte 7 bit 4.
+        gp3_power_up_value: LogicLevel,
+        /// GP3 power-up direction.
+        ///
+        /// Works only when GP3 is set for GPIO operation.
+        ///
+        /// Byte 7 bit 3.
+        gp3_power_up_direction: GpioDirection,
+        /// GP3 designation.
+        ///
+        /// Setting of the pin's function.
+        ///
+        /// Byte 7 bits 0..=2.
+        gp3_power_up_designation: GP2Designation,
+    }
+
+    impl GPSettings {
+        fn from_buffer(buf: &[u8; 64]) -> Self {
+            Self {
+                gp0_power_up_value: buf[4].get_bit(4).into(),
+                gp0_power_up_direction: buf[4].get_bit(3).into(),
+                gp0_power_up_designation: buf[4].get_bits(0..=2).into(),
+                gp1_power_up_value: buf[5].get_bit(4).into(),
+                gp1_power_up_direction: buf[5].get_bit(3).into(),
+                gp1_power_up_designation: buf[5].get_bits(0..=2).into(),
+                gp2_power_up_value: buf[6].get_bit(4).into(),
+                gp2_power_up_direction: buf[6].get_bit(3).into(),
+                gp2_power_up_designation: buf[6].get_bits(0..=2).into(),
+                gp3_power_up_value: buf[7].get_bit(4).into(),
+                gp3_power_up_direction: buf[7].get_bit(3).into(),
+                gp3_power_up_designation: buf[7].get_bits(0..=2).into(),
+            }
+        }
+    }
+
+    #[allow(non_camel_case_types)]
+    #[derive(Debug)]
+    pub enum GP0Designation {
+        LED_UART_RX,
+        SSPND,
+        GPIO,
+        DontCare,
+    }
+
+    impl From<u8> for GP0Designation {
+        fn from(value: u8) -> Self {
+            assert!(value <= 0b111, "Incorrect use of the from constructor.");
+            match value {
+                0b010 => Self::LED_UART_RX,
+                0b001 => Self::SSPND,
+                0b000 => Self::GPIO,
+                _ => Self::DontCare,
+            }
+        }
+    }
+
+    #[allow(non_camel_case_types)]
+    #[derive(Debug)]
+    pub enum GP1Designation {
+        ClockOutput,
+        InterruptDetection,
+        LED_UART_TX,
+        ADC1,
+        GPIO,
+        DontCare,
+    }
+
+    impl From<u8> for GP1Designation {
+        fn from(value: u8) -> Self {
+            assert!(value <= 0b111, "Incorrect use of the from constructor.");
+            // Note the case order here matches the order in the datasheet.
+            match value {
+                0b001 => Self::ClockOutput,
+                0b100 => Self::InterruptDetection,
+                0b011 => Self::LED_UART_TX,
+                0b010 => Self::ADC1,
+                0b000 => Self::GPIO,
+                _ => Self::DontCare,
+            }
+        }
+    }
+
+    #[allow(non_camel_case_types)]
+    #[derive(Debug)]
+    pub enum GP2Designation {
+        DAC1,
+        ADC2,
+        USBCFG,
+        GPIO,
+        DontCare,
+    }
+
+    impl From<u8> for GP2Designation {
+        fn from(value: u8) -> Self {
+            assert!(value <= 0b111, "Incorrect use of the from constructor.");
+            match value {
+                0b011 => Self::DAC1,
+                0b010 => Self::ADC2,
+                0b001 => Self::USBCFG,
+                0b000 => Self::GPIO,
+                _ => Self::DontCare,
+            }
+        }
+    }
+
+    #[allow(non_camel_case_types)]
+    #[derive(Debug)]
+    pub enum GP3Designation {
+        DAC2,
+        ADC3,
+        LED_I2C,
+        GPIO,
+        DontCare,
+    }
+
+    impl From<u8> for GP3Designation {
+        fn from(value: u8) -> Self {
+            assert!(value <= 0b111, "Incorrect use of the from constructor.");
+            match value {
+                0b011 => Self::DAC2,
+                0b010 => Self::ADC3,
+                0b001 => Self::LED_I2C,
+                0b000 => Self::GPIO,
+                _ => Self::DontCare,
+            }
         }
     }
 }
