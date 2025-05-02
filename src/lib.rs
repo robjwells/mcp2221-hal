@@ -12,15 +12,39 @@ use status::Status;
 const MICROCHIP_VENDOR_ID: u16 = 1240;
 const MCP2221A_PRODUCT_ID: u16 = 221;
 
-struct UsbCommand {
+struct UsbReport {
     pub(crate) write_buffer: [u8; 64],
 }
 
-impl UsbCommand {
+impl UsbReport {
     fn report_bytes(&self) -> [u8; 65] {
         let mut out = [0u8; 65];
         out[1..65].copy_from_slice(&self.write_buffer);
         out
+    }
+
+    /// Write the appropriate command byte to write_buffer[1].
+    ///
+    /// write_buffer starts with the dummy/default report number, so the
+    /// actual MCP command is at write_buffer[1..=65].
+    fn new(c: McpCommand) -> Self {
+        let mut buf = [0u8; 64];
+        use McpCommand::*;
+        use ReadFlashDataSubCode::*;
+        let (command_byte, sub_command_byte): (u8, Option<u8>) = match c {
+            StatusSetParameters => (0x10, None),
+            ReadFlashData(ChipSettings) => (0xB0, Some(0x00)),
+            ReadFlashData(GPSettings) => (0xB0, Some(0x01)),
+            ReadFlashData(UsbManufacturerDescriptor) => (0xB0, Some(0x02)),
+            ReadFlashData(UsbProductDescriptor) => (0xB0, Some(0x03)),
+            ReadFlashData(UsbSerialNumberDescriptor) => (0xB0, Some(0x04)),
+            ReadFlashData(ChipFactorySerialNumber) => (0xB0, Some(0x05)),
+        };
+        buf[0] = command_byte;
+        if let Some(sub_command_byte) = sub_command_byte {
+            buf[1] = sub_command_byte;
+        }
+        Self { write_buffer: buf }
     }
 }
 
@@ -49,7 +73,7 @@ impl MCP2221 {
 /// HID Commands
 impl MCP2221 {
     pub fn status(&mut self) -> Result<Status, Error> {
-        let buf = self.transfer(self.new_command(McpCommand::StatusSetParameters))?;
+        let buf = self.transfer(UsbReport::new(McpCommand::StatusSetParameters))?;
         Ok(Status::from_buffer(&buf))
     }
 
@@ -58,7 +82,7 @@ impl MCP2221 {
     /// The device will cancel the current I2C transfer and will attempt to free the I2C
     /// bus. See table 3-1 in section 3.1.1 of the datasheet.
     pub fn cancel_i2c_transfer(&mut self) -> Result<CancelI2cTransferResponse, Error> {
-        let mut uc = self.new_command(McpCommand::StatusSetParameters);
+        let mut uc = UsbReport::new(McpCommand::StatusSetParameters);
         uc.write_buffer[2] = 0x10;
         let read_buffer = self.transfer(uc)?;
 
@@ -75,7 +99,7 @@ impl MCP2221 {
     /// Err([Error::I2cTransferInProgress]) if the speed could not be set due to an
     /// ongoing I2C transfer.
     pub fn set_i2c_bus_speed(&mut self, speed: I2cSpeed) -> Result<(), Error> {
-        let mut uc = self.new_command(McpCommand::StatusSetParameters);
+        let mut uc = UsbReport::new(McpCommand::StatusSetParameters);
         // When this value is put in this field, the device will take the next command
         // field and interpret it as the system clock divider that will give the
         // I2C/SMBus communication clock.
@@ -94,19 +118,18 @@ impl MCP2221 {
         use McpCommand::ReadFlashData;
         use ReadFlashDataSubCode::*;
 
-        let chip_settings = self.transfer(self.new_command(ReadFlashData(ChipSettings)))?;
+        let chip_settings = self.transfer(UsbReport::new(ReadFlashData(ChipSettings)))?;
 
-        let gp_settings = self.transfer(self.new_command(ReadFlashData(GPSettings)))?;
+        let gp_settings = self.transfer(UsbReport::new(ReadFlashData(GPSettings)))?;
 
-        let usb_mfr = self.transfer(self.new_command(ReadFlashData(UsbManufacturerDescriptor)))?;
+        let usb_mfr = self.transfer(UsbReport::new(ReadFlashData(UsbManufacturerDescriptor)))?;
 
-        let usb_product = self.transfer(self.new_command(ReadFlashData(UsbProductDescriptor)))?;
+        let usb_product = self.transfer(UsbReport::new(ReadFlashData(UsbProductDescriptor)))?;
 
-        let usb_serial =
-            self.transfer(self.new_command(ReadFlashData(UsbSerialNumberDescriptor)))?;
+        let usb_serial = self.transfer(UsbReport::new(ReadFlashData(UsbSerialNumberDescriptor)))?;
 
         let chip_factory_serial =
-            self.transfer(self.new_command(ReadFlashData(ChipFactorySerialNumber)))?;
+            self.transfer(UsbReport::new(ReadFlashData(ChipFactorySerialNumber)))?;
 
         Ok(FlashData::from_buffers(
             &chip_settings,
@@ -118,32 +141,8 @@ impl MCP2221 {
         ))
     }
 
-    /// Write the appropriate command byte to write_buffer[1].
-    ///
-    /// write_buffer starts with the dummy/default report number, so the
-    /// actual MCP command is at write_buffer[1..=65].
-    fn new_command(&self, c: McpCommand) -> UsbCommand {
-        let mut buf = [0u8; 64];
-        use McpCommand::*;
-        use ReadFlashDataSubCode::*;
-        let (command_byte, sub_command_byte): (u8, Option<u8>) = match c {
-            StatusSetParameters => (0x10, None),
-            ReadFlashData(ChipSettings) => (0xB0, Some(0x00)),
-            ReadFlashData(GPSettings) => (0xB0, Some(0x01)),
-            ReadFlashData(UsbManufacturerDescriptor) => (0xB0, Some(0x02)),
-            ReadFlashData(UsbProductDescriptor) => (0xB0, Some(0x03)),
-            ReadFlashData(UsbSerialNumberDescriptor) => (0xB0, Some(0x04)),
-            ReadFlashData(ChipFactorySerialNumber) => (0xB0, Some(0x05)),
-        };
-        buf[0] = command_byte;
-        if let Some(sub_command_byte) = sub_command_byte {
-            buf[1] = sub_command_byte;
-        }
-        UsbCommand { write_buffer: buf }
-    }
-
     /// Write the given command to the MCP and read the 64-byte response.
-    fn transfer(&self, command: UsbCommand) -> Result<[u8; 64], Error> {
+    fn transfer(&self, command: UsbReport) -> Result<[u8; 64], Error> {
         let out_command_byte = command.write_buffer[0];
         let written = self.inner.write(&command.report_bytes())?;
 
