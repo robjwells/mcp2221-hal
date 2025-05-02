@@ -13,14 +13,4 @@ fn main() {
 
     let flash_data = mcp.read_flash_data().expect("Failed to read flash data");
     println!("{flash_data:#?}");
-    // match mcp.try_write() {
-    //     Ok(report) => print_report(report),
-    //     Err(e) => eprintln!("{:?}", e),
-    // }
 }
-//
-// fn print_report(report: [u8; 64]) {
-//     for (idx, value) in report.into_iter().enumerate() {
-//         println!("{idx:02}\t0x{value:02X}");
-//     }
-// }
