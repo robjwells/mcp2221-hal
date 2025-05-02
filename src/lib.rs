@@ -44,8 +44,46 @@ impl MCP2221 {
 impl MCP2221 {
     pub fn status(&mut self) -> Result<Status, Error> {
         self.set_command(Command::StatusSetParameters);
-        let _ = self._try_transfer()?;
+        self._try_transfer()?;
         Ok(Status::from_buffer(&self.read_buffer))
+    }
+
+    /// Cancel current I2C transfer.
+    ///
+    /// The device will cancel the current I2C transfer and will attempt to free the I2C
+    /// bus. See table 3-1 in section 3.1.1 of the datasheet.
+    pub fn cancel_i2c_transfer(&mut self) -> Result<CancelI2cTransferResponse, Error> {
+        self.set_command(Command::StatusSetParameters);
+        // I don't like this because the indexes are +1 compared to the
+        // datasheet (because byte 0 in the buffer is the USB report code).
+        self.write_buffer[3] = 0x10;
+        self._try_transfer()?;
+
+        match self.read_buffer[2] {
+            0x10 => Ok(CancelI2cTransferResponse::MarkedForCancellation),
+            0x11 => Ok(CancelI2cTransferResponse::NoTransfer),
+            _ => unreachable!("Invalid value from MCP2221 for transfer cancellation."),
+        }
+    }
+
+    /// Set the baud rate of the I2C bus.
+    ///
+    /// Returns `Ok(())` when the speed was set successfully and
+    /// Err([Error::I2cTransferInProgress]) if the speed could not be set due to an
+    /// ongoing I2C transfer.
+    pub fn set_i2c_bus_speed(&mut self, speed: I2cSpeed) -> Result<(), Error> {
+        self.set_command(Command::StatusSetParameters);
+        // When this value is put in this field, the device will take the next command
+        // field and interpret it as the system clock divider that will give the
+        // I2C/SMBus communication clock.
+        self.write_buffer[4] = 0x20;
+        self.write_buffer[5] = speed.to_clock_divider();
+        self._try_transfer()?;
+        match self.read_buffer[3] {
+            0x20 => Ok(()),
+            0x21 => Err(Error::I2cTransferInProgress),
+            _ => unreachable!("Invalid response from MCP2221 for I2C speed set command."),
+        }
     }
 
     /// Read all the settings stored in flash memory.
@@ -54,27 +92,27 @@ impl MCP2221 {
         use ReadFlashDataSubCode::*;
 
         self.set_command(ReadFlashData(ChipSettings));
-        let _ = self._try_transfer()?;
+        self._try_transfer()?;
         let chip_settings = self.read_buffer;
 
         self.set_command(ReadFlashData(GPSettings));
-        let _ = self._try_transfer()?;
+        self._try_transfer()?;
         let gp_settings = self.read_buffer;
 
         self.set_command(ReadFlashData(UsbManufacturerDescriptor));
-        let _ = self._try_transfer()?;
+        self._try_transfer()?;
         let usb_mfr = self.read_buffer;
 
         self.set_command(ReadFlashData(UsbProductDescriptor));
-        let _ = self._try_transfer()?;
+        self._try_transfer()?;
         let usb_product = self.read_buffer;
 
         self.set_command(ReadFlashData(UsbSerialNumberDescriptor));
-        let _ = self._try_transfer()?;
+        self._try_transfer()?;
         let usb_serial = self.read_buffer;
 
         self.set_command(ReadFlashData(ChipFactorySerialNumber));
-        let _ = self._try_transfer()?;
+        self._try_transfer()?;
         let chip_factory_serial = self.read_buffer;
 
         Ok(FlashData::from_buffers(
@@ -110,7 +148,7 @@ impl MCP2221 {
     }
 
     /// Write the current output buffer state to the MCP and read from it.
-    fn _try_transfer(&mut self) -> Result<(usize, usize), Error> {
+    fn _try_transfer(&mut self) -> Result<(), Error> {
         let sent_command = self.write_buffer[1];
         let written = self.inner.write(&self.write_buffer)?;
         let read = self.inner.read(&mut self.read_buffer)?;
@@ -134,14 +172,21 @@ impl MCP2221 {
 
         // Check success code.
         match self.read_buffer[1] {
-            0x00 => Ok((written, read)),
+            0x00 => Ok(()),
             code => Err(Error::CommandFailed(code)),
         }
     }
 }
 
+#[derive(Debug)]
+pub enum CancelI2cTransferResponse {
+    MarkedForCancellation,
+    NoTransfer,
+}
+
 enum Command {
-    /// Poll for the status of the device.
+    /// Poll for the status of the device, cancel an I2C transfer,
+    /// or set the I2C bus speed.
     ///
     /// See section 3.1.1.
     StatusSetParameters,
@@ -168,6 +213,36 @@ enum ReadFlashDataSubCode {
     UsbSerialNumberDescriptor,
     /// Factory-set serial number. Always "01234567".
     ChipFactorySerialNumber,
+}
+
+#[allow(non_camel_case_types)]
+pub enum I2cSpeed {
+    /// I2c bus speed of 400kbps ("Fast-mode")
+    Fast_400kbps,
+    /// I2c bus speed of 100kbps ("Standard-mode")
+    Standard_100kbps,
+}
+
+impl I2cSpeed {
+    /// Convert the speed mode into a clock divider suitable for the
+    /// STATUS/SET PARAMETERS command.
+    fn to_clock_divider(&self) -> u8 {
+        // 12 MHz internal clock.
+        const MCP_CLOCK: u32 = 12_000_000;
+
+        // I don't know why the division is followed by -3.
+        // But it appears in the Microchip Linux C driver as well as the Adafruit Blinka
+        // Python driver. The mcp2221-rs library uses -2. None of them have a comment
+        // explaining why. The mcp2221a Go library has a comment also expressing
+        // surprise at the `-3` part.
+        const STANDARD_DIVIDER: u8 = (MCP_CLOCK / 100_000 - 3) as u8;
+        const FAST_DIVIDER: u8 = (MCP_CLOCK / 400_000 - 3) as u8;
+
+        match self {
+            I2cSpeed::Fast_400kbps => FAST_DIVIDER,
+            I2cSpeed::Standard_100kbps => STANDARD_DIVIDER,
+        }
+    }
 }
 
 #[derive(Debug)]

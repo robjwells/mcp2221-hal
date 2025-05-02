@@ -1,3 +1,5 @@
+use mcp2221_hal::I2cSpeed;
+
 fn main() {
     let mut mcp = mcp2221_hal::MCP2221::open().unwrap();
     let info = mcp.usb_device_info().unwrap();
@@ -13,4 +15,8 @@ fn main() {
 
     let flash_data = mcp.read_flash_data().expect("Failed to read flash data");
     println!("{flash_data:#?}");
+
+    println!("{:?}", mcp.cancel_i2c_transfer());
+
+    println!("{:?}", mcp.set_i2c_bus_speed(I2cSpeed::Fast_400kbps));
 }
