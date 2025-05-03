@@ -238,7 +238,8 @@ impl ChipSettings {
         buf[2].set_bit(4, self.led_i2c_initial_value.into());
         buf[2].set_bit(3, self.sspnd_pin_initial_value.into());
         buf[2].set_bit(2, self.usbcfg_pin_initial_value.into());
-        buf[2].set_bits(0..=1, self.chip_configuration_security.into());
+        // TODO: support security settings.
+        buf[2].set_bits(0..=1, ChipConfigurationSecurity::Unsecured.into());
 
         // Byte 3 (write) / byte 5 (read)
         buf[3].set_bits(0..=4, self.clock_output_divider);

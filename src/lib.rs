@@ -145,6 +145,11 @@ impl MCP2221 {
     }
 
     /// Update the chip settings stored in flash memory.
+    ///
+    /// **NOTE** that the chip security setting is not written to the device. This is to
+    /// avoid permanently locking the device. Currently, this will always attempt to set
+    /// the device to "unlocked" mode. If you have previously password-locked the
+    /// MCP2221A via other means, you will likely encounter an error.
     pub fn write_chip_settings_to_flash(&mut self, cs: ChipSettings) -> Result<(), Error> {
         let mut command =
             UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::ChipSettings));
