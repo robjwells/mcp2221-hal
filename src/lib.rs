@@ -6,7 +6,7 @@ pub mod flash_data;
 pub mod status;
 
 use error::Error;
-use flash_data::FlashData;
+use flash_data::{ChipSettings, FlashData};
 use status::Status;
 
 const MICROCHIP_VENDOR_ID: u16 = 1240;
@@ -29,8 +29,8 @@ impl UsbReport {
     /// actual MCP command is at write_buffer[1..=65].
     fn new(c: McpCommand) -> Self {
         let mut buf = [0u8; 64];
+        use FlashDataSubCode::*;
         use McpCommand::*;
-        use ReadFlashDataSubCode::*;
         let (command_byte, sub_command_byte): (u8, Option<u8>) = match c {
             StatusSetParameters => (0x10, None),
             ReadFlashData(ChipSettings) => (0xB0, Some(0x00)),
@@ -39,6 +39,8 @@ impl UsbReport {
             ReadFlashData(UsbProductDescriptor) => (0xB0, Some(0x03)),
             ReadFlashData(UsbSerialNumberDescriptor) => (0xB0, Some(0x04)),
             ReadFlashData(ChipFactorySerialNumber) => (0xB0, Some(0x05)),
+            WriteFlashData(ChipSettings) => (0xB1, Some(0x00)),
+            WriteFlashData(_) => todo!(),
         };
         buf[0] = command_byte;
         if let Some(sub_command_byte) = sub_command_byte {
@@ -115,8 +117,8 @@ impl MCP2221 {
 
     /// Read all the settings stored in flash memory.
     pub fn read_flash_data(&mut self) -> Result<FlashData, Error> {
+        use FlashDataSubCode::*;
         use McpCommand::ReadFlashData;
-        use ReadFlashDataSubCode::*;
 
         let chip_settings = self.transfer(UsbReport::new(ReadFlashData(ChipSettings)))?;
 
@@ -141,6 +143,15 @@ impl MCP2221 {
         ))
     }
 
+    /// Update the chip settings stored in flash memory.
+    pub fn write_chip_settings_to_flash(&mut self, cs: ChipSettings) -> Result<(), Error> {
+        let mut command =
+            UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::ChipSettings));
+        cs.apply_to_write_buffer(&mut command.write_buffer);
+        self.transfer(command)?;
+        Ok(())
+    }
+
     /// Write the given command to the MCP and read the 64-byte response.
     fn transfer(&self, command: UsbReport) -> Result<[u8; 64], Error> {
         let out_command_byte = command.write_buffer[0];
@@ -163,9 +174,12 @@ impl MCP2221 {
         }
 
         // Check success code.
-        match read_buffer[1] {
-            0x00 => Ok(read_buffer),
-            code => Err(Error::CommandFailed(code)),
+        match (out_command_byte, read_buffer[1]) {
+            (_, 0x00) => Ok(read_buffer),
+            // Write Flash Data extra error codes
+            (0xB1, 0x02) => Err(Error::CommandNotSupported),
+            (0xB1, 0x03) => Err(Error::CommandNotAllowed),
+            (_, code) => Err(Error::CommandFailed(code)),
         }
     }
 }
@@ -189,11 +203,16 @@ enum McpCommand {
     ///
     /// Many of these settings determine start-up values that can be changed
     /// at runtime (the MCP2221A copies them into SRAM). See section 1.4.3.
-    ReadFlashData(ReadFlashDataSubCode),
+    ReadFlashData(FlashDataSubCode),
+    /// Write various important data structures and strings into the flash memory
+    /// of the MCP2221A.
+    ///
+    /// See section 3.1.3 of the datasheet.
+    WriteFlashData(FlashDataSubCode),
 }
 
 /// Read various settings stored in the flash memory.
-enum ReadFlashDataSubCode {
+enum FlashDataSubCode {
     ChipSettings,
     // GP pin power-up settings.
     GPSettings,
@@ -237,7 +256,7 @@ impl I2cSpeed {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 /// GPIO pin level setting.
 pub enum LogicLevel {
     High,
@@ -247,6 +266,15 @@ pub enum LogicLevel {
 impl From<bool> for LogicLevel {
     fn from(value: bool) -> Self {
         if value { Self::High } else { Self::Low }
+    }
+}
+
+impl From<LogicLevel> for bool {
+    fn from(value: LogicLevel) -> Self {
+        match value {
+            LogicLevel::High => true,
+            LogicLevel::Low => false,
+        }
     }
 }
 

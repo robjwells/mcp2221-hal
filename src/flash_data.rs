@@ -73,6 +73,22 @@ impl FlashData {
 }
 
 #[derive(Debug)]
+/// Chip settings stored in the MCP2221's flash memory.
+///
+/// Byte and bit addresses in this documentation refer to their position when _reading_
+/// from the MCP2221. For their position in the write buffer, subtract two from
+/// the byte address.
+///
+/// **PLEASE NOTE** that for the **DAC** and **ADC** reference voltage source settings,
+/// according to the datasheet, reading a 1 means one setting, but writing a 1 means the
+/// opposite. This means, for instance, that blindly attempting to round-trip settings
+/// read from flash memory would cause a change in the chip's behaviour.
+///
+/// This seems like it could be a mistake in the datasheet. It is very odd and [I have
+/// asked Microchip][mcp-forum] about it. I've not yet been able to test the behaviour
+/// myself so, for now, this driver acts in accordance with the datasheet.
+///
+/// [mcp-forum]: https://forum.microchip.com/s/topic/a5CV40000003RuvMAE/t400836
 pub struct ChipSettings {
     /// Whether a serial number descriptor will be presented during the
     /// USB enumeration of the CDC interface.
@@ -175,14 +191,14 @@ pub struct ChipSettings {
     pub usb_power_attributes: u8,
     /// USB requested number of mA.
     ///
-    /// The requested mA value during the USB enumeration.
+    /// The requested mA value during the USB enumeration. Please consult the USB 2.0
+    /// specification on the correct values for power and attributes.
     ///
-    /// Please consult the USB 2.0 specification on the correct values
-    /// for power and attributes.
+    /// Note the datasheet says the actual value is the byte value multiplied by 2.
+    /// The value in this struct has already been multiplied by 2 for convenience.
     ///
-    /// Note the datasheet said the actual value is the byte value
-    /// multiplied by 2. The value in this struct has been multiplied
-    /// by 2 for convenience.
+    /// As the halved value is stored as a single byte by the MCP2221A, the maximum
+    /// possible value is 510 mA (stored as `255u8` on the chip);
     ///
     /// Byte 13.
     pub usb_requested_number_of_ma: u16,
@@ -213,9 +229,52 @@ impl ChipSettings {
             usb_requested_number_of_ma: buf[13] as u16 * 2,
         }
     }
+
+    pub(crate) fn apply_to_write_buffer(&self, buf: &mut [u8; 64]) {
+        // Note the bytes positions when writing are -2 from the position when reading.
+        buf[2].set_bit(7, self.cdc_serial_number_enumeration_enabled);
+        buf[2].set_bit(6, self.led_uart_rx_initial_value.into());
+        buf[2].set_bit(5, self.led_uart_tx_initial_value.into());
+        buf[2].set_bit(4, self.led_i2c_initial_value.into());
+        buf[2].set_bit(3, self.sspnd_pin_initial_value.into());
+        buf[2].set_bit(2, self.usbcfg_pin_initial_value.into());
+        buf[2].set_bits(0..=1, self.chip_configuration_security.into());
+
+        // Byte 3 (write) / byte 5 (read)
+        buf[3].set_bits(0..=4, self.clock_output_divider);
+
+        // Byte 4 (write) / byte 6 (read) -- DAC settings
+        buf[4].set_bits(6..=7, self.dac_reference_voltage.into());
+        buf[4].set_bit(5, self.dac_reference_source.into());
+        buf[4].set_bits(0..=4, self.dac_power_up_value);
+
+        // Byte 5 (write) / byte 6 (read) -- Interrupts and ADC
+        buf[5].set_bit(6, self.interrupt_on_negative_edge);
+        buf[5].set_bit(5, self.interrupt_on_positive_edge);
+        buf[5].set_bits(3..=4, self.adc_reference_voltage.into());
+        buf[5].set_bit(2, self.adc_reference_source.into());
+
+        // Bytes 6 & 7 -- USB Vendor ID (VID)
+        let vid_bytes = self.usb_vendor_id.to_le_bytes();
+        buf[6] = vid_bytes[0];
+        buf[7] = vid_bytes[1];
+
+        // Bytes 8 & 9 -- USB Product ID (PID)
+        let pid_bytes = self.usb_product_id.to_le_bytes();
+        buf[6] = pid_bytes[0];
+        buf[7] = pid_bytes[1];
+
+        // Bytes 10 & 11 -- USB power settings
+        buf[10] = self.usb_power_attributes;
+        // Note that the stored value is _half_ the actual requested mA.
+        // When reading we double the value to be less confusing to users.
+        buf[11] = (self.usb_requested_number_of_ma / 2) as u8;
+
+        // TODO: Password support (bytes 12..=19).
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum ChipConfigurationSecurity {
     PermanentlyLocked,
     PasswordProtected,
@@ -234,7 +293,17 @@ impl From<u8> for ChipConfigurationSecurity {
     }
 }
 
-#[derive(Debug)]
+impl From<ChipConfigurationSecurity> for u8 {
+    fn from(value: ChipConfigurationSecurity) -> Self {
+        match value {
+            ChipConfigurationSecurity::PermanentlyLocked => 0b10,
+            ChipConfigurationSecurity::PasswordProtected => 0b01,
+            ChipConfigurationSecurity::Unsecured => 0b00,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 /// Setting of the internal voltage reference (VRM)
 pub enum VrmVoltageReference {
     /// 4.096V
@@ -261,7 +330,18 @@ impl From<u8> for VrmVoltageReference {
     }
 }
 
-#[derive(Debug)]
+impl From<VrmVoltageReference> for u8 {
+    fn from(value: VrmVoltageReference) -> Self {
+        match value {
+            VrmVoltageReference::V4_096 => 0b11,
+            VrmVoltageReference::V2_048 => 0b10,
+            VrmVoltageReference::V1_024 => 0b01,
+            VrmVoltageReference::Off => 0b00,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum DacVoltageReferenceSource {
     VRM,
     VDD,
@@ -273,9 +353,21 @@ impl From<bool> for DacVoltageReferenceSource {
     }
 }
 
+impl From<DacVoltageReferenceSource> for bool {
+    fn from(value: DacVoltageReferenceSource) -> Self {
+        // This is the opposite to what the bit means when reading(!) and when reading &
+        // writing SRAM. I've asked about it on the Microchip forum but for now I'll
+        // follow the datasheet.
+        match value {
+            DacVoltageReferenceSource::VRM => false,
+            DacVoltageReferenceSource::VDD => true,
+        }
+    }
+}
+
 // Necessary because the DAC and ADC have inverted meanings for
 // voltage reference source = 1.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum AdcVoltageReferenceSource {
     VRM,
     VDD,
@@ -284,6 +376,17 @@ pub enum AdcVoltageReferenceSource {
 impl From<bool> for AdcVoltageReferenceSource {
     fn from(value: bool) -> Self {
         if value { Self::VDD } else { Self::VRM }
+    }
+}
+
+impl From<AdcVoltageReferenceSource> for bool {
+    fn from(value: AdcVoltageReferenceSource) -> Self {
+        // As with the DAC, this is also the opposite of the meaning of the bit when
+        // reading the flash settings.
+        match value {
+            AdcVoltageReferenceSource::VRM => false,
+            AdcVoltageReferenceSource::VDD => true,
+        }
     }
 }
 
