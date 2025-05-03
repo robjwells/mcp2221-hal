@@ -359,6 +359,14 @@ impl From<DacVoltageReferenceSource> for bool {
         // This is the opposite to what the bit means when reading(!) and when reading &
         // writing SRAM. I've asked about it on the Microchip forum but for now I'll
         // follow the datasheet.
+        //
+        // Datasheet says:
+        //
+        // - Register 1-3, bit 5, DACREF:            1 = VRM, 0 = VDD
+        // - Read flash (table 3-5), byte 6 bit 2:   1 = VRM, 0 = VDD
+        // - Write flash (table 3-12), byte 5 bit 2: 1 = VDD, 0 = VRM
+        // - Set SRAM (table 3-36), byte 3, bit 0:   1 = VRM, 0 = VDD
+        // - Get SRAM (table 3-39), byte 6, bit 5:   1 = VRM, 0 = VDD
         match value {
             DacVoltageReferenceSource::VRM => false,
             DacVoltageReferenceSource::VDD => true,
@@ -382,11 +390,16 @@ impl From<bool> for AdcVoltageReferenceSource {
 
 impl From<AdcVoltageReferenceSource> for bool {
     fn from(value: AdcVoltageReferenceSource) -> Self {
-        // As with the DAC, this is also the opposite of the meaning of the bit when
-        // reading the flash settings.
+        // Datasheet says:
+        //
+        // - Register 1-4, bit 2, ADCREF:               1 = VRM, 0 = VDD
+        // - Read flash (table 3-5), byte 7 bit 2:      1 = VDD, 0 = VRM
+        // - Write flash (table 3-12), byte 5 bit 2:    1 = VRM, 0 = VDD
+        // - Set SRAM (table 3-36), byte 5, bit 0:      1 = VRM, 0 = VDD (says both!?)
+        // - Get SRAM (table 3-39), byte 7, bit 2:      1 = VRM, 0 = VDD
         match value {
-            AdcVoltageReferenceSource::VRM => false,
-            AdcVoltageReferenceSource::VDD => true,
+            AdcVoltageReferenceSource::VRM => true,
+            AdcVoltageReferenceSource::VDD => false,
         }
     }
 }
