@@ -1,6 +1,6 @@
 use bit_field::BitField;
 
-use crate::{GpioDirection, LogicLevel};
+use crate::{DeviceString, GpioDirection, LogicLevel};
 
 #[derive(Debug)]
 pub struct FlashData {
@@ -9,11 +9,11 @@ pub struct FlashData {
     /// General-purpose pins power-up settings.
     pub gp_settings: GPSettings,
     /// Manufacturer string descriptor used during USB enumeration.
-    pub usb_manufacturer_descriptor: String,
+    pub usb_manufacturer_descriptor: DeviceString,
     /// Product string descriptor used during USB enumeration.
-    pub usb_product_descriptor: String,
+    pub usb_product_descriptor: DeviceString,
     /// Serial number used during USB enumeration.
-    pub usb_serial_number_descriptor: String,
+    pub usb_serial_number_descriptor: DeviceString,
     /// Factory-set serial number.
     ///
     /// Always "01234567" for the MCP2221A. This cannot be changed.
@@ -32,36 +32,13 @@ impl FlashData {
         Self {
             chip_settings: ChipSettings::from_buffer(chip_settings),
             gp_settings: GPSettings::from_buffer(gp_settings),
-            usb_manufacturer_descriptor: FlashData::buffer_to_string(usb_mfr),
-            usb_product_descriptor: FlashData::buffer_to_string(usb_product),
-            usb_serial_number_descriptor: FlashData::buffer_to_string(usb_serial),
+            usb_manufacturer_descriptor: DeviceString::from_device_report(usb_mfr),
+            usb_product_descriptor: DeviceString::from_device_report(usb_product),
+            usb_serial_number_descriptor: DeviceString::from_device_report(usb_serial),
             chip_factory_serial_number: FlashData::buffer_to_chip_factory_serial(
                 chip_factory_serial,
             ),
         }
-    }
-
-    fn buffer_to_string(buf: &[u8; 64]) -> String {
-        assert_eq!(buf[3], 0x03, "String response sanity check.");
-
-        let n_bytes = buf[2] as usize - 2;
-        // Sanity-check the string length.
-        assert!(n_bytes <= 60, "String longer than specified.");
-        assert_eq!(n_bytes % 2, 0, "Odd number of utf-16 bytes received.");
-
-        // (buf[2] - 2) UTF-16 characters laid out in little-endian order
-        // from buf[4] onwards. These strings are at most 30 characters
-        // (60 bytes) long. See table 3-7 in the datasheet.
-        let n_utf16_chars = n_bytes / 2;
-        let mut str_utf16 = Vec::with_capacity(n_utf16_chars);
-        for char_number in 0..n_utf16_chars {
-            let low_idx = 4 + 2 * char_number;
-            let high_idx = 4 + 2 * char_number + 1;
-            let utf16 = u16::from_le_bytes([buf[low_idx], buf[high_idx]]);
-            str_utf16.push(utf16);
-        }
-
-        String::from_utf16(str_utf16.as_slice()).expect("Invalid Unicode string.")
     }
 
     // Chip factory serial is ASCII chars, and always "01234567".
