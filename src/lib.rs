@@ -6,7 +6,7 @@ pub mod flash_data;
 pub mod status;
 
 use error::Error;
-use flash_data::{ChipSettings, FlashData};
+use flash_data::{ChipSettings, FlashData, GPSettings};
 use status::Status;
 
 const MICROCHIP_VENDOR_ID: u16 = 1240;
@@ -40,6 +40,7 @@ impl UsbReport {
             ReadFlashData(UsbSerialNumberDescriptor) => (0xB0, Some(0x04)),
             ReadFlashData(ChipFactorySerialNumber) => (0xB0, Some(0x05)),
             WriteFlashData(ChipSettings) => (0xB1, Some(0x00)),
+            WriteFlashData(GPSettings) => (0xB1, Some(0x01)),
             WriteFlashData(_) => todo!(),
         };
         buf[0] = command_byte;
@@ -148,6 +149,14 @@ impl MCP2221 {
         let mut command =
             UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::ChipSettings));
         cs.apply_to_write_buffer(&mut command.write_buffer);
+        self.transfer(command)?;
+        Ok(())
+    }
+
+    /// Update the GP pin settings stored in flash memory.
+    pub fn write_gp_settings_to_flash(&mut self, gps: GPSettings) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::GPSettings));
+        gps.apply_to_write_buffer(&mut command.write_buffer);
         self.transfer(command)?;
         Ok(())
     }
@@ -278,7 +287,7 @@ impl From<LogicLevel> for bool {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 /// GPIO pin direction.
 pub enum GpioDirection {
     Input,
@@ -288,5 +297,14 @@ pub enum GpioDirection {
 impl From<bool> for GpioDirection {
     fn from(value: bool) -> Self {
         if value { Self::Input } else { Self::Output }
+    }
+}
+
+impl From<GpioDirection> for bool {
+    fn from(value: GpioDirection) -> Self {
+        match value {
+            GpioDirection::Input => true,
+            GpioDirection::Output => false,
+        }
     }
 }
