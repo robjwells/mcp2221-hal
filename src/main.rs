@@ -1,5 +1,5 @@
 #![allow(unused, dead_code)]
-use mcp2221_hal::{DeviceString, I2cSpeed};
+use mcp2221_hal::types::{DeviceString, I2cSpeed};
 
 fn main() {
     let mut mcp = mcp2221_hal::MCP2221::open().unwrap();
