@@ -41,6 +41,8 @@ impl UsbReport {
             ReadFlashData(ChipFactorySerialNumber) => (0xB0, Some(0x05)),
             WriteFlashData(ChipSettings) => (0xB1, Some(0x00)),
             WriteFlashData(GPSettings) => (0xB1, Some(0x01)),
+            WriteFlashData(UsbManufacturerDescriptor) => (0xB1, Some(0x02)),
+            WriteFlashData(UsbProductDescriptor) => (0xB1, Some(0x03)),
             WriteFlashData(_) => todo!(),
         };
         buf[0] = command_byte;
@@ -122,15 +124,10 @@ impl MCP2221 {
         use McpCommand::ReadFlashData;
 
         let chip_settings = self.transfer(UsbReport::new(ReadFlashData(ChipSettings)))?;
-
         let gp_settings = self.transfer(UsbReport::new(ReadFlashData(GPSettings)))?;
-
         let usb_mfr = self.transfer(UsbReport::new(ReadFlashData(UsbManufacturerDescriptor)))?;
-
         let usb_product = self.transfer(UsbReport::new(ReadFlashData(UsbProductDescriptor)))?;
-
         let usb_serial = self.transfer(UsbReport::new(ReadFlashData(UsbSerialNumberDescriptor)))?;
-
         let chip_factory_serial =
             self.transfer(UsbReport::new(ReadFlashData(ChipFactorySerialNumber)))?;
 
@@ -162,6 +159,26 @@ impl MCP2221 {
     pub fn write_gp_settings_to_flash(&mut self, gps: GPSettings) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::GPSettings));
         gps.apply_to_write_buffer(&mut command.write_buffer);
+        self.transfer(command)?;
+        Ok(())
+    }
+
+    /// Update the USB manufacturer string descriptor used during USB enumeration.
+    pub fn write_usb_manufacturer_descriptor(&mut self, s: &DeviceString) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::WriteFlashData(
+            FlashDataSubCode::UsbManufacturerDescriptor,
+        ));
+        s.apply_to_write_buffer(&mut command.write_buffer);
+        self.transfer(command)?;
+        Ok(())
+    }
+
+    /// Update the USB product string descriptor used during USB enumeration.
+    pub fn write_usb_product_descriptor(&mut self, s: &DeviceString) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::WriteFlashData(
+            FlashDataSubCode::UsbProductDescriptor,
+        ));
+        s.apply_to_write_buffer(&mut command.write_buffer);
         self.transfer(command)?;
         Ok(())
     }
@@ -354,6 +371,23 @@ impl DeviceString {
         let s = String::from_utf16(str_utf16.as_slice())
             .expect("Invalid Unicode string received from device.");
         Self(s)
+    }
+
+    /// Write the utf-16 string to the buffer to be written to the MCP2221A.
+    ///
+    /// See table 3-14 in the datasheet. This function writes the appropriate
+    /// count to byte 2, and the 0x03 constant to byte 3.
+    pub(crate) fn apply_to_write_buffer(&self, buf: &mut [u8; 64]) {
+        let mut byte_count = 0;
+        let utf16_pairs = self.0.encode_utf16().map(u16::to_le_bytes);
+        for (unicode_char_number, [low, high]) in utf16_pairs.enumerate() {
+            let pos = 4 + (2 * unicode_char_number);
+            buf[pos] = low;
+            buf[pos + 1] = high;
+            byte_count += 2;
+        }
+        buf[2] = byte_count + 2;
+        buf[3] = 0x03; // Required constant. Perhaps marks the data as an LE UTF16 string.
     }
 }
 

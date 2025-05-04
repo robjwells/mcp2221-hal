@@ -1,4 +1,5 @@
-use mcp2221_hal::I2cSpeed;
+#![allow(unused, dead_code)]
+use mcp2221_hal::{DeviceString, I2cSpeed};
 
 fn main() {
     let mut mcp = mcp2221_hal::MCP2221::open().unwrap();
@@ -13,10 +14,37 @@ fn main() {
     let status = mcp.status().expect("Failed to get status.");
     println!("{status:#?}");
 
+    // let flash_data = mcp.read_flash_data().expect("Failed to read flash data");
+    // println!("{flash_data:#?}");
+
+    // println!("{:?}", mcp.cancel_i2c_transfer());
+
+    // println!("{:?}", mcp.set_i2c_bus_speed(I2cSpeed::Fast_400kbps));
+
+    let orig_mfr = DeviceString::try_from("Microchip Technology Inc.".to_owned())
+        .expect("Couldn't construct device string with Microchip original string.");
+    let new_mfr = DeviceString::try_from("robjwells".to_owned())
+        .expect("Failed to make robjwells device string.");
+    let orig_prod = DeviceString::try_from("MCP2221 USB-I2C/UART Combo".to_owned())
+        .expect("Couldn't construct device string with Microchip original string.");
+    let new_prod = DeviceString::try_from("rob's project".to_owned())
+        .expect("Failed to make robjwells device string.");
+
+    if let Err(e) = mcp.write_usb_manufacturer_descriptor(&new_mfr) {
+        println!("{e:?}");
+    }
+    if let Err(e) = mcp.write_usb_product_descriptor(&new_prod) {
+        println!("{e:?}");
+    }
     let flash_data = mcp.read_flash_data().expect("Failed to read flash data");
     println!("{flash_data:#?}");
 
-    println!("{:?}", mcp.cancel_i2c_transfer());
-
-    println!("{:?}", mcp.set_i2c_bus_speed(I2cSpeed::Fast_400kbps));
+    if let Err(e) = mcp.write_usb_manufacturer_descriptor(&orig_mfr) {
+        println!("{e:?}");
+    }
+    if let Err(e) = mcp.write_usb_product_descriptor(&orig_prod) {
+        println!("{e:?}");
+    }
+    let flash_data = mcp.read_flash_data().expect("Failed to read flash data");
+    println!("{flash_data:#?}");
 }
