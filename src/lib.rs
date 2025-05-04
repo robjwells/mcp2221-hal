@@ -43,7 +43,10 @@ impl UsbReport {
             WriteFlashData(GPSettings) => (0xB1, Some(0x01)),
             WriteFlashData(UsbManufacturerDescriptor) => (0xB1, Some(0x02)),
             WriteFlashData(UsbProductDescriptor) => (0xB1, Some(0x03)),
-            WriteFlashData(_) => todo!(),
+            WriteFlashData(UsbSerialNumberDescriptor) => (0xB1, Some(0x04)),
+            WriteFlashData(ChipFactorySerialNumber) => {
+                todo!("Chip factory serial number cannot be changed. Error I guess?")
+            }
         };
         buf[0] = command_byte;
         if let Some(sub_command_byte) = sub_command_byte {
@@ -177,6 +180,16 @@ impl MCP2221 {
     pub fn write_usb_product_descriptor(&mut self, s: &DeviceString) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(
             FlashDataSubCode::UsbProductDescriptor,
+        ));
+        s.apply_to_write_buffer(&mut command.write_buffer);
+        self.transfer(command)?;
+        Ok(())
+    }
+
+    /// Update the USB serial number descriptor string used during USB enumeration.
+    pub fn write_usb_serial_number_descriptor(&mut self, s: &DeviceString) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::WriteFlashData(
+            FlashDataSubCode::UsbSerialNumberDescriptor,
         ));
         s.apply_to_write_buffer(&mut command.write_buffer);
         self.transfer(command)?;
