@@ -1,9 +1,11 @@
+//! Status read from the MCP2221.
+
 use bit_field::BitField;
 
-/// Current status of the device.
+/// Current status of the MCP2221.
 ///
 /// Bytes in documentation are numbered from 0 through 63 and correspond
-/// to table 3-1 in section 3.1.1 (STATUS/SET PARAMETERS) of the datasheet.
+/// to table 3-1 in section 3.1.1 (Status/Set Parameters) of the datasheet.
 #[derive(Debug)]
 pub struct Status {
     /// I2C engine in idle mode.

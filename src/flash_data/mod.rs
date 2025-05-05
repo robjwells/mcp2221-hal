@@ -1,3 +1,5 @@
+//! Configuration stored in the MCP2221's flash memory.
+
 use crate::types::DeviceString;
 
 pub use chip_settings::ChipSettings;

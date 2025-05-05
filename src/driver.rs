@@ -7,30 +7,42 @@ use crate::types::{CancelI2cTransferResponse, DeviceString, I2cSpeed};
 const MICROCHIP_VENDOR_ID: u16 = 1240;
 const MCP2221A_PRODUCT_ID: u16 = 221;
 
+/// Driver for the MCP2221.
 pub struct MCP2221 {
     inner: hidapi::HidDevice,
 }
 
-/// USB device functionality
+/// # USB device functionality
 impl MCP2221 {
+    /// Open the first USB device found with the default vendor and product ID.
+    ///
+    /// The default VID is 1240 (0x4D8) and PID 221 (0xDD).
     pub fn open() -> Result<Self, Error> {
         MCP2221::open_with_vid_pid(MICROCHIP_VENDOR_ID, MCP2221A_PRODUCT_ID)
     }
 
+    /// Open the first USB device found with the given venor and product ID.
+    ///
+    /// Use this function if you have changed the USB VID or PID of your MCP2221.
     pub fn open_with_vid_pid(vendor_id: u16, product_id: u16) -> Result<Self, Error> {
         let hidapi = hidapi::HidApi::new()?;
         let device = hidapi.open(vendor_id, product_id)?;
         Ok(Self { inner: device })
     }
 
+    /// Get the USB HID device information from the host's USB interface.
     pub fn usb_device_info(&self) -> Result<hidapi::DeviceInfo, Error> {
         let info = self.inner.get_device_info()?;
         Ok(info)
     }
 }
 
-/// HID Commands
+/// # HID Commands
 impl MCP2221 {
+    /// Read the status of the MCP2221.
+    ///
+    /// This is read via the Status/Set Parameters command. See section 3.11 of the
+    /// datasheet for details.
     pub fn status(&mut self) -> Result<Status, Error> {
         let buf = self.transfer(UsbReport::new(McpCommand::StatusSetParameters))?;
         Ok(Status::from_buffer(&buf))
@@ -72,7 +84,10 @@ impl MCP2221 {
         }
     }
 
-    /// Read all the settings stored in flash memory.
+    /// Read settings stored in flash memory.
+    ///
+    /// These settings take effect on power-up. See section 1.4 for information on the
+    /// configuration process. See section 3.1.2 for the Read Flash Data command.
     pub fn read_flash_data(&mut self) -> Result<FlashData, Error> {
         use FlashDataSubCode::*;
         use McpCommand::ReadFlashData;
@@ -95,12 +110,17 @@ impl MCP2221 {
         ))
     }
 
-    /// Update the chip settings stored in flash memory.
+    /// Update settings stored in flash memory.
     ///
-    /// **NOTE** that the chip security setting is not written to the device. This is to
-    /// avoid permanently locking the device. Currently, this will always attempt to set
-    /// the device to "unlocked" mode. If you have previously password-locked the
-    /// MCP2221A via other means, you will likely encounter an error.
+    /// These settings take effect on power-up. See section 1.4 for information on the
+    /// configuration process. See section 3.1.3 for the Write Flash Data command.
+    ///
+    /// <div class="warning">
+    /// The chip security setting is not written to the device. This is to avoid
+    /// permanently locking the device. Currently, this will always attempt to set the
+    /// device to "unlocked" mode. If you have previously password-locked the MCP2221A
+    /// via other means, you will likely encounter an error.
+    /// </div>
     pub fn write_chip_settings_to_flash(&mut self, cs: ChipSettings) -> Result<(), Error> {
         let mut command =
             UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::ChipSettings));

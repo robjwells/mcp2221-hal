@@ -38,6 +38,10 @@ pub enum VrmVoltageReference {
     V2_048,
     /// 1.024V
     V1_024,
+    /// Reference voltage is off.
+    ///
+    /// This is useful for the case in which the DAC uses another reference other
+    /// than Vrm DAC; eg Vdd.
     Off,
 }
 
