@@ -1,3 +1,7 @@
+pub(crate) trait WriteCommandData {
+    fn apply_to_buffer(&self, buf: &mut [u8; 64]);
+}
+
 pub(crate) enum McpCommand {
     /// Poll for the status of the device, cancel an I2C transfer,
     /// or set the I2C bus speed.
@@ -75,5 +79,23 @@ impl UsbReport {
             buf[1] = sub_command_byte;
         }
         Self { write_buffer: buf }
+    }
+
+    /// Write a type's data to the outgoing USB report.
+    pub(crate) fn update(&mut self, d: &impl WriteCommandData) {
+        d.apply_to_buffer(&mut self.write_buffer);
+    }
+
+    /// Write a single data byte in the outgoing USB report.
+    ///
+    /// `byte_index` must be in the range `2..=63`.
+    ///
+    /// Command and subcommand bytes (indices 0 and 1) cannot be set
+    /// with this command.
+    pub(crate) fn set_data_byte(&mut self, byte_index: usize, value: u8) {
+        assert!(byte_index < 64, "Byte index {byte_index} too large.");
+        assert!(byte_index != 0, "Cannot write to command byte index.");
+        assert!(byte_index != 1, "Cannot write to subcommand byte index.");
+        self.write_buffer[byte_index] = value;
     }
 }

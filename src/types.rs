@@ -119,12 +119,14 @@ impl DeviceString {
             .expect("Invalid Unicode string received from device.");
         Self(s)
     }
+}
 
+impl crate::commands::WriteCommandData for DeviceString {
     /// Write the utf-16 string to the buffer to be written to the MCP2221A.
     ///
     /// See table 3-14 in the datasheet. This function writes the appropriate
     /// count to byte 2, and the 0x03 constant to byte 3.
-    pub(crate) fn apply_to_write_buffer(&self, buf: &mut [u8; 64]) {
+    fn apply_to_buffer(&self, buf: &mut [u8; 64]) {
         let mut byte_count = 0;
         let utf16_pairs = self.0.encode_utf16().map(u16::to_le_bytes);
         for (unicode_char_number, [low, high]) in utf16_pairs.enumerate() {

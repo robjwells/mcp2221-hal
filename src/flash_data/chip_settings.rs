@@ -163,8 +163,10 @@ impl ChipSettings {
             usb_requested_number_of_ma: buf[13] as u16 * 2,
         }
     }
+}
 
-    pub(crate) fn apply_to_write_buffer(&self, buf: &mut [u8; 64]) {
+impl crate::commands::WriteCommandData for ChipSettings {
+    fn apply_to_buffer(&self, buf: &mut [u8; 64]) {
         // Note the bytes positions when writing are -2 from the position when reading.
         buf[2].set_bit(7, self.cdc_serial_number_enumeration_enabled);
         buf[2].set_bit(6, self.led_uart_rx_initial_value.into());

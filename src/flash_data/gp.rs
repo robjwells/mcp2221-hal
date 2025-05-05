@@ -39,8 +39,10 @@ impl GpSettings {
                 .into(),
         }
     }
+}
 
-    pub(crate) fn apply_to_write_buffer(&self, buf: &mut [u8; 64]) {
+impl crate::commands::WriteCommandData for GpSettings {
+    fn apply_to_buffer(&self, buf: &mut [u8; 64]) {
         // Byte 2 -- GP0
         buf[2].set_bit(4, self.gp0.power_up_value.into());
         buf[2].set_bit(3, self.gp0.power_up_direction.into());

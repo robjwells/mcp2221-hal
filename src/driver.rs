@@ -42,7 +42,7 @@ impl MCP2221 {
     /// bus. See table 3-1 in section 3.1.1 of the datasheet.
     pub fn cancel_i2c_transfer(&mut self) -> Result<CancelI2cTransferResponse, Error> {
         let mut uc = UsbReport::new(McpCommand::StatusSetParameters);
-        uc.write_buffer[2] = 0x10;
+        uc.set_data_byte(2, 0x10);
         let read_buffer = self.transfer(uc)?;
 
         match read_buffer[2] {
@@ -62,8 +62,8 @@ impl MCP2221 {
         // When this value is put in this field, the device will take the next command
         // field and interpret it as the system clock divider that will give the
         // I2C/SMBus communication clock.
-        uc.write_buffer[3] = 0x20;
-        uc.write_buffer[4] = speed.to_clock_divider();
+        uc.set_data_byte(3, 0x20);
+        uc.set_data_byte(4, speed.to_clock_divider());
         let read_buffer = self.transfer(uc)?;
         match read_buffer[3] {
             0x20 => Ok(()),
@@ -104,7 +104,7 @@ impl MCP2221 {
     pub fn write_chip_settings_to_flash(&mut self, cs: ChipSettings) -> Result<(), Error> {
         let mut command =
             UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::ChipSettings));
-        cs.apply_to_write_buffer(&mut command.write_buffer);
+        command.update(&cs);
         self.transfer(command)?;
         Ok(())
     }
@@ -112,7 +112,7 @@ impl MCP2221 {
     /// Update the GP pin settings stored in flash memory.
     pub fn write_gp_settings_to_flash(&mut self, gps: GpSettings) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::GPSettings));
-        gps.apply_to_write_buffer(&mut command.write_buffer);
+        command.update(&gps);
         self.transfer(command)?;
         Ok(())
     }
@@ -122,7 +122,7 @@ impl MCP2221 {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(
             FlashDataSubCode::UsbManufacturerDescriptor,
         ));
-        s.apply_to_write_buffer(&mut command.write_buffer);
+        command.update(s);
         self.transfer(command)?;
         Ok(())
     }
@@ -132,7 +132,7 @@ impl MCP2221 {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(
             FlashDataSubCode::UsbProductDescriptor,
         ));
-        s.apply_to_write_buffer(&mut command.write_buffer);
+        command.update(s);
         self.transfer(command)?;
         Ok(())
     }
@@ -142,7 +142,7 @@ impl MCP2221 {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(
             FlashDataSubCode::UsbSerialNumberDescriptor,
         ));
-        s.apply_to_write_buffer(&mut command.write_buffer);
+        command.update(s);
         self.transfer(command)?;
         Ok(())
     }
