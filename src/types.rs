@@ -19,13 +19,9 @@ impl I2cSpeed {
         // 12 MHz internal clock.
         const MCP_CLOCK: u32 = 12_000_000;
 
-        // I don't know why the division is followed by -3.
-        // But it appears in the Microchip Linux C driver as well as the Adafruit Blinka
-        // Python driver. The mcp2221-rs library uses -2. None of them have a comment
-        // explaining why. The mcp2221a Go library has a comment also expressing
-        // surprise at the `-3` part.
-        const STANDARD_DIVIDER: u8 = (MCP_CLOCK / 100_000 - 3) as u8;
-        const FAST_DIVIDER: u8 = (MCP_CLOCK / 400_000 - 3) as u8;
+        // The `-2` part is from Note 1 in Table 3-1 in the datasheet.
+        const STANDARD_DIVIDER: u8 = (MCP_CLOCK / 100_000 - 2) as u8;
+        const FAST_DIVIDER: u8 = (MCP_CLOCK / 400_000 - 2) as u8;
 
         match self {
             I2cSpeed::Fast_400kbps => FAST_DIVIDER,

@@ -171,6 +171,8 @@ impl MCP2221 {
         // Check success code.
         match (out_command_byte, read_buffer[1]) {
             (_, 0x00) => Ok(read_buffer),
+            // Read Flash Data extra error code
+            (0xB0, 0x01) => Err(Error::CommandNotSupported),
             // Write Flash Data extra error codes
             (0xB1, 0x02) => Err(Error::CommandNotSupported),
             (0xB1, 0x03) => Err(Error::CommandNotAllowed),

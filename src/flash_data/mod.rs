@@ -7,6 +7,9 @@ mod chip_settings;
 mod common;
 mod gp;
 
+/// Configuration stored in the MCP2221A's flash memory.
+///
+/// Changes to these settings take effect on power-up.
 #[derive(Debug)]
 pub struct FlashData {
     /// Chip settings.

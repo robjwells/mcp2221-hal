@@ -1,9 +1,15 @@
+use bit_field::BitField;
+
 /// Current status of the device.
 ///
 /// Bytes in documentation are numbered from 0 through 63 and correspond
 /// to table 3-1 in section 3.1.1 (STATUS/SET PARAMETERS) of the datasheet.
 #[derive(Debug)]
 pub struct Status {
+    /// I2C engine in idle mode.
+    ///
+    /// Byte 8.
+    pub i2c_engine_is_idle: bool,
     /// The requested I2C transfer length.
     ///
     /// Bytes 9 & 10.
@@ -20,6 +26,13 @@ pub struct Status {
     pub i2c_timeout_value: u8,
     /// Bytes 16 & 17.
     pub i2c_address_being_used: u16,
+    /// ACK status.
+    ///
+    /// Datasheet says: "If ACK was received from client value is 0." Presumably this is
+    /// an ACK from an I2C target device.
+    ///
+    /// Byte 20 bit 6.
+    pub i2c_ack_received: bool,
     /// Byte 22.
     pub i2c_scl_line_high: bool,
     /// Byte 23.
@@ -50,12 +63,14 @@ pub struct Status {
 impl Status {
     pub(crate) fn from_buffer(buf: &[u8; 64]) -> Self {
         Self {
+            i2c_engine_is_idle: buf[8] == 0,
             i2c_transfer_requested_length: u16::from_le_bytes([buf[9], buf[10]]),
             i2c_transfer_completed_length: u16::from_le_bytes([buf[11], buf[12]]),
             i2c_internal_data_buffer_counter: buf[13],
             i2c_communication_speed_divider: buf[14],
             i2c_timeout_value: buf[15],
             i2c_address_being_used: u16::from_le_bytes([buf[16], buf[17]]),
+            i2c_ack_received: !buf[20].get_bit(6),
             i2c_scl_line_high: buf[22] == 0x01,
             i2c_sda_line_high: buf[23] == 0x01,
             interrupt_edge_detector_state: buf[24],

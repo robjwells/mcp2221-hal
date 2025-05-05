@@ -2,11 +2,22 @@ use crate::types::{GpioDirection, LogicLevel};
 
 use bit_field::BitField;
 
+/// General-purpose pins settings.
+///
+/// Each of the four GP pins supports GPIO operation, one exclusive ("dedicated")
+/// function, and "alternate" functions (ADC and DAC).
+///
+/// See table 1-5 of the datasheet for an overview, section 1.7 for the details of
+/// each function, and section 1.6.2.4 for use of the interrupt pin function.
 #[derive(Debug)]
 pub struct GpSettings {
+    /// GP pin 0.
     pub gp0: Gp0Settings,
+    /// GP pin 1.
     pub gp1: Gp1Settings,
+    /// GP pin 2.
     pub gp2: Gp2Settings,
+    /// GP pin 3.
     pub gp3: Gp3Settings,
 }
 
@@ -65,11 +76,24 @@ impl crate::commands::WriteCommandData for GpSettings {
     }
 }
 
+/// GP pin 0 operation mode.
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy)]
 pub enum Gp0Designation {
+    /// Indicates UART traffic received by the MCP2221A.
+    ///
+    /// This pin will pulse low for a few milliseconds to provide a visual indication
+    /// of the UART Rx traffic. See section 1.7.1.4.
     LED_UART_RX,
+    /// USB Suspend state.
+    ///
+    /// Reflects the USB state (Suspend/Resume). This pin is active-low when the Suspend
+    /// state has been issued by the USB host. The pin drives high after the Resume
+    /// state is achieved. See section 1.7.1.2.
     SSPND,
+    /// GPIO pin function.
+    ///
+    /// The pin operates as a digital input or a digital output.
     GPIO,
     DontCare,
 }
@@ -97,13 +121,35 @@ impl From<Gp0Designation> for u8 {
     }
 }
 
+/// GP pin 1 operation mode.
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy)]
 pub enum Gp1Designation {
+    /// Digital clock output.
+    ///
+    /// The nominal frequency is 12MHz (the MCP2221A's internal clock speed), ±0.25%,
+    /// but other frequencies and duty cycles are possible. See register 1-2 for the
+    /// values for these, as well as the flash and SRAM settings command sections.
+    /// See section 1.9.
     ClockOutput,
+    /// Interrupt-on-change.
+    ///
+    /// This mode makes GP1 sensitive to positive and negative edges. Interrupts can
+    /// be triggered on either or both. See section 1.10.
     InterruptDetection,
+    /// Indicates UART traffic sent by the MCP2221A.
+    ///
+    /// This pin will pulse low for a few milliseconds to provide a visual indication
+    /// of the UART Tx traffic. See section 1.7.1.5.
     LED_UART_TX,
+    /// Analog-to-digital channel 1.
+    ///
+    /// Sets GP1 to an analog input tied to the first channel of the 10-bit ADC. See
+    /// section 1.8.2.
     ADC1,
+    /// GPIO pin function.
+    ///
+    /// The pin operates as a digital input or a digital output.
     GPIO,
     DontCare,
 }
@@ -136,12 +182,30 @@ impl From<Gp1Designation> for u8 {
     }
 }
 
+/// GP pin 2 operation mode.
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy)]
 pub enum Gp2Designation {
+    /// Digital-to-analog.
+    ///
+    /// Sets GP2 to an analog output tied to the output of the 5-bit DAC. Note there
+    /// is only one DAC output, so if both GP2 and GP3 are configured as DAC pins
+    /// they will output the same value. See section 1.8.3.
     DAC1,
+    /// Analog-to-digital channel 2.
+    ///
+    /// Sets GP2 to an analog input tied to the second channel of the 10-bit ADC.
+    /// See section 1.8.2.
     ADC2,
+    /// USB configure pin.
+    ///
+    /// This pin starts out low during power-up or after reset and goes high after the
+    /// device successfully configures to the USB. The pin will go low when in Suspend
+    /// mode and high when the USB resumes. See section 1.7.1.3.
     USBCFG,
+    /// GPIO pin function.
+    ///
+    /// The pin operates as a digital input or a digital output.
     GPIO,
     DontCare,
 }
@@ -173,12 +237,29 @@ impl From<Gp2Designation> for u8 {
     }
 }
 
+/// GP pin 3 operation mode.
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy)]
 pub enum Gp3Designation {
+    /// Digital-to-analog.
+    ///
+    /// Sets GP3 to an analog output tied to the output of the 5-bit DAC. Note there
+    /// is only one DAC output, so if both GP2 and GP3 are configured as DAC pins
+    /// they will output the same value. See section 1.8.3.
     DAC2,
+    /// Analog-to-digital channel 3.
+    ///
+    /// Sets GP3 to an analog input tied to the third channel of the 10-bit ADC.
+    /// See section 1.8.2.
     ADC3,
+    /// Indicates I2C activity.
+    ///
+    /// This pin will pulse low for a few milliseconds to provide a visual indication
+    /// of the I2C traffic. See section 1.7.1.6.
     LED_I2C,
+    /// GPIO pin function.
+    ///
+    /// The pin operates as a digital input or a digital output.
     GPIO,
     DontCare,
 }
@@ -208,6 +289,7 @@ impl From<Gp3Designation> for u8 {
     }
 }
 
+/// GP pin 0 configuration.
 #[derive(Debug)]
 pub struct Gp0Settings {
     /// GP0 power-up output value.
@@ -231,6 +313,7 @@ pub struct Gp0Settings {
     pub power_up_designation: Gp0Designation,
 }
 
+/// GP pin 1 configuration.
 #[derive(Debug)]
 pub struct Gp1Settings {
     /// GP1 power-up output value.
@@ -254,6 +337,7 @@ pub struct Gp1Settings {
     pub power_up_designation: Gp1Designation,
 }
 
+/// GP pin 2 configuration.
 #[derive(Debug)]
 pub struct Gp2Settings {
     /// GP2 power-up output value.
@@ -277,6 +361,7 @@ pub struct Gp2Settings {
     pub power_up_designation: Gp2Designation,
 }
 
+/// GP pin 3 configuration.
 #[derive(Debug)]
 pub struct Gp3Settings {
     /// GP3 power-up output value.

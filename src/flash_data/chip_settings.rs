@@ -2,7 +2,6 @@ use super::common::{
     AdcVoltageReferenceSource, ChipConfigurationSecurity, DacVoltageReferenceSource,
     VrmVoltageReference,
 };
-use crate::types::LogicLevel;
 
 use bit_field::BitField;
 
@@ -29,38 +28,6 @@ pub struct ChipSettings {
     ///
     /// Byte 4 bit 7.
     pub cdc_serial_number_enumeration_enabled: bool,
-    /// This value represents the logic level signaled when no UART Rx
-    /// activity takes place. When the UART Rx (of the MCP2221A) is
-    /// receiving data, the LEDUARTRX pin will take the negated value of
-    /// this bit.
-    ///
-    /// Byte 4 bit 6.
-    pub led_uart_rx_initial_value: LogicLevel,
-    /// This value represents the logic level signaled when no UART Tx
-    /// activity takes place. When the UART Tx (of the MCP2221A) is
-    /// sending data, the LEDUARTTX pin will take the negated value of
-    /// this bit.
-    ///
-    /// Byte 4 bit 5.
-    pub led_uart_tx_initial_value: LogicLevel,
-    /// This value represents the logic level signaled when no I2C traffic
-    /// occurs. When the I2C traffic is active, the LEDI2C pin (if enabled)
-    /// will take the negated value of this bit.
-    ///
-    /// Byte 4 bit 4.
-    pub led_i2c_initial_value: LogicLevel,
-    /// This value represents the logic level signaled when the device is
-    /// not in Suspend mode. Upon entering Suspend mode, the SSPND pin (if
-    /// enabled) will take the negated value of this bit.
-    ///
-    /// Byte 4 bit 3.
-    pub sspnd_pin_initial_value: LogicLevel,
-    /// This value represents the logic level signaled when the device is
-    /// not USB configured. When the device will be USB configured, the
-    /// USBCFG pin (if enabled) will take the negated value of this bit.
-    ///
-    /// Byte 4 bit 2.
-    pub usbcfg_pin_initial_value: LogicLevel,
     /// Chip configuration security option.
     ///
     /// Byte 4 bits 1 and 0.
@@ -143,11 +110,6 @@ impl ChipSettings {
         use bit_field::BitField;
         Self {
             cdc_serial_number_enumeration_enabled: buf[4].get_bit(7),
-            led_uart_rx_initial_value: buf[4].get_bit(6).into(),
-            led_uart_tx_initial_value: buf[4].get_bit(5).into(),
-            led_i2c_initial_value: buf[4].get_bit(4).into(),
-            sspnd_pin_initial_value: buf[4].get_bit(3).into(),
-            usbcfg_pin_initial_value: buf[4].get_bit(2).into(),
             chip_configuration_security: buf[4].get_bits(0..=1).into(),
             clock_output_divider: buf[5].get_bits(0..=4),
             dac_reference_voltage: buf[6].get_bits(6..=7).into(),
@@ -169,11 +131,6 @@ impl crate::commands::WriteCommandData for ChipSettings {
     fn apply_to_buffer(&self, buf: &mut [u8; 64]) {
         // Note the bytes positions when writing are -2 from the position when reading.
         buf[2].set_bit(7, self.cdc_serial_number_enumeration_enabled);
-        buf[2].set_bit(6, self.led_uart_rx_initial_value.into());
-        buf[2].set_bit(5, self.led_uart_tx_initial_value.into());
-        buf[2].set_bit(4, self.led_i2c_initial_value.into());
-        buf[2].set_bit(3, self.sspnd_pin_initial_value.into());
-        buf[2].set_bit(2, self.usbcfg_pin_initial_value.into());
         // TODO: support security settings.
         buf[2].set_bits(0..=1, ChipConfigurationSecurity::Unsecured.into());
 
