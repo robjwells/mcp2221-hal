@@ -155,15 +155,16 @@ impl crate::commands::WriteCommandData for ChipSettings {
         buf[5].set_bit(2, self.adc_reference_source.into());
 
         // Bytes 6 & 7 -- USB Vendor ID (VID)
-        // TODO: How did this end up being zero?
-        // let vid_bytes = self.usb_vendor_id.to_le_bytes();
-        let vid_bytes = (1240u16).to_le_bytes();
+        let vid_bytes = self.usb_vendor_id.to_le_bytes();
+        // At one point the VID & PID were set to 0 and it's unclear how.
+        assert_ne!(vid_bytes[0], 0, "VID low byte is 0.");
         buf[6] = vid_bytes[0];
         buf[7] = vid_bytes[1];
 
         // Bytes 8 & 9 -- USB Product ID (PID)
-        // let pid_bytes = self.usb_product_id.to_le_bytes();
-        let pid_bytes = (221u16).to_le_bytes();
+        let pid_bytes = self.usb_product_id.to_le_bytes();
+        // At one point the VID & PID were set to 0 and it's unclear how.
+        assert_ne!(pid_bytes[0], 0, "PID low byte is 0.");
         buf[8] = pid_bytes[0];
         buf[9] = pid_bytes[1];
 
