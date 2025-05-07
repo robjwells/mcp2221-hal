@@ -1,14 +1,14 @@
 use bit_field::BitField;
 
+use crate::analog::{VoltageReference, VrmVoltage};
 use crate::commands::{FlashDataSubCode, McpCommand, UsbReport};
-use crate::gpio::GpSettings;
+use crate::common::DeviceString;
 use crate::error::Error;
 use crate::flash_data::{ChipSettings, FlashData};
+use crate::gpio::GpSettings;
 use crate::sram::SramSettings;
 use crate::status::Status;
-use crate::types::{
-    CancelI2cTransferResponse, DeviceString, I2cSpeed, VoltageReference, VrmVoltage,
-};
+use crate::types::{CancelI2cTransferResponse, I2cSpeed};
 
 const MICROCHIP_VENDOR_ID: u16 = 1240;
 const MCP2221A_PRODUCT_ID: u16 = 221;

@@ -1,6 +1,7 @@
 //! Configuration stored in the MCP2221's flash memory.
 
-use crate::{gpio::GpSettings, types::DeviceString};
+use crate::common::DeviceString;
+use crate::gpio::GpSettings;
 
 pub use chip_settings::ChipSettings;
 

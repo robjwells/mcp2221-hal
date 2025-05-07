@@ -1,4 +1,5 @@
-use crate::types::{ChipConfigurationSecurity, VoltageReference, VrmVoltage};
+use crate::analog::{VoltageReference, VrmVoltage};
+use crate::types::ChipConfigurationSecurity;
 
 use bit_field::BitField;
 

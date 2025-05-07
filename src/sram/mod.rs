@@ -1,5 +1,6 @@
+use crate::analog::{VoltageReference, VrmVoltage};
 use crate::gpio::GpSettings;
-use crate::types::{ChipConfigurationSecurity, VoltageReference, VrmVoltage};
+use crate::types::ChipConfigurationSecurity;
 
 #[derive(Debug)]
 pub struct SramSettings {
