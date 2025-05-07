@@ -7,7 +7,7 @@ pub use gp::GpSettings;
 
 mod chip_settings;
 pub(crate) mod common;
-mod gp;
+pub mod gp;
 
 /// Configuration stored in the MCP2221's flash memory.
 ///

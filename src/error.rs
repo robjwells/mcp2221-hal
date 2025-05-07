@@ -25,6 +25,8 @@ pub enum Error {
     ///
     /// In practice this should not occur(!). Please report any occurrences.
     MismatchedCommandCodeEcho { sent: u8, received: u8 },
+    /// Attempt to write DAC value not in the range 0..=31.
+    DacValueOutOfRange,
     /// An error occured when attempting to open the MCP2221 USB device.
     HidApi(hidapi::HidError),
 }

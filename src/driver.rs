@@ -1,9 +1,13 @@
+use bit_field::BitField;
+
 use crate::commands::{FlashDataSubCode, McpCommand, UsbReport};
 use crate::error::Error;
 use crate::flash_data::{ChipSettings, FlashData, GpSettings};
 use crate::sram::SramSettings;
 use crate::status::Status;
-use crate::types::{CancelI2cTransferResponse, DeviceString, I2cSpeed};
+use crate::types::{
+    CancelI2cTransferResponse, DeviceString, I2cSpeed, VoltageReference, VrmVoltage,
+};
 
 const MICROCHIP_VENDOR_ID: u16 = 1240;
 const MCP2221A_PRODUCT_ID: u16 = 221;
@@ -174,10 +178,74 @@ impl MCP2221 {
         Ok(SramSettings::from_buffer(&buf))
     }
 
+    /// Configure the DAC voltage reference in SRAM.
+    ///
+    /// This setting is not persisted across reset.
+    pub fn configure_dac_source(
+        &mut self,
+        source: VoltageReference,
+        vrm_voltage: VrmVoltage,
+    ) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::SetSRAMSettings);
+        let mut settings_byte = 0u8;
+        // Enable loading of new DAC reference
+        settings_byte.set_bit(7, true);
+        // DAC Vrm voltage selection.
+        settings_byte.set_bits(1..=2, vrm_voltage.into());
+        // DAC reference source (1 = Vrm; 0 = Vdd)
+        settings_byte.set_bit(0, source.into());
+        command.set_data_byte(3, settings_byte);
+
+        self.transfer(command)?;
+        Ok(())
+    }
+
+    /// Set the DAC output value in SRAM.
+    ///
+    /// This setting is not persisted across reset.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::DacValueOutOfRange`] if the value is too large (maximum 31
+    /// for the 5-bit DAC) or if an error occurred communicating with the MCP2221.
+    pub fn set_dac_output_value(&mut self, value: u8) -> Result<(), Error> {
+        if value > 31 {
+            return Err(Error::DacValueOutOfRange);
+        }
+
+        let mut command = UsbReport::new(McpCommand::SetSRAMSettings);
+        let mut dac_value_byte = 0u8;
+        // Enable loading of new DAC value
+        dac_value_byte.set_bit(7, true);
+        // 5-bit DAC output value
+        dac_value_byte.set_bits(0..=4, value);
+        command.set_data_byte(4, dac_value_byte);
+
+        self.transfer(command)?;
+        Ok(())
+    }
+
+    /// Reset the MCP2221.
+    ///
+    /// Resetting the chip causes the device to re-enumerate, so you will need
+    /// to create a new driver struct afterwards.
+    pub fn reset_chip(self) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::ResetChip);
+        command.set_data_byte(2, 0xCD);
+        command.set_data_byte(3, 0xEF);
+
+        self.transfer(command)?;
+        Ok(())
+    }
+
     /// Write the given command to the MCP and read the 64-byte response.
     fn transfer(&self, command: UsbReport) -> Result<[u8; 64], Error> {
         let out_command_byte = command.write_buffer[0];
         let written = self.inner.write(&command.report_bytes())?;
+        if out_command_byte == 0x70 {
+            // TODO: Fix this. Manual checking for reset command. This is horrible.
+            return Ok([0u8; 64]);
+        }
 
         let mut read_buffer = [0u8; 64];
         let read = self.inner.read(&mut read_buffer)?;

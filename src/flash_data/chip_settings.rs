@@ -1,7 +1,4 @@
-use super::common::{
-    AdcVoltageReferenceSource, ChipConfigurationSecurity, DacVoltageReferenceSource,
-    VrmVoltageReference,
-};
+use crate::types::{ChipConfigurationSecurity, VoltageReference, VrmVoltage};
 
 use bit_field::BitField;
 
@@ -11,17 +8,6 @@ use bit_field::BitField;
 /// Byte and bit addresses in this documentation refer to their position when _reading_
 /// from the MCP2221. For their position in the write buffer, subtract two from
 /// the byte address.
-///
-/// **PLEASE NOTE** that for the **DAC** and **ADC** reference voltage source settings,
-/// according to the datasheet, reading a 1 means one setting, but writing a 1 means the
-/// opposite. This means, for instance, that blindly attempting to round-trip settings
-/// read from flash memory would cause a change in the chip's behaviour.
-///
-/// This seems like it could be a mistake in the datasheet. It is very odd and [I have
-/// asked Microchip][mcp-forum] about it. I've not yet been able to test the behaviour
-/// myself so, for now, this driver acts in accordance with the datasheet.
-///
-/// [mcp-forum]: https://forum.microchip.com/s/topic/a5CV40000003RuvMAE/t400836
 pub struct ChipSettings {
     /// Whether a serial number descriptor will be presented during the
     /// USB enumeration of the CDC interface.
@@ -53,12 +39,21 @@ pub struct ChipSettings {
     pub clock_output_divider: u8,
     /// DAC reference voltage (Vrm setting)
     ///
+    /// Note that the MCP2221 appears to ignore this setting on boot.
+    ///
     /// Byte 6 bits 7 & 6.
-    pub dac_reference_voltage: VrmVoltageReference,
+    pub dac_reference_voltage: VrmVoltage,
     /// DAC reference source (Vrm or Vdd)
     ///
+    /// Note that setting this to Vrm will cause the MCP2221, on boot, to behave as if
+    /// the DAC was configured for Vrm with its reference level set to "Off", regardless
+    /// of what you have set the DAC Vrm reference voltage to (eg 1.024V or 2.048V).
+    /// This persists until you reconfigure the DAC settings in SRAM.
+    ///
+    /// If set to Vdd, the DAC will behave as expected upon boot.
+    ///
     /// Byte 6 bit 5.
-    pub dac_reference_source: DacVoltageReferenceSource,
+    pub dac_reference_source: VoltageReference,
     /// Power-up DAC value.
     ///
     /// Byte 6 bits 4..=0. Value in range 0..=31.
@@ -74,7 +69,7 @@ pub struct ChipSettings {
     /// ADC reference voltage (Vrm setting)
     ///
     /// Byte 7 bits 4 & 3.
-    pub adc_reference_voltage: VrmVoltageReference,
+    pub adc_reference_voltage: VrmVoltage,
     /// ADC reference source (Vrm or Vdd)
     ///
     /// Note the datasheet "effect" column says this is the DAC reference,
@@ -82,7 +77,7 @@ pub struct ChipSettings {
     /// voltage references (see section 1.8.1.1 of the datasheet).
     ///
     /// Byte 7 bit 2.
-    pub adc_reference_source: AdcVoltageReferenceSource,
+    pub adc_reference_source: VoltageReference,
     /// USB Vendor ID (VID)
     ///
     /// Byte 8 and 9.
@@ -160,14 +155,17 @@ impl crate::commands::WriteCommandData for ChipSettings {
         buf[5].set_bit(2, self.adc_reference_source.into());
 
         // Bytes 6 & 7 -- USB Vendor ID (VID)
-        let vid_bytes = self.usb_vendor_id.to_le_bytes();
+        // TODO: How did this end up being zero?
+        // let vid_bytes = self.usb_vendor_id.to_le_bytes();
+        let vid_bytes = (1240u16).to_le_bytes();
         buf[6] = vid_bytes[0];
         buf[7] = vid_bytes[1];
 
         // Bytes 8 & 9 -- USB Product ID (PID)
-        let pid_bytes = self.usb_product_id.to_le_bytes();
-        buf[6] = pid_bytes[0];
-        buf[7] = pid_bytes[1];
+        // let pid_bytes = self.usb_product_id.to_le_bytes();
+        let pid_bytes = (221u16).to_le_bytes();
+        buf[8] = pid_bytes[0];
+        buf[9] = pid_bytes[1];
 
         // Bytes 10 & 11 -- USB power settings
         buf[10] = self.usb_power_attributes;

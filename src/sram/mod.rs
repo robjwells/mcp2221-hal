@@ -1,7 +1,5 @@
-use crate::flash_data::{
-    GpSettings,
-    common::{ChipConfigurationSecurity, DacVoltageReferenceSource, VrmVoltageReference},
-};
+use crate::flash_data::GpSettings;
+use crate::types::{ChipConfigurationSecurity, VoltageReference, VrmVoltage};
 
 #[derive(Debug)]
 pub struct SramSettings {
@@ -36,11 +34,11 @@ pub struct SramSettings {
     /// DAC reference voltage (Vrm setting)
     ///
     /// Byte 6 bits 7 & 6.
-    pub dac_reference_voltage: VrmVoltageReference,
+    pub dac_reference_voltage: VrmVoltage,
     /// DAC reference source (Vrm or Vdd)
     ///
     /// Byte 6 bit 5.
-    pub dac_reference_source: DacVoltageReferenceSource,
+    pub dac_reference_source: VoltageReference,
     /// DAC value.
     ///
     /// The datasheet calls this the "power-up DAC value" but it is the current DAC
@@ -59,17 +57,11 @@ pub struct SramSettings {
     /// ADC reference voltage (Vrm setting)
     ///
     /// Byte 7 bits 4 & 3.
-    pub adc_reference_voltage: VrmVoltageReference,
+    pub adc_reference_voltage: VrmVoltage,
     /// ADC reference source (Vrm or Vdd)
     ///
-    /// **NOTE** this is inverted compared to the corresponding flash setting,
-    /// here 1 = Vrm, 0 = Vdd. I'm using a bool at the moment because the
-    /// AdcVoltageReferenceSource struct was written to the flash setting
-    /// description.
-    ///
     /// Byte 7 bit 2.
-    // pub adc_reference_source: AdcVoltageReferenceSource,
-    pub adc_reference_option: bool,
+    pub adc_reference_source: VoltageReference,
     /// USB Vendor ID (VID)
     ///
     /// Byte 8 and 9.
@@ -122,7 +114,7 @@ impl SramSettings {
             interrupt_on_negative_edge: buf[7].get_bit(6),
             interrupt_on_positive_edge: buf[7].get_bit(5),
             adc_reference_voltage: buf[7].get_bits(3..=4).into(),
-            adc_reference_option: buf[7].get_bit(2),
+            adc_reference_source: buf[7].get_bit(2).into(),
             usb_vendor_id: u16::from_le_bytes([buf[8], buf[9]]),
             usb_product_id: u16::from_le_bytes([buf[10], buf[11]]),
             usb_power_attributes: buf[12],

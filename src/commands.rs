@@ -26,6 +26,9 @@ pub(crate) enum McpCommand {
     /// See section 1.4 of the datasheet for information about the configuration
     /// process, particularly regarding the flash settings being copied into SRAM.
     GetSRAMSettings,
+    SetSRAMSettings,
+    SetGpioOutputValues,
+    ResetChip,
 }
 
 /// Read various settings stored in the flash memory.
@@ -79,6 +82,9 @@ impl UsbReport {
                 todo!("Chip factory serial number cannot be changed. Error I guess?")
             }
             GetSRAMSettings => (0x61, None),
+            SetSRAMSettings => (0x60, None),
+            SetGpioOutputValues => (0x50, None),
+            ResetChip => (0x70, Some(0xAB)),
         };
         buf[0] = command_byte;
         if let Some(sub_command_byte) = sub_command_byte {
