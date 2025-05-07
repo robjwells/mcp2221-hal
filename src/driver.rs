@@ -1,6 +1,6 @@
 use bit_field::BitField;
 
-use crate::analog::{VoltageReference, VrmVoltage};
+use crate::analog::VoltageReference;
 use crate::commands::{FlashDataSubCode, McpCommand, UsbReport};
 use crate::common::DeviceString;
 use crate::error::Error;
@@ -182,19 +182,17 @@ impl MCP2221 {
     /// Configure the DAC voltage reference in SRAM.
     ///
     /// This setting is not persisted across reset.
-    pub fn configure_dac_source(
-        &mut self,
-        source: VoltageReference,
-        vrm_voltage: VrmVoltage,
-    ) -> Result<(), Error> {
+    pub fn configure_dac_source(&mut self, source: VoltageReference) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::SetSRAMSettings);
         let mut settings_byte = 0u8;
         // Enable loading of new DAC reference
         settings_byte.set_bit(7, true);
-        // DAC Vrm voltage selection.
-        settings_byte.set_bits(1..=2, vrm_voltage.into());
+
+        let (vrm_vdd_choice, vrm_level) = source.into();
+        // DAC Vrm voltage setting.
+        settings_byte.set_bits(1..=2, vrm_level);
         // DAC reference source (1 = Vrm; 0 = Vdd)
-        settings_byte.set_bit(0, source.into());
+        settings_byte.set_bit(0, vrm_vdd_choice);
         command.set_data_byte(3, settings_byte);
 
         self.transfer(command)?;

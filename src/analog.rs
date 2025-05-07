@@ -42,24 +42,24 @@ impl From<VrmVoltage> for u8 {
 
 #[derive(Debug, Clone, Copy)]
 pub enum VoltageReference {
-    Vrm,
+    Vrm(VrmVoltage),
     Vdd,
 }
 
-impl From<bool> for VoltageReference {
-    fn from(value: bool) -> Self {
-        if value { Self::Vrm } else { Self::Vdd }
+impl From<(bool, u8)> for VoltageReference {
+    fn from((source_bit, vrm_level): (bool, u8)) -> Self {
+        match source_bit {
+            true => Self::Vrm(VrmVoltage::from(vrm_level)),
+            false => Self::Vdd,
+        }
     }
 }
 
-impl From<VoltageReference> for bool {
+impl From<VoltageReference> for (bool, u8) {
     fn from(value: VoltageReference) -> Self {
-        // Note that table 3-12 byte 5 lists 1 = VDD, 0 = VRM. This is the opposite
-        // to all other uses in the datasheet and appears to be an error, as is
-        // table 3-5 byte 7 (read flash data ADC reference).
         match value {
-            VoltageReference::Vrm => true,
-            VoltageReference::Vdd => false,
+            VoltageReference::Vrm(vrm_level) => (true, vrm_level.into()),
+            VoltageReference::Vdd => (false, VrmVoltage::Off.into()),
         }
     }
 }

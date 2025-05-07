@@ -40,6 +40,8 @@ pub struct Status {
     /// Byte 23.
     pub i2c_sda_line_high: bool,
     /// Byte 24.
+    // TODO: This shouldn't be a u8 and should have a better name.
+    // "interrupt_detected" or something.
     pub interrupt_edge_detector_state: u8,
     /// I2C Read pending value.
     ///

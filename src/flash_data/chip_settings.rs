@@ -1,4 +1,4 @@
-use crate::analog::{VoltageReference, VrmVoltage};
+use crate::analog::VoltageReference;
 use crate::security::ChipConfigurationSecurity;
 
 use bit_field::BitField;
@@ -38,23 +38,17 @@ pub struct ChipSettings {
     ///
     /// Byte 5 bits 4..=0.
     pub clock_output_divider: u8,
-    /// DAC reference voltage (Vrm setting)
-    ///
-    /// Note that the MCP2221 appears to ignore this setting on boot.
-    ///
-    /// Byte 6 bits 7 & 6.
-    pub dac_reference_voltage: VrmVoltage,
-    /// DAC reference source (Vrm or Vdd)
+    /// DAC reference source (Vrm or Vdd) and Vrm setting
     ///
     /// Note that setting this to Vrm will cause the MCP2221, on boot, to behave as if
     /// the DAC was configured for Vrm with its reference level set to "Off", regardless
-    /// of what you have set the DAC Vrm reference voltage to (eg 1.024V or 2.048V).
-    /// This persists until you reconfigure the DAC settings in SRAM.
+    /// of what you have set the DAC Vrm voltage to (eg 1.024V or 2.048V). This persists
+    /// until you reconfigure the DAC settings in SRAM.
     ///
     /// If set to Vdd, the DAC will behave as expected upon boot.
     ///
-    /// Byte 6 bit 5.
-    pub dac_reference_source: VoltageReference,
+    /// Vrm setting at byte 6 bits 6 & 7; Vrm/Vdd selection at bit 5 (1 = Vrm).
+    pub dac_reference: VoltageReference,
     /// Power-up DAC value.
     ///
     /// Byte 6 bits 4..=0. Value in range 0..=31.
@@ -67,18 +61,14 @@ pub struct ChipSettings {
     ///
     /// Byte 7 bit 5.
     pub interrupt_on_positive_edge: bool,
-    /// ADC reference voltage (Vrm setting)
-    ///
-    /// Byte 7 bits 4 & 3.
-    pub adc_reference_voltage: VrmVoltage,
-    /// ADC reference source (Vrm or Vdd)
+    /// ADC reference source (Vrm or Vdd) and Vrm setting
     ///
     /// Note the datasheet "effect" column says this is the DAC reference,
     /// but it appears to be a typo. The DAC and ADC have their own
     /// voltage references (see section 1.8.1.1 of the datasheet).
     ///
-    /// Byte 7 bit 2.
-    pub adc_reference_source: VoltageReference,
+    /// Vrm setting at bits 3 & 4; Vrm/Vdd selection at bit 2.
+    pub adc_reference: VoltageReference,
     /// USB Vendor ID (VID)
     ///
     /// Byte 8 and 9.
@@ -119,13 +109,11 @@ impl ChipSettings {
             cdc_serial_number_enumeration_enabled: buf[4].get_bit(7),
             chip_configuration_security: buf[4].get_bits(0..=1).into(),
             clock_output_divider: buf[5].get_bits(0..=4),
-            dac_reference_voltage: buf[6].get_bits(6..=7).into(),
-            dac_reference_source: buf[6].get_bit(5).into(),
+            dac_reference: (buf[6].get_bit(5), buf[6].get_bits(6..=7)).into(),
             dac_power_up_value: buf[6].get_bits(0..=4),
             interrupt_on_negative_edge: buf[7].get_bit(6),
             interrupt_on_positive_edge: buf[7].get_bit(5),
-            adc_reference_voltage: buf[7].get_bits(3..=4).into(),
-            adc_reference_source: buf[7].get_bit(2).into(),
+            adc_reference: (buf[7].get_bit(2), buf[7].get_bits(3..=4)).into(),
             usb_vendor_id: u16::from_le_bytes([buf[8], buf[9]]),
             usb_product_id: u16::from_le_bytes([buf[10], buf[11]]),
             usb_power_attributes: buf[12],
@@ -143,15 +131,18 @@ impl ChipSettings {
         buf[3].set_bits(0..=4, self.clock_output_divider);
 
         // Byte 4 (write) / byte 6 (read) -- DAC settings
-        buf[4].set_bits(6..=7, self.dac_reference_voltage.into());
-        buf[4].set_bit(5, self.dac_reference_source.into());
+        let (dac_vrm_vdd, dac_vrm_level) = self.dac_reference.into();
+        buf[4].set_bits(6..=7, dac_vrm_level);
+        buf[4].set_bit(5, dac_vrm_vdd);
         buf[4].set_bits(0..=4, self.dac_power_up_value);
 
         // Byte 5 (write) / byte 6 (read) -- Interrupts and ADC
         buf[5].set_bit(6, self.interrupt_on_negative_edge);
         buf[5].set_bit(5, self.interrupt_on_positive_edge);
-        buf[5].set_bits(3..=4, self.adc_reference_voltage.into());
-        buf[5].set_bit(2, self.adc_reference_source.into());
+
+        let (adc_vrm_vdd, adc_vrm_level) = self.adc_reference.into();
+        buf[5].set_bits(3..=4, adc_vrm_level);
+        buf[5].set_bit(2, adc_vrm_vdd);
 
         // Bytes 6 & 7 -- USB Vendor ID (VID)
         let vid_bytes = self.usb_vendor_id.to_le_bytes();

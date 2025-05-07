@@ -32,14 +32,10 @@ pub struct SramSettings {
     ///
     /// Byte 5 bits 4..=0.
     pub clock_output_divider: u8,
-    /// DAC reference voltage (Vrm setting)
+    /// DAC reference source (Vrm or Vdd) and Vrm setting
     ///
-    /// Byte 6 bits 7 & 6.
-    pub dac_reference_voltage: VrmVoltage,
-    /// DAC reference source (Vrm or Vdd)
-    ///
-    /// Byte 6 bit 5.
-    pub dac_reference_source: VoltageReference,
+    /// Vrm setting at byte 6, bits 6 & 7. Vrm/Vdd selection at bit 5.
+    pub dac_reference: VoltageReference,
     /// DAC value.
     ///
     /// The datasheet calls this the "power-up DAC value" but it is the current DAC
@@ -55,14 +51,10 @@ pub struct SramSettings {
     ///
     /// Byte 7 bit 5.
     pub interrupt_on_positive_edge: bool,
-    /// ADC reference voltage (Vrm setting)
+    /// ADC reference source (Vrm or Vdd) and Vrm setting
     ///
-    /// Byte 7 bits 4 & 3.
-    pub adc_reference_voltage: VrmVoltage,
-    /// ADC reference source (Vrm or Vdd)
-    ///
-    /// Byte 7 bit 2.
-    pub adc_reference_source: VoltageReference,
+    /// Vrm setting at byte 7 bits 3 & 4, Vrm/Vdd selection at bit 2.
+    pub adc_reference: VoltageReference,
     /// USB Vendor ID (VID)
     ///
     /// Byte 8 and 9.
@@ -98,8 +90,7 @@ pub struct SramSettings {
     /// GP pin settings.
     ///
     /// Bytes 22..=25.
-    // TODO: GpSettings references the "power-up" settings in its field names.
-    gp_settings: GpSettings,
+    pub gp_settings: GpSettings,
 }
 
 impl SramSettings {
@@ -109,13 +100,11 @@ impl SramSettings {
             cdc_serial_number_enumeration_enabled: buf[4].get_bit(7),
             chip_configuration_security: buf[4].get_bits(0..=1).into(),
             clock_output_divider: buf[5].get_bits(0..=4),
-            dac_reference_voltage: buf[6].get_bits(6..=7).into(),
-            dac_reference_source: buf[6].get_bit(5).into(),
+            dac_reference: (buf[6].get_bit(5), buf[6].get_bits(6..=7)).into(),
             dac_value: buf[6].get_bits(0..=4),
             interrupt_on_negative_edge: buf[7].get_bit(6),
             interrupt_on_positive_edge: buf[7].get_bit(5),
-            adc_reference_voltage: buf[7].get_bits(3..=4).into(),
-            adc_reference_source: buf[7].get_bit(2).into(),
+            adc_reference: (buf[7].get_bit(2), buf[7].get_bits(3..=4)).into(),
             usb_vendor_id: u16::from_le_bytes([buf[8], buf[9]]),
             usb_product_id: u16::from_le_bytes([buf[10], buf[11]]),
             usb_power_attributes: buf[12],
