@@ -5,6 +5,7 @@ mod commands;
 mod driver;
 pub mod error;
 pub mod flash_data;
+pub mod sram;
 pub mod status;
 pub mod types;
 

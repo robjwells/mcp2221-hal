@@ -2,6 +2,14 @@ use crate::types::{GpioDirection, LogicLevel};
 
 use bit_field::BitField;
 
+/// The source of the GP settings determines their position in the read buffer.
+enum GpSettingsSource {
+    /// GP settings at bytes 4..=7
+    Flash,
+    /// GP settings at bytes 22..=25
+    Sram,
+}
+
 /// General-purpose pins settings.
 ///
 /// Each of the four GP pins supports GPIO operation, one exclusive ("dedicated")
@@ -22,30 +30,43 @@ pub struct GpSettings {
 }
 
 impl GpSettings {
-    pub(super) fn from_buffer(buf: &[u8; 64]) -> Self {
+    pub fn from_flash_buffer(buf: &[u8; 64]) -> Self {
+        GpSettings::from_buffer(GpSettingsSource::Flash, buf)
+    }
+
+    pub fn from_sram_buffer(buf: &[u8; 64]) -> Self {
+        GpSettings::from_buffer(GpSettingsSource::Sram, buf)
+    }
+
+    fn from_buffer(source: GpSettingsSource, buf: &[u8; 64]) -> Self {
+        let start_byte = match source {
+            GpSettingsSource::Flash => 4,
+            GpSettingsSource::Sram => 22,
+        };
+
         Self {
             gp0: (
-                buf[4].get_bit(4).into(),
-                buf[4].get_bit(3).into(),
-                buf[4].get_bits(0..=2).into(),
+                buf[start_byte].get_bit(4).into(),
+                buf[start_byte].get_bit(3).into(),
+                buf[start_byte].get_bits(0..=2).into(),
             )
                 .into(),
             gp1: (
-                buf[5].get_bit(4).into(),
-                buf[5].get_bit(3).into(),
-                buf[5].get_bits(0..=2).into(),
+                buf[start_byte + 1].get_bit(4).into(),
+                buf[start_byte + 1].get_bit(3).into(),
+                buf[start_byte + 1].get_bits(0..=2).into(),
             )
                 .into(),
             gp2: (
-                buf[6].get_bit(4).into(),
-                buf[6].get_bit(3).into(),
-                buf[6].get_bits(0..=2).into(),
+                buf[start_byte + 2].get_bit(4).into(),
+                buf[start_byte + 2].get_bit(3).into(),
+                buf[start_byte + 2].get_bits(0..=2).into(),
             )
                 .into(),
             gp3: (
-                buf[7].get_bit(4).into(),
-                buf[7].get_bit(3).into(),
-                buf[7].get_bits(0..=2).into(),
+                buf[start_byte + 3].get_bit(4).into(),
+                buf[start_byte + 3].get_bit(3).into(),
+                buf[start_byte + 3].get_bits(0..=2).into(),
             )
                 .into(),
         }

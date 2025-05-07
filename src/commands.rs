@@ -21,6 +21,11 @@ pub(crate) enum McpCommand {
     ///
     /// See section 3.1.3 of the datasheet.
     WriteFlashData(FlashDataSubCode),
+    /// Retrieve the run-time chip and GP pin settings.
+    ///
+    /// See section 1.4 of the datasheet for information about the configuration
+    /// process, particularly regarding the flash settings being copied into SRAM.
+    GetSRAMSettings,
 }
 
 /// Read various settings stored in the flash memory.
@@ -73,6 +78,7 @@ impl UsbReport {
             WriteFlashData(ChipFactorySerialNumber) => {
                 todo!("Chip factory serial number cannot be changed. Error I guess?")
             }
+            GetSRAMSettings => (0x61, None),
         };
         buf[0] = command_byte;
         if let Some(sub_command_byte) = sub_command_byte {

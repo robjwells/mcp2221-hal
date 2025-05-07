@@ -6,7 +6,7 @@ pub use chip_settings::ChipSettings;
 pub use gp::GpSettings;
 
 mod chip_settings;
-mod common;
+pub(crate) mod common;
 mod gp;
 
 /// Configuration stored in the MCP2221's flash memory.
@@ -41,7 +41,7 @@ impl FlashData {
     ) -> Self {
         Self {
             chip_settings: ChipSettings::from_buffer(chip_settings),
-            gp_settings: GpSettings::from_buffer(gp_settings),
+            gp_settings: GpSettings::from_flash_buffer(gp_settings),
             usb_manufacturer_descriptor: DeviceString::from_device_report(usb_mfr),
             usb_product_descriptor: DeviceString::from_device_report(usb_product),
             usb_serial_number_descriptor: DeviceString::from_device_report(usb_serial),

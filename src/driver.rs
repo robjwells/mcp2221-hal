@@ -1,6 +1,7 @@
 use crate::commands::{FlashDataSubCode, McpCommand, UsbReport};
 use crate::error::Error;
 use crate::flash_data::{ChipSettings, FlashData, GpSettings};
+use crate::sram::SramSettings;
 use crate::status::Status;
 use crate::types::{CancelI2cTransferResponse, DeviceString, I2cSpeed};
 
@@ -165,6 +166,12 @@ impl MCP2221 {
         command.update(s);
         self.transfer(command)?;
         Ok(())
+    }
+
+    pub fn get_sram_settings(&mut self) -> Result<SramSettings, Error> {
+        let command = UsbReport::new(McpCommand::GetSRAMSettings);
+        let buf = self.transfer(command)?;
+        Ok(SramSettings::from_buffer(&buf))
     }
 
     /// Write the given command to the MCP and read the 64-byte response.
