@@ -32,13 +32,24 @@ pub struct ChipSettings {
     ///
     /// Byte 4 bits 1 and 0.
     pub chip_configuration_security: ChipConfigurationSecurity,
-    /// Clock Output divider value.
+    /// Clock Output settings.
     ///
-    /// If the GP pin (exposing the clock output) is enabled for clock
-    /// output operation, the divider value will be used on the 48 MHz USB
-    /// internal clock and its divided output will be sent to this pin.
+    /// If GP1 is set to clock output, this value determines its duty cycle
+    /// and frequency. See register 1-2 in the datasheet for the meaning of
+    /// this value.
     ///
-    /// Byte 5 bits 4..=0. Value in range 0..=31.
+    /// Note that the datasheet's description of this setting in the USB HID
+    /// command section appears to be incorrect. The internal clock is 12 MHz
+    /// (not 48) and this value is not just a divider but also a duty-cycle
+    /// setting.
+    ///
+    /// Datasheet description for reference (table 3-5):
+    ///
+    /// > If the GP pin (exposing the clock output) is enabled for clock
+    /// > output operation, the divider value will be used on the 48 MHz USB
+    /// > internal clock and its divided output will be sent to this pin.
+    ///
+    /// Byte 5 bits 4..=0.
     pub clock_output_divider: u8,
     /// DAC reference voltage (Vrm setting)
     ///
