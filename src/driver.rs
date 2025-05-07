@@ -1,8 +1,9 @@
 use bit_field::BitField;
 
 use crate::commands::{FlashDataSubCode, McpCommand, UsbReport};
+use crate::gpio::GpSettings;
 use crate::error::Error;
-use crate::flash_data::{ChipSettings, FlashData, GpSettings};
+use crate::flash_data::{ChipSettings, FlashData};
 use crate::sram::SramSettings;
 use crate::status::Status;
 use crate::types::{
@@ -23,13 +24,13 @@ impl MCP2221 {
     ///
     /// The default VID is 1240 (0x4D8) and PID 221 (0xDD).
     pub fn open() -> Result<Self, Error> {
-        MCP2221::open_with_vid_pid(MICROCHIP_VENDOR_ID, MCP2221A_PRODUCT_ID)
+        MCP2221::open_with_vid_and_pid(MICROCHIP_VENDOR_ID, MCP2221A_PRODUCT_ID)
     }
 
     /// Open the first USB device found with the given venor and product ID.
     ///
     /// Use this function if you have changed the USB VID or PID of your MCP2221.
-    pub fn open_with_vid_pid(vendor_id: u16, product_id: u16) -> Result<Self, Error> {
+    pub fn open_with_vid_and_pid(vendor_id: u16, product_id: u16) -> Result<Self, Error> {
         let hidapi = hidapi::HidApi::new()?;
         let device = hidapi.open(vendor_id, product_id)?;
         Ok(Self { inner: device })
@@ -135,9 +136,9 @@ impl MCP2221 {
     }
 
     /// Update the GP pin settings stored in flash memory.
-    pub fn write_gp_settings_to_flash(&mut self, gps: GpSettings) -> Result<(), Error> {
+    pub fn write_gp_settings_to_flash(&mut self, gp: GpSettings) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::GPSettings));
-        command.update(&gps);
+        command.update(&gp);
         self.transfer(command)?;
         Ok(())
     }

@@ -1,13 +1,10 @@
 //! Configuration stored in the MCP2221's flash memory.
 
-use crate::types::DeviceString;
+use crate::{gpio::GpSettings, types::DeviceString};
 
 pub use chip_settings::ChipSettings;
-pub use gp::GpSettings;
 
 mod chip_settings;
-pub(crate) mod common;
-pub mod gp;
 
 /// Configuration stored in the MCP2221's flash memory.
 ///

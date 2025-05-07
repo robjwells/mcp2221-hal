@@ -1,4 +1,4 @@
-use crate::flash_data::GpSettings;
+use crate::gpio::GpSettings;
 use crate::types::{ChipConfigurationSecurity, VoltageReference, VrmVoltage};
 
 #[derive(Debug)]

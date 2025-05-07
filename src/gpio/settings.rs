@@ -1,6 +1,6 @@
-use crate::types::{GpioDirection, LogicLevel};
-
 use bit_field::BitField;
+
+use super::{GpioDirection, LogicLevel};
 
 /// The source of the GP settings determines their position in the read buffer.
 enum GpSettingsSource {
@@ -74,26 +74,27 @@ impl GpSettings {
 }
 
 impl crate::commands::WriteCommandData for GpSettings {
+    // TODO: This is only valid for the flash settings.
     fn apply_to_buffer(&self, buf: &mut [u8; 64]) {
         // Byte 2 -- GP0
-        buf[2].set_bit(4, self.gp0.power_up_value.into());
-        buf[2].set_bit(3, self.gp0.power_up_direction.into());
-        buf[2].set_bits(0..=2, self.gp0.power_up_designation.into());
+        buf[2].set_bit(4, self.gp0.value.into());
+        buf[2].set_bit(3, self.gp0.direction.into());
+        buf[2].set_bits(0..=2, self.gp0.designation.into());
 
         // Byte 3 -- GP1
-        buf[3].set_bit(4, self.gp1.power_up_value.into());
-        buf[3].set_bit(3, self.gp1.power_up_direction.into());
-        buf[3].set_bits(0..=2, self.gp1.power_up_designation.into());
+        buf[3].set_bit(4, self.gp1.value.into());
+        buf[3].set_bit(3, self.gp1.direction.into());
+        buf[3].set_bits(0..=2, self.gp1.designation.into());
 
         // Byte 4 -- GP2
-        buf[4].set_bit(4, self.gp2.power_up_value.into());
-        buf[4].set_bit(3, self.gp2.power_up_direction.into());
-        buf[4].set_bits(0..=2, self.gp2.power_up_designation.into());
+        buf[4].set_bit(4, self.gp2.value.into());
+        buf[4].set_bit(3, self.gp2.direction.into());
+        buf[4].set_bits(0..=2, self.gp2.designation.into());
 
         // Byte 5 -- GP3
-        buf[5].set_bit(4, self.gp3.power_up_value.into());
-        buf[5].set_bit(3, self.gp3.power_up_direction.into());
-        buf[5].set_bits(0..=2, self.gp3.power_up_designation.into());
+        buf[5].set_bit(4, self.gp3.value.into());
+        buf[5].set_bit(3, self.gp3.direction.into());
+        buf[5].set_bits(0..=2, self.gp3.designation.into());
     }
 }
 
@@ -319,19 +320,19 @@ pub struct Gp0Settings {
     /// the GP0 pin at power-up/reset.
     ///
     /// Byte 4 bit 4.
-    pub power_up_value: LogicLevel,
+    pub value: LogicLevel,
     /// GP0 power-up direction.
     ///
     /// Works only when GP0 is set for GPIO operation.
     ///
     /// Byte 4 bit 3.
-    pub power_up_direction: GpioDirection,
+    pub direction: GpioDirection,
     /// GP0 designation.
     ///
     /// Setting of the pin's function.
     ///
     /// Byte 4 bits 0..=2.
-    pub power_up_designation: Gp0Designation,
+    pub designation: Gp0Designation,
 }
 
 /// GP pin 1 configuration.
@@ -343,19 +344,19 @@ pub struct Gp1Settings {
     /// the GP1 pin at power-up/reset.
     ///
     /// Byte 5 bit 4.
-    pub power_up_value: LogicLevel,
+    pub value: LogicLevel,
     /// GP1 power-up direction.
     ///
     /// Works only when GP1 is set for GPIO operation.
     ///
     /// Byte 5 bit 3.
-    pub power_up_direction: GpioDirection,
+    pub direction: GpioDirection,
     /// GP1 designation.
     ///
     /// Setting of the pin's function.
     ///
     /// Byte 5 bits 0..=2.
-    pub power_up_designation: Gp1Designation,
+    pub designation: Gp1Designation,
 }
 
 /// GP pin 2 configuration.
@@ -367,19 +368,19 @@ pub struct Gp2Settings {
     /// the GP2 pin at power-up/reset.
     ///
     /// Byte 6 bit 4.
-    pub power_up_value: LogicLevel,
+    pub value: LogicLevel,
     /// GP2 power-up direction.
     ///
     /// Works only when GP2 is set for GPIO operation.
     ///
     /// Byte 6 bit 3.
-    pub power_up_direction: GpioDirection,
+    pub direction: GpioDirection,
     /// GP2 designation.
     ///
     /// Setting of the pin's function.
     ///
     /// Byte 6 bits 0..=2.
-    pub power_up_designation: Gp2Designation,
+    pub designation: Gp2Designation,
 }
 
 /// GP pin 3 configuration.
@@ -391,81 +392,57 @@ pub struct Gp3Settings {
     /// the GP3 pin at power-up/reset.
     ///
     /// Byte 7 bit 4.
-    pub power_up_value: LogicLevel,
+    pub value: LogicLevel,
     /// GP3 power-up direction.
     ///
     /// Works only when GP3 is set for GPIO operation.
     ///
     /// Byte 7 bit 3.
-    pub power_up_direction: GpioDirection,
+    pub direction: GpioDirection,
     /// GP3 designation.
     ///
     /// Setting of the pin's function.
     ///
     /// Byte 7 bits 0..=2.
-    pub power_up_designation: Gp3Designation,
+    pub designation: Gp3Designation,
 }
 
 impl From<(LogicLevel, GpioDirection, Gp0Designation)> for Gp0Settings {
-    fn from(
-        (power_up_value, power_up_direction, power_up_designation): (
-            LogicLevel,
-            GpioDirection,
-            Gp0Designation,
-        ),
-    ) -> Self {
+    fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp0Designation)) -> Self {
         Self {
-            power_up_value,
-            power_up_direction,
-            power_up_designation,
+            value,
+            direction,
+            designation,
         }
     }
 }
 
 impl From<(LogicLevel, GpioDirection, Gp1Designation)> for Gp1Settings {
-    fn from(
-        (power_up_value, power_up_direction, power_up_designation): (
-            LogicLevel,
-            GpioDirection,
-            Gp1Designation,
-        ),
-    ) -> Self {
+    fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp1Designation)) -> Self {
         Self {
-            power_up_value,
-            power_up_direction,
-            power_up_designation,
+            value,
+            direction,
+            designation,
         }
     }
 }
 
 impl From<(LogicLevel, GpioDirection, Gp2Designation)> for Gp2Settings {
-    fn from(
-        (power_up_value, power_up_direction, power_up_designation): (
-            LogicLevel,
-            GpioDirection,
-            Gp2Designation,
-        ),
-    ) -> Self {
+    fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp2Designation)) -> Self {
         Self {
-            power_up_value,
-            power_up_direction,
-            power_up_designation,
+            value,
+            direction,
+            designation,
         }
     }
 }
 
 impl From<(LogicLevel, GpioDirection, Gp3Designation)> for Gp3Settings {
-    fn from(
-        (power_up_value, power_up_direction, power_up_designation): (
-            LogicLevel,
-            GpioDirection,
-            Gp3Designation,
-        ),
-    ) -> Self {
+    fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp3Designation)) -> Self {
         Self {
-            power_up_value,
-            power_up_direction,
-            power_up_designation,
+            value,
+            direction,
+            designation,
         }
     }
 }
