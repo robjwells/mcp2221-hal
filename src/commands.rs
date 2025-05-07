@@ -9,15 +9,15 @@ pub(crate) enum McpCommand {
     /// See section 3.1.1.
     StatusSetParameters,
     /// Read various important data structures and strings stored in the flash
-    /// memory on the MCP2221A.
+    /// memory on the MCP2221.
     ///
     /// See section 3.1.2 of the datasheet.
     ///
     /// Many of these settings determine start-up values that can be changed
-    /// at runtime (the MCP2221A copies them into SRAM). See section 1.4.3.
+    /// at runtime (the MCP2221 copies them into SRAM). See section 1.4.3.
     ReadFlashData(FlashDataSubCode),
     /// Write various important data structures and strings into the flash memory
-    /// of the MCP2221A.
+    /// of the MCP2221.
     ///
     /// See section 3.1.3 of the datasheet.
     WriteFlashData(FlashDataSubCode),

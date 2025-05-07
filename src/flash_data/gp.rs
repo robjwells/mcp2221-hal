@@ -80,7 +80,7 @@ impl crate::commands::WriteCommandData for GpSettings {
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy)]
 pub enum Gp0Designation {
-    /// Indicates UART traffic received by the MCP2221A.
+    /// Indicates UART traffic received by the MCP2221.
     ///
     /// This pin will pulse low for a few milliseconds to provide a visual indication
     /// of the UART Rx traffic. See section 1.7.1.4.
@@ -127,7 +127,7 @@ impl From<Gp0Designation> for u8 {
 pub enum Gp1Designation {
     /// Digital clock output.
     ///
-    /// The nominal frequency is 12MHz (the MCP2221A's internal clock speed), ±0.25%,
+    /// The nominal frequency is 12MHz (the MCP2221's internal clock speed), ±0.25%,
     /// but other frequencies and duty cycles are possible. See register 1-2 for the
     /// values for these, as well as the flash and SRAM settings command sections.
     /// See section 1.9.
@@ -137,7 +137,7 @@ pub enum Gp1Designation {
     /// This mode makes GP1 sensitive to positive and negative edges. Interrupts can
     /// be triggered on either or both. See section 1.10.
     InterruptDetection,
-    /// Indicates UART traffic sent by the MCP2221A.
+    /// Indicates UART traffic sent by the MCP2221.
     ///
     /// This pin will pulse low for a few milliseconds to provide a visual indication
     /// of the UART Tx traffic. See section 1.7.1.5.

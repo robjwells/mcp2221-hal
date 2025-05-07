@@ -43,14 +43,14 @@ pub struct Status {
     pub interrupt_edge_detector_state: u8,
     /// I2C Read pending value.
     ///
-    /// Byte 25. This field is used by the USB host to know if the MCP2221A
+    /// Byte 25. This field is used by the USB host to know if the MCP2221
     /// still has to read from a slave device. Value 0, 1 or 2.
     pub i2c_read_pending_value: u8,
-    /// MCP2221A hardware revision (major, minor).
+    /// MCP2221 hardware revision (major, minor).
     ///
     /// Bytes 46 & 47.
     pub hardware_revision: (char, char),
-    /// MCP2221A firmware revision (major, minor)
+    /// MCP2221 firmware revision (major, minor)
     ///
     /// Bytes 48 & 49.
     pub firmware_revision: (char, char),

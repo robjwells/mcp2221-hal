@@ -82,7 +82,7 @@ pub struct ChipSettings {
     pub usb_product_id: u16,
     /// USB power attributes.
     ///
-    /// This value will be used by the MCP2221A's USB Configuration
+    /// This value will be used by the MCP2221's USB Configuration
     /// Descriptor (power attributes value) during the USB enumeration.
     ///
     /// Please consult the USB 2.0 specification on the correct values
@@ -98,7 +98,7 @@ pub struct ChipSettings {
     /// Note the datasheet says the actual value is the byte value multiplied by 2.
     /// The value in this struct has already been multiplied by 2 for convenience.
     ///
-    /// As the halved value is stored as a single byte by the MCP2221A, the maximum
+    /// As the halved value is stored as a single byte by the MCP2221, the maximum
     /// possible value is 510 mA (stored as `255u8` on the chip);
     ///
     /// Byte 13.

@@ -9,7 +9,7 @@ mod chip_settings;
 mod common;
 mod gp;
 
-/// Configuration stored in the MCP2221A's flash memory.
+/// Configuration stored in the MCP2221's flash memory.
 ///
 /// Changes to these settings take effect on power-up.
 #[derive(Debug)]
@@ -26,7 +26,7 @@ pub struct FlashData {
     pub usb_serial_number_descriptor: DeviceString,
     /// Factory-set serial number.
     ///
-    /// Always "01234567" for the MCP2221A. This cannot be changed.
+    /// Always "01234567" for the MCP2221. This cannot be changed.
     pub chip_factory_serial_number: String,
 }
 

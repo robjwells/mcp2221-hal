@@ -118,7 +118,7 @@ impl DeviceString {
 }
 
 impl crate::commands::WriteCommandData for DeviceString {
-    /// Write the utf-16 string to the buffer to be written to the MCP2221A.
+    /// Write the utf-16 string to the buffer to be written to the MCP2221.
     ///
     /// See table 3-14 in the datasheet. This function writes the appropriate
     /// count to byte 2, and the 0x03 constant to byte 3.
