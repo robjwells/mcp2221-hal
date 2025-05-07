@@ -71,11 +71,8 @@ impl GpSettings {
                 .into(),
         }
     }
-}
 
-impl crate::commands::WriteCommandData for GpSettings {
-    // TODO: This is only valid for the flash settings.
-    fn apply_to_buffer(&self, buf: &mut [u8; 64]) {
+    pub(crate) fn apply_to_flash_buffer(&self, buf: &mut [u8; 64]) {
         // Byte 2 -- GP0
         buf[2].set_bit(4, self.gp0.value.into());
         buf[2].set_bit(3, self.gp0.direction.into());

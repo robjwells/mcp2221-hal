@@ -1,7 +1,3 @@
-pub(crate) trait WriteCommandData {
-    fn apply_to_buffer(&self, buf: &mut [u8; 64]);
-}
-
 pub(crate) enum McpCommand {
     /// Poll for the status of the device, cancel an I2C transfer,
     /// or set the I2C bus speed.
@@ -91,11 +87,6 @@ impl UsbReport {
             buf[1] = sub_command_byte;
         }
         Self { write_buffer: buf }
-    }
-
-    /// Write a type's data to the outgoing USB report.
-    pub(crate) fn update(&mut self, d: &impl WriteCommandData) {
-        d.apply_to_buffer(&mut self.write_buffer);
     }
 
     /// Write a single data byte in the outgoing USB report.

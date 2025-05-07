@@ -130,7 +130,7 @@ impl MCP2221 {
     pub fn write_chip_settings_to_flash(&mut self, cs: ChipSettings) -> Result<(), Error> {
         let mut command =
             UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::ChipSettings));
-        command.update(&cs);
+        cs.apply_to_flash_buffer(&mut command.write_buffer);
         self.transfer(command)?;
         Ok(())
     }
@@ -138,7 +138,7 @@ impl MCP2221 {
     /// Update the GP pin settings stored in flash memory.
     pub fn write_gp_settings_to_flash(&mut self, gp: GpSettings) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::GPSettings));
-        command.update(&gp);
+        gp.apply_to_flash_buffer(&mut command.write_buffer);
         self.transfer(command)?;
         Ok(())
     }
@@ -148,7 +148,7 @@ impl MCP2221 {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(
             FlashDataSubCode::UsbManufacturerDescriptor,
         ));
-        command.update(s);
+        s.apply_to_flash_buffer(&mut command.write_buffer);
         self.transfer(command)?;
         Ok(())
     }
@@ -158,7 +158,7 @@ impl MCP2221 {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(
             FlashDataSubCode::UsbProductDescriptor,
         ));
-        command.update(s);
+        s.apply_to_flash_buffer(&mut command.write_buffer);
         self.transfer(command)?;
         Ok(())
     }
@@ -168,7 +168,7 @@ impl MCP2221 {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(
             FlashDataSubCode::UsbSerialNumberDescriptor,
         ));
-        command.update(s);
+        s.apply_to_flash_buffer(&mut command.write_buffer);
         self.transfer(command)?;
         Ok(())
     }
