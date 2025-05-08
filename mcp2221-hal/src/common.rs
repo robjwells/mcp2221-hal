@@ -15,6 +15,14 @@ impl TryFrom<String> for DeviceString {
     }
 }
 
+impl std::str::FromStr for DeviceString {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s.to_owned())
+    }
+}
+
 impl DeviceString {
     pub(crate) fn from_device_report(buf: &[u8; 64]) -> Self {
         assert_eq!(buf[3], 0x03, "String response sanity check.");

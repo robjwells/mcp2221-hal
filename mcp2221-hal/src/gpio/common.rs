@@ -1,4 +1,3 @@
-
 #[derive(Debug, Clone, Copy)]
 /// GPIO pin level setting.
 pub enum LogicLevel {
@@ -42,4 +41,3 @@ impl From<GpioDirection> for bool {
         }
     }
 }
-

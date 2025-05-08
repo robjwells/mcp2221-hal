@@ -9,8 +9,8 @@ pub mod error;
 pub mod flash_data;
 pub mod gpio;
 pub mod i2c;
+pub mod security;
 pub mod sram;
 pub mod status;
-pub mod security;
 
 pub use driver::MCP2221;
