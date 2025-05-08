@@ -1,4 +1,5 @@
 use crate::analog::VoltageReference;
+use crate::common::ClockSetting;
 use crate::security::ChipConfigurationSecurity;
 
 use bit_field::BitField;
@@ -27,8 +28,8 @@ pub struct ChipSettings {
     ///
     /// Note that the datasheet's description of this setting in the USB HID
     /// command section appears to be incorrect. The internal clock is 12 MHz
-    /// (not 48) and this value is not just a divider but also a duty-cycle
-    /// setting.
+    /// (not 48), and the "divider" value is better thought of selecting a duty
+    /// cycle and a frequency.
     ///
     /// Datasheet description for reference (table 3-5):
     ///
@@ -36,8 +37,10 @@ pub struct ChipSettings {
     /// > output operation, the divider value will be used on the 48 MHz USB
     /// > internal clock and its divided output will be sent to this pin.
     ///
+    /// Bits 3 & 4 are the duty cycle, bits 0..=2 are the frequency.
+    ///
     /// Byte 5 bits 4..=0.
-    pub clock_output_divider: u8,
+    pub clock_output: ClockSetting,
     /// DAC reference source (Vrm or Vdd) and Vrm setting
     ///
     /// Note that setting this to Vrm will cause the MCP2221, on boot, to behave as if
@@ -108,7 +111,7 @@ impl ChipSettings {
         Self {
             cdc_serial_number_enumeration_enabled: buf[4].get_bit(7),
             chip_configuration_security: buf[4].get_bits(0..=1).into(),
-            clock_output_divider: buf[5].get_bits(0..=4),
+            clock_output: buf[5].get_bits(0..=4).into(),
             dac_reference: (buf[6].get_bit(5), buf[6].get_bits(6..=7)).into(),
             dac_power_up_value: buf[6].get_bits(0..=4),
             interrupt_on_negative_edge: buf[7].get_bit(6),
@@ -128,7 +131,7 @@ impl ChipSettings {
         buf[2].set_bits(0..=1, ChipConfigurationSecurity::Unsecured.into());
 
         // Byte 3 (write) / byte 5 (read)
-        buf[3].set_bits(0..=4, self.clock_output_divider);
+        buf[3].set_bits(0..=4, self.clock_output.into());
 
         // Byte 4 (write) / byte 6 (read) -- DAC settings
         let (dac_vrm_vdd, dac_vrm_level) = self.dac_reference.into();

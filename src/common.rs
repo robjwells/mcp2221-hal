@@ -1,3 +1,5 @@
+use bit_field::BitField;
+
 #[derive(Debug, Clone)]
 pub struct DeviceString(String);
 
@@ -61,5 +63,145 @@ impl DeviceString {
 impl std::fmt::Display for DeviceString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+/// Clock output duty cycle.
+///
+/// Each case is the percentage of one clock period that is a high logic level.
+#[derive(Debug, Default, Clone, Copy)]
+pub enum DutyCycle {
+    // 75% duty cycle.
+    P75,
+    // 50% duty cycle (factory default).
+    #[default]
+    P50,
+    // 25% duty cycle.
+    P25,
+    // 0% duty cycle.
+    P0,
+}
+
+impl From<u8> for DutyCycle {
+    fn from(value: u8) -> Self {
+        assert!(value <= 0b11, "Invalid bit pattern for duty cycle");
+        match value {
+            0b11 => Self::P75,
+            0b10 => Self::P50,
+            0b01 => Self::P25,
+            0b00 => Self::P0,
+            _ => unreachable!("Precondition assert covers > 3."),
+        }
+    }
+}
+
+impl From<DutyCycle> for u8 {
+    fn from(value: DutyCycle) -> u8 {
+        match value {
+            DutyCycle::P75 => 0b11,
+            DutyCycle::P50 => 0b10,
+            DutyCycle::P25 => 0b01,
+            DutyCycle::P0 => 0b00,
+        }
+    }
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Default, Clone, Copy)]
+/// Clock output frequency.
+// I am not wild about the names!
+pub enum ClockFrequency {
+    /// 375 kHz clock output.
+    kHz375,
+    /// 750 kHz clock output.
+    kHz750,
+    /// 1.5 MHz clock output.
+    MHz1_5,
+    /// 3 MHz clock output.
+    MHz3,
+    /// 6 MHz clock output.
+    MHz6,
+    /// 12 MHz clock output (factory default).
+    #[default]
+    MHz12,
+    /// 24 MHz clock output.
+    MHz24,
+}
+
+impl From<u8> for ClockFrequency {
+    /// Create a `ClockFrequency` from the 3 low bits of the raw "divider".
+    ///
+    /// # Panics
+    ///
+    /// Frequency pattern `0b000` is marked "Reserved" in the datasheet and attempting
+    /// to create a `ClockFrequency` with this value will fail an assertion.
+    ///
+    /// Any value greater than `0b111` will fail an assertion.
+    fn from(value: u8) -> Self {
+        assert!(value <= 0b111, "Invalid bit pattern for clock speed.");
+        assert_ne!(value, 0, "Use of Reserved clock speed bit pattern.");
+        match value {
+            0b111 => Self::kHz375,
+            0b110 => Self::kHz750,
+            0b101 => Self::MHz1_5,
+            0b100 => Self::MHz3,
+            0b011 => Self::MHz6,
+            0b010 => Self::MHz12,
+            0b001 => Self::MHz24,
+            _ => unreachable!("Precondition asserts cover 0 and > 7."),
+        }
+    }
+}
+
+impl From<ClockFrequency> for u8 {
+    fn from(value: ClockFrequency) -> Self {
+        match value {
+            ClockFrequency::kHz375 => 0b111,
+            ClockFrequency::kHz750 => 0b110,
+            ClockFrequency::MHz1_5 => 0b101,
+            ClockFrequency::MHz3 => 0b100,
+            ClockFrequency::MHz6 => 0b011,
+            ClockFrequency::MHz12 => 0b010,
+            ClockFrequency::MHz24 => 0b001,
+        }
+    }
+}
+
+/// Clock output duty cycle and frequency.
+///
+/// See datasheet register 1-2 for details. In the USB command section the datasheet
+/// is worded as if this is just a 5-bit divider, but really it is a 2-bit duty cycle
+/// selection, and a 3-bit frequency selection.
+#[derive(Debug, Default, Clone, Copy)]
+pub struct ClockSetting(pub DutyCycle, pub ClockFrequency);
+
+impl From<u8> for ClockSetting {
+    /// Create a `ClockSetting` from the 5-bit "divider" read from the MCP2221.
+    ///
+    /// # Panics
+    ///
+    /// Frequency pattern `0b000` is marked "Reserved" in the datasheet and attempting
+    /// to create a [`ClockFrequency`] with this value will fail an assertion.
+    fn from(value: u8) -> Self {
+        assert!(
+            value <= 0b11111,
+            "Raw clock 'divider' must be in the low 5 bits."
+        );
+        Self(
+            DutyCycle::from(value.get_bits(3..=4)),
+            ClockFrequency::from(value.get_bits(0..=2)),
+        )
+    }
+}
+
+impl From<ClockSetting> for u8 {
+    fn from(value: ClockSetting) -> Self {
+        let ClockSetting(duty_cycle, frequency) = value;
+        let mut byte = 0u8;
+        // Set duty cycle.
+        byte.set_bits(3..=4, duty_cycle.into());
+        // Set frequency.
+        byte.set_bits(0..=2, frequency.into());
+        byte
     }
 }

@@ -1,4 +1,5 @@
-use crate::analog::{VoltageReference, VrmVoltage};
+use crate::analog::VoltageReference;
+use crate::common::ClockSetting;
 use crate::gpio::GpSettings;
 use crate::security::ChipConfigurationSecurity;
 
@@ -21,7 +22,8 @@ pub struct SramSettings {
     ///
     /// Note that the datasheet's description of this setting in the USB HID
     /// command section appears to be incorrect. The internal clock is 12 MHz
-    /// (not 48), and the "divider" value is better thought of as an option.
+    /// (not 48), and the "divider" value is better thought of selecting a duty
+    /// cycle and a frequency.
     ///
     /// Datasheet description for reference (table 3-39):
     ///
@@ -31,7 +33,7 @@ pub struct SramSettings {
     /// > (Bits[4:3] for duty cycle and bits[2:0] for the clock divider.)
     ///
     /// Byte 5 bits 4..=0.
-    pub clock_output_divider: u8,
+    pub clock_output: ClockSetting,
     /// DAC reference source (Vrm or Vdd) and Vrm setting
     ///
     /// Vrm setting at byte 6, bits 6 & 7. Vrm/Vdd selection at bit 5.
@@ -99,7 +101,7 @@ impl SramSettings {
         Self {
             cdc_serial_number_enumeration_enabled: buf[4].get_bit(7),
             chip_configuration_security: buf[4].get_bits(0..=1).into(),
-            clock_output_divider: buf[5].get_bits(0..=4),
+            clock_output: buf[5].get_bits(0..=4).into(),
             dac_reference: (buf[6].get_bit(5), buf[6].get_bits(6..=7)).into(),
             dac_value: buf[6].get_bits(0..=4),
             interrupt_on_negative_edge: buf[7].get_bit(6),
