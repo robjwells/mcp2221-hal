@@ -58,7 +58,18 @@ impl MCP2221 {
     ///
     /// The device will cancel the current I2C transfer and will attempt to free the I2C
     /// bus. See table 3-1 in section 3.1.1 of the datasheet.
+    ///
+    /// **NOTE** that issuing the cancellation command to the MCP2221 while the I2C
+    /// engine is already idle appears to put the engine into a busy state. The driver
+    /// avoids this by checking the engine status and _not issuing the cancellation_
+    /// if the engine is already idle.
     pub fn cancel_i2c_transfer(&mut self) -> Result<CancelI2cTransferResponse, Error> {
+        // Only issue the cancellation command if the I2C engine is busy to avoid it
+        // _becoming_ busy by issuing the cancellation..
+        if self.status()?.i2c_engine_is_idle {
+            return Ok(CancelI2cTransferResponse::NoTransfer);
+        }
+
         let mut uc = UsbReport::new(McpCommand::StatusSetParameters);
         uc.set_data_byte(2, 0x10);
         let read_buffer = self.transfer(uc)?;
@@ -73,8 +84,8 @@ impl MCP2221 {
     /// Set the baud rate of the I2C bus.
     ///
     /// Returns `Ok(())` when the speed was set successfully and
-    /// Err([Error::I2cTransferInProgress]) if the speed could not be set due to an
-    /// ongoing I2C transfer.
+    /// Err([Error::I2cTransferInProgress]) if the speed could not be
+    /// set due to an ongoing I2C transfer.
     pub fn set_i2c_bus_speed(&mut self, speed: I2cSpeed) -> Result<(), Error> {
         let mut uc = UsbReport::new(McpCommand::StatusSetParameters);
         // When this value is put in this field, the device will take the next command

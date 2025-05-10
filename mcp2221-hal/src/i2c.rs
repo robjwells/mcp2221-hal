@@ -1,6 +1,12 @@
 #[derive(Debug)]
 pub enum CancelI2cTransferResponse {
+    /// The I2C transfer cancellation was issued and the MCP2221 marked the transfer
+    /// for cancellation.
     MarkedForCancellation,
+    /// Either no transfer cancellation was issued by the driver because the I2C engine
+    /// was already idle (to avoid what appears to be buggy behaviour of the MCP2221),
+    /// or the cancellation was issued and the MCP2221 responded that no transfer was
+    /// taking place.
     NoTransfer,
 }
 

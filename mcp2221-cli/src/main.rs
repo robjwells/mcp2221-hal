@@ -1,12 +1,17 @@
 use analog::DacCommand;
 use cli::Commands;
+use i2c::I2cCommand;
 use settings::{SettingsCommand, SettingsType, SettingsWriteCommand};
 use usb::UsbInfo;
+
+use mcp2221_hal::MCP2221;
+use mcp2221_hal::i2c::CancelI2cTransferResponse;
 
 use clap::Parser;
 
 mod analog;
 mod cli;
+mod i2c;
 mod settings;
 mod usb;
 mod util;
@@ -15,7 +20,7 @@ type McpResult<T> = Result<T, mcp2221_hal::error::Error>;
 
 fn main() -> McpResult<()> {
     let cli = cli::Cli::parse();
-    let mut device = mcp2221_hal::MCP2221::open_with_vid_and_pid(cli.vid, cli.pid)?;
+    let mut device = MCP2221::open_with_vid_and_pid(cli.vid, cli.pid)?;
     match cli.command {
         Commands::Status => println!("{:#?}", device.status()?),
         Commands::Settings(settings_command) => match settings_command {
@@ -44,6 +49,17 @@ fn main() -> McpResult<()> {
             } => device.configure_dac_source(reference.into_mcp_vref(vrm_level))?,
         },
         Commands::Reset => device.reset_chip()?,
+        Commands::I2c(i2c_command) => match i2c_command {
+            I2cCommand::Cancel => match device.cancel_i2c_transfer()? {
+                CancelI2cTransferResponse::MarkedForCancellation => {
+                    println!("Transfer marked for cancellation.")
+                }
+                CancelI2cTransferResponse::NoTransfer => {
+                    println!("There was no ongoing I2C transfer to cancel.")
+                }
+            },
+            I2cCommand::Speed { speed } => device.set_i2c_bus_speed(speed.into())?,
+        },
     }
 
     Ok(())

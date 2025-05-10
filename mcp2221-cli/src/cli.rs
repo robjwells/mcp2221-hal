@@ -1,4 +1,5 @@
 use crate::analog::DacCommand;
+use crate::i2c::I2cCommand;
 use crate::settings::SettingsCommand;
 use crate::util;
 
@@ -23,6 +24,11 @@ pub(crate) enum Commands {
     /// Alter DAC settings in SRAM.
     #[command(subcommand)]
     Dac(DacCommand),
+    /// Perform I2C functions
+    #[command(subcommand)]
+    I2c(I2cCommand),
+    /// Reset the MCP2221.
+    Reset,
     /// Read the current device status.
     Status,
     /// Read or write device settings.
@@ -30,6 +36,4 @@ pub(crate) enum Commands {
     Settings(SettingsCommand),
     /// Print the USB HID device info.
     Usb,
-    /// Reset the MCP2221.
-    Reset,
 }
