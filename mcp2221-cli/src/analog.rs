@@ -6,11 +6,23 @@ use mcp2221_hal::analog::{VoltageReference, VrmVoltage::*};
 pub(crate) enum DacCommand {
     /// Change the DAC output value.
     Write {
+        #[arg(long, default_value = "false")]
+        /// Set the DAC output value in flash memory rather than SRAM.
+        ///
+        /// This will not change the current DAC output value in SRAM,
+        /// and will only be observed after resetting the MCP2221.
+        flash: bool,
         #[arg(value_parser = value_parser!(u8).range(0..=31))]
         /// New output value, in the range 0..=31.
         value: u8,
     },
     Configure {
+        #[arg(long, default_value = "false")]
+        /// Set the DAC configuration in flash memory rather than SRAM.
+        ///
+        /// This will not change the current DAC configuration in SRAM,
+        /// and will only be observed after resetting the MCP2221.
+        flash: bool,
         /// Set Vdd or Vrm as the DAC voltage reference.
         reference: VrefSource,
         /// Vrm voltage level.

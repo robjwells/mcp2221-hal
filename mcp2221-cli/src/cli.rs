@@ -21,7 +21,7 @@ pub(crate) struct Cli {
 
 #[derive(Debug, Parser)]
 pub(crate) enum Commands {
-    /// Alter DAC settings in SRAM.
+    /// Alter DAC settings.
     #[command(subcommand)]
     Dac(DacCommand),
     /// Perform I2C functions

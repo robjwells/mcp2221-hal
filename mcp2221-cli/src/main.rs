@@ -41,12 +41,39 @@ fn main() -> McpResult<()> {
             println!("{:#?}", UsbInfo::from(&device.usb_device_info()?));
         }
         Commands::Dac(dac_command) => match dac_command {
-            DacCommand::Write { value } => device.set_dac_output_value(value)?,
+            DacCommand::Write { flash: true, value } => {
+                // TODO: This is querying all the flash data, when we only need the
+                // chip settings. Perhaps break up the read_flash_data() method?
+                let mut cs = device.read_flash_data()?.chip_settings;
+                cs.dac_power_up_value = value;
+                device.write_chip_settings_to_flash(cs)?;
+            }
+            DacCommand::Write {
+                flash: false,
+                value,
+            } => {
+                // do sram write
+                device.set_dac_output_value(value)?;
+            }
 
             DacCommand::Configure {
+                flash: true,
                 reference,
                 vrm_level,
-            } => device.configure_dac_source(reference.into_mcp_vref(vrm_level))?,
+            } => {
+                // TODO: This is querying all the flash data, when we only need the
+                // chip settings. Perhaps break up the read_flash_data() method?
+                let mut cs = device.read_flash_data()?.chip_settings;
+                cs.dac_reference = reference.into_mcp_vref(vrm_level);
+                device.write_chip_settings_to_flash(cs)?;
+            }
+            DacCommand::Configure {
+                flash: false,
+                reference,
+                vrm_level,
+            } => {
+                device.configure_dac_source(reference.into_mcp_vref(vrm_level))?;
+            }
         },
         Commands::Reset => device.reset_chip()?,
         Commands::I2c(i2c_command) => match i2c_command {
