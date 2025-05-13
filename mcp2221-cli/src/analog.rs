@@ -16,6 +16,7 @@ pub(crate) enum DacCommand {
         /// New output value, in the range 0..=31.
         value: u8,
     },
+    /// Change the DAC voltage reference.
     Configure {
         #[arg(long, default_value = "false")]
         /// Set the DAC configuration in flash memory rather than SRAM.
@@ -80,4 +81,20 @@ pub(crate) enum AdcCommand {
     /// The reading for a channel will be `None` if the corresponding pin is not
     /// configured as an analog input.
     Read,
+    /// Change the ADC voltage reference.
+    Configure {
+        #[arg(long, default_value = "false")]
+        /// Set the ADC configuration in flash memory rather than SRAM.
+        ///
+        /// This will not change the current ADC configuration in SRAM,
+        /// and will only be observed after resetting the MCP2221.
+        flash: bool,
+        /// Set Vdd or Vrm as the ADC voltage reference.
+        reference: VrefSource,
+        /// Vrm voltage level.
+        ///
+        /// Ignored if the reference is Vdd.
+        #[arg(default_value = "off")]
+        vrm_level: VrmLevel,
+    },
 }

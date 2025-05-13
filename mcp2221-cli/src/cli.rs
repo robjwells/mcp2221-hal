@@ -24,7 +24,7 @@ pub(crate) enum Commands {
     /// Alter DAC settings.
     #[command(subcommand)]
     Dac(DacCommand),
-    /// Read analog input values.
+    /// Read or configure analog input.
     #[command(subcommand)]
     Adc(AdcCommand),
     /// Perform I2C functions

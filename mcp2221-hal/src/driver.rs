@@ -252,6 +252,26 @@ impl MCP2221 {
         Ok(reading)
     }
 
+    /// Configure the ADC voltage reference in SRAM.
+    ///
+    /// This setting is not persisted across reset.
+    pub fn configure_adc_source(&mut self, source: VoltageReference) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::SetSRAMSettings);
+        let mut adc_settings_byte = 0u8;
+        // Enable loading of new ADC reference
+        adc_settings_byte.set_bit(7, true);
+
+        let (vrm_vdd_choice, vrm_level) = source.into();
+        // ADC Vrm voltage setting.
+        adc_settings_byte.set_bits(1..=2, vrm_level);
+        // ADC reference source (1 = Vrm; 0 = Vdd)
+        adc_settings_byte.set_bit(0, vrm_vdd_choice);
+        command.set_data_byte(5, adc_settings_byte);
+
+        self.transfer(command)?;
+        Ok(())
+    }
+
     /// Reset the MCP2221.
     ///
     /// Resetting the chip causes the device to re-enumerate, so you will need

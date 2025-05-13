@@ -75,6 +75,23 @@ fn main() -> McpResult<()> {
                 device.configure_dac_source(reference.into_mcp_vref(vrm_level))?;
             }
         },
+        Commands::Adc(adc_command) => match adc_command {
+            AdcCommand::Read => println!("{:#?}", device.read_adc()?),
+            AdcCommand::Configure {
+                flash: false,
+                reference,
+                vrm_level,
+            } => device.configure_adc_source(reference.into_mcp_vref(vrm_level))?,
+            AdcCommand::Configure {
+                flash: true,
+                reference,
+                vrm_level,
+            } => {
+                let mut cs = device.read_flash_data()?.chip_settings;
+                cs.adc_reference = reference.into_mcp_vref(vrm_level);
+                device.write_chip_settings_to_flash(cs)?;
+            }
+        },
         Commands::Reset => device.reset_chip()?,
         Commands::I2c(i2c_command) => match i2c_command {
             I2cCommand::Cancel => match device.cancel_i2c_transfer()? {
@@ -86,9 +103,6 @@ fn main() -> McpResult<()> {
                 }
             },
             I2cCommand::Speed { speed } => device.set_i2c_bus_speed(speed.into())?,
-        },
-        Commands::Adc(adc_command) => match adc_command {
-            AdcCommand::Read => println!("{:#?}", device.read_adc()?),
         },
     }
 
