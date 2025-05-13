@@ -1,6 +1,6 @@
 use bit_field::BitField;
 
-use crate::analog::VoltageReference;
+use crate::analog::{AdcReading, VoltageReference};
 use crate::commands::{FlashDataSubCode, McpCommand, UsbReport};
 use crate::common::DeviceString;
 use crate::error::Error;
@@ -233,6 +233,23 @@ impl MCP2221 {
 
         self.transfer(command)?;
         Ok(())
+    }
+
+    /// Read the current values of the three-channel ADC.
+    pub fn read_adc(&mut self) -> Result<AdcReading, Error> {
+        let (ch1, ch2, ch3) = self.status()?.adc_values;
+        let SramSettings {
+            adc_reference: vref,
+            gp_settings: gp,
+            ..
+        } = self.get_sram_settings()?;
+        let reading = AdcReading {
+            vref,
+            gp1: gp.gp1.is_adc().then_some(ch1),
+            gp2: gp.gp2.is_adc().then_some(ch2),
+            gp3: gp.gp3.is_adc().then_some(ch3),
+        };
+        Ok(reading)
     }
 
     /// Reset the MCP2221.

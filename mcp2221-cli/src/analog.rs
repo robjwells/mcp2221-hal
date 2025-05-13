@@ -71,3 +71,13 @@ pub(crate) enum VrmLevel {
     /// other references.
     Off,
 }
+
+#[derive(Debug, Parser)]
+#[command(flatten_help = true)]
+pub(crate) enum AdcCommand {
+    /// Read the three channels of the 10-bit ADC.
+    ///
+    /// The reading for a channel will be `None` if the corresponding pin is not
+    /// configured as an analog input.
+    Read,
+}

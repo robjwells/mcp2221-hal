@@ -356,6 +356,14 @@ pub struct Gp1Settings {
     pub designation: Gp1Designation,
 }
 
+impl Gp1Settings {
+    /// Returns `true` if GP1 is set as an analog input.
+    #[must_use]
+    pub fn is_adc(&self) -> bool {
+        matches!(self.designation, Gp1Designation::ADC1)
+    }
+}
+
 /// GP pin 2 configuration.
 #[derive(Debug)]
 pub struct Gp2Settings {
@@ -380,6 +388,15 @@ pub struct Gp2Settings {
     pub designation: Gp2Designation,
 }
 
+impl Gp2Settings {
+    /// Returns `true` if GP2 is set as an analog input.
+    #[must_use]
+    pub fn is_adc(&self) -> bool {
+        matches!(self.designation, Gp2Designation::ADC2)
+    }
+}
+
+
 /// GP pin 3 configuration.
 #[derive(Debug)]
 pub struct Gp3Settings {
@@ -403,6 +420,15 @@ pub struct Gp3Settings {
     /// Byte 7 bits 0..=2.
     pub designation: Gp3Designation,
 }
+
+impl Gp3Settings {
+    /// Returns `true` if GP3 is set as an analog input.
+    #[must_use]
+    pub fn is_adc(&self) -> bool {
+        matches!(self.designation, Gp3Designation::ADC3)
+    }
+}
+
 
 impl From<(LogicLevel, GpioDirection, Gp0Designation)> for Gp0Settings {
     fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp0Designation)) -> Self {

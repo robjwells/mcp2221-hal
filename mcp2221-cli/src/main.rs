@@ -1,4 +1,4 @@
-use analog::DacCommand;
+use analog::{AdcCommand, DacCommand};
 use cli::Commands;
 use i2c::I2cCommand;
 use settings::{SettingsCommand, SettingsType, SettingsWriteCommand};
@@ -86,6 +86,9 @@ fn main() -> McpResult<()> {
                 }
             },
             I2cCommand::Speed { speed } => device.set_i2c_bus_speed(speed.into())?,
+        },
+        Commands::Adc(adc_command) => match adc_command {
+            AdcCommand::Read => println!("{:#?}", device.read_adc()?),
         },
     }
 

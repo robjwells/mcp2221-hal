@@ -1,4 +1,4 @@
-use crate::analog::DacCommand;
+use crate::analog::{AdcCommand, DacCommand};
 use crate::i2c::I2cCommand;
 use crate::settings::SettingsCommand;
 use crate::util;
@@ -24,6 +24,9 @@ pub(crate) enum Commands {
     /// Alter DAC settings.
     #[command(subcommand)]
     Dac(DacCommand),
+    /// Read analog input values.
+    #[command(subcommand)]
+    Adc(AdcCommand),
     /// Perform I2C functions
     #[command(subcommand)]
     I2c(I2cCommand),

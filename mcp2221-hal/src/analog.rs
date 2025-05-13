@@ -1,3 +1,23 @@
+/// Three-channel reading of the 10-bit ADC.
+///
+/// Each channel reading is optional as their values are not defined if the
+/// corresponding pin is not configured for ADC operation.
+///
+/// The channels are named here to match their GP pin (1-3) as given in table 1-1
+/// of the datasheet (where channel 1 is read from GP1). Note that in table 3-2
+/// the channels are named 0-2.
+#[derive(Debug, Clone, Copy)]
+pub struct AdcReading {
+    /// ADC voltage reference setting in SRAM at the time of the reading.
+    pub vref: VoltageReference,
+    /// Analog reading from GP1.
+    pub gp1: Option<u16>,
+    /// Analog reading from GP2.
+    pub gp2: Option<u16>,
+    /// Analog reading from GP3.
+    pub gp3: Option<u16>,
+}
+
 #[derive(Debug, Clone, Copy)]
 /// Setting of the internal voltage reference (VRM)
 pub enum VrmVoltage {
