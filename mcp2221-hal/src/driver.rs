@@ -147,6 +147,10 @@ impl MCP2221 {
     }
 
     /// Update the GP pin settings stored in flash memory.
+    ///
+    /// This changes the power-up setting and will not affect the active SRAM settings.
+    /// To have this change take effect, reset the device or apply the same changes to
+    /// the SRAM settings.
     pub fn write_gp_settings_to_flash(&mut self, gp: GpSettings) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::GPSettings));
         gp.apply_to_flash_buffer(&mut command.write_buffer);

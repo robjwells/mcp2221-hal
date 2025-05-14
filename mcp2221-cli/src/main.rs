@@ -1,6 +1,8 @@
 use analog::{AdcCommand, DacCommand};
 use cli::Commands;
 use i2c::I2cCommand;
+use mcp2221_hal::sram::ChangeSramSettings;
+use pins::GpModes;
 use settings::{SettingsCommand, SettingsType, SettingsWriteCommand};
 use usb::UsbInfo;
 
@@ -12,6 +14,7 @@ use clap::Parser;
 mod analog;
 mod cli;
 mod i2c;
+mod pins;
 mod settings;
 mod usb;
 mod util;
@@ -104,7 +107,42 @@ fn main() -> McpResult<()> {
             },
             I2cCommand::Speed { speed } => device.set_i2c_bus_speed(speed.into())?,
         },
+        Commands::Pins(pins_command) => match pins_command {
+            pins::PinsCommand::Read => todo!(),
+            pins::PinsCommand::SetMode(GpModes {
+                flash: true,
+                pin_configs,
+            }) => {
+                let mut gp_settings = device.read_flash_data()?.gp_settings;
+                pin_configs.merge_into_existing(&mut gp_settings);
+                device.write_gp_settings_to_flash(gp_settings)?;
+            }
+            pins::PinsCommand::SetMode(GpModes {
+                flash: false,
+                pin_configs,
+            }) => {
+                let mut sram_settings = device.get_sram_settings()?;
+                pin_configs.merge_into_existing(&mut sram_settings.gp_settings);
+                device.set_sram_settings(ChangeSramSettings::new().with_gp_settings(
+                    sram_settings.gp_settings,
+                    Some(sram_settings.dac_reference),
+                    Some(sram_settings.adc_reference),
+                ))?;
+            }
+        },
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use crate::cli::Cli;
+
+    use clap::CommandFactory;
+
+    #[test]
+    fn check_cli_debug_asserts() {
+        Cli::command().debug_assert();
+    }
 }

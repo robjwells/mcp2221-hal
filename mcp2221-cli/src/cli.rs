@@ -1,5 +1,6 @@
 use crate::analog::{AdcCommand, DacCommand};
 use crate::i2c::I2cCommand;
+use crate::pins::PinsCommand;
 use crate::settings::SettingsCommand;
 use crate::util;
 
@@ -27,6 +28,9 @@ pub(crate) enum Commands {
     /// Read or configure analog input.
     #[command(subcommand)]
     Adc(AdcCommand),
+    /// Read or configure the GP pins.
+    #[command(subcommand)]
+    Pins(PinsCommand),
     /// Perform I2C functions
     #[command(subcommand)]
     I2c(I2cCommand),
