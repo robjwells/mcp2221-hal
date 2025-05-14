@@ -1,4 +1,4 @@
-use bit_field::BitField;
+use hidapi::{HidApi, HidDevice};
 
 use crate::analog::{AdcReading, VoltageReference};
 use crate::commands::{FlashDataSubCode, McpCommand, UsbReport};
@@ -7,7 +7,7 @@ use crate::error::Error;
 use crate::flash_data::{ChipSettings, FlashData};
 use crate::gpio::GpSettings;
 use crate::i2c::{CancelI2cTransferResponse, I2cSpeed};
-use crate::sram::SramSettings;
+use crate::sram::{ChangeSramSettings, SramSettings};
 use crate::status::Status;
 
 const MICROCHIP_VENDOR_ID: u16 = 1240;
@@ -15,7 +15,7 @@ const MCP2221A_PRODUCT_ID: u16 = 221;
 
 /// Driver for the MCP2221.
 pub struct MCP2221 {
-    inner: hidapi::HidDevice,
+    inner: HidDevice,
 }
 
 /// # USB device functionality
@@ -31,7 +31,7 @@ impl MCP2221 {
     ///
     /// Use this function if you have changed the USB VID or PID of your MCP2221.
     pub fn open_with_vid_and_pid(vendor_id: u16, product_id: u16) -> Result<Self, Error> {
-        let hidapi = hidapi::HidApi::new()?;
+        let hidapi = HidApi::new()?;
         let device = hidapi.open(vendor_id, product_id)?;
         Ok(Self { inner: device })
     }
@@ -190,23 +190,18 @@ impl MCP2221 {
         Ok(SramSettings::from_buffer(&buf))
     }
 
+    pub fn set_sram_settings(&mut self, settings: &ChangeSramSettings) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::SetSRAMSettings);
+        settings.apply_to_sram_buffer(&mut command.write_buffer);
+        self.transfer(command)?;
+        Ok(())
+    }
+
     /// Configure the DAC voltage reference in SRAM.
     ///
     /// This setting is not persisted across reset.
     pub fn configure_dac_source(&mut self, source: VoltageReference) -> Result<(), Error> {
-        let mut command = UsbReport::new(McpCommand::SetSRAMSettings);
-        let mut settings_byte = 0u8;
-        // Enable loading of new DAC reference
-        settings_byte.set_bit(7, true);
-
-        let (vrm_vdd_choice, vrm_level) = source.into();
-        // DAC Vrm voltage setting.
-        settings_byte.set_bits(1..=2, vrm_level);
-        // DAC reference source (1 = Vrm; 0 = Vdd)
-        settings_byte.set_bit(0, vrm_vdd_choice);
-        command.set_data_byte(3, settings_byte);
-
-        self.transfer(command)?;
+        self.set_sram_settings(ChangeSramSettings::new().with_dac_reference(source))?;
         Ok(())
     }
 
@@ -219,19 +214,12 @@ impl MCP2221 {
     /// Returns [`Error::DacValueOutOfRange`] if the value is too large (maximum 31
     /// for the 5-bit DAC) or if an error occurred communicating with the MCP2221.
     pub fn set_dac_output_value(&mut self, value: u8) -> Result<(), Error> {
+        // TODO: Should this be an error or should the value be clamped?
         if value > 31 {
             return Err(Error::DacValueOutOfRange);
         }
 
-        let mut command = UsbReport::new(McpCommand::SetSRAMSettings);
-        let mut dac_value_byte = 0u8;
-        // Enable loading of new DAC value
-        dac_value_byte.set_bit(7, true);
-        // 5-bit DAC output value
-        dac_value_byte.set_bits(0..=4, value);
-        command.set_data_byte(4, dac_value_byte);
-
-        self.transfer(command)?;
+        self.set_sram_settings(ChangeSramSettings::new().with_dac_value(value))?;
         Ok(())
     }
 
@@ -256,19 +244,7 @@ impl MCP2221 {
     ///
     /// This setting is not persisted across reset.
     pub fn configure_adc_source(&mut self, source: VoltageReference) -> Result<(), Error> {
-        let mut command = UsbReport::new(McpCommand::SetSRAMSettings);
-        let mut adc_settings_byte = 0u8;
-        // Enable loading of new ADC reference
-        adc_settings_byte.set_bit(7, true);
-
-        let (vrm_vdd_choice, vrm_level) = source.into();
-        // ADC Vrm voltage setting.
-        adc_settings_byte.set_bits(1..=2, vrm_level);
-        // ADC reference source (1 = Vrm; 0 = Vdd)
-        adc_settings_byte.set_bit(0, vrm_vdd_choice);
-        command.set_data_byte(5, adc_settings_byte);
-
-        self.transfer(command)?;
+        self.set_sram_settings(ChangeSramSettings::new().with_adc_reference(source))?;
         Ok(())
     }
 

@@ -1,3 +1,5 @@
+use bit_field::BitField;
+
 use crate::analog::VoltageReference;
 use crate::common::ClockSetting;
 use crate::gpio::GpSettings;
@@ -96,6 +98,7 @@ pub struct SramSettings {
 }
 
 impl SramSettings {
+    /// Create [`SramSettings`] from a 64-byte report read from the MCP2221.
     pub(crate) fn from_buffer(buf: &[u8; 64]) -> Self {
         use bit_field::BitField;
         Self {
@@ -112,6 +115,185 @@ impl SramSettings {
             usb_power_attributes: buf[12],
             usb_requested_number_of_ma: buf[13] as u16 * 2,
             gp_settings: GpSettings::from_sram_buffer(buf),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct InterruptSettings {
+    pub clear_interrupt_flag: bool,
+    pub interrupt_on_positive_edge: Option<bool>,
+    pub interrupt_on_negative_edge: Option<bool>,
+}
+
+impl InterruptSettings {
+    pub fn clear_flag(clear: bool) -> Self {
+        Self {
+            clear_interrupt_flag: clear,
+            interrupt_on_positive_edge: None,
+            interrupt_on_negative_edge: None,
+        }
+    }
+}
+
+/// Changes to be applied to the settings in SRAM.
+#[derive(Debug, Default)]
+pub struct ChangeSramSettings {
+    /// Clock output settings.
+    clock_output: Option<ClockSetting>,
+    /// DAC voltage reference.
+    dac_reference: Option<VoltageReference>,
+    /// DAC output value `(0..=31)`
+    dac_value: Option<u8>,
+    /// ADC voltage reference
+    adc_reference: Option<VoltageReference>,
+    /// Interrupt settings
+    interrupt_settings: Option<InterruptSettings>,
+    /// GP pin settings
+    gp_settings: Option<GpSettings>,
+}
+
+impl ChangeSramSettings {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Change the clock output (CLKR) duty cycle and frequency.
+    pub fn with_clock_output(&mut self, clock: ClockSetting) -> &mut Self {
+        self.clock_output = Some(clock);
+        self
+    }
+
+    /// Change the DAC voltage reference.
+    pub fn with_dac_reference(&mut self, vref: VoltageReference) -> &mut Self {
+        self.dac_reference = Some(vref);
+        self
+    }
+
+    /// Change the DAC output value.
+    ///
+    /// `value` must be a valid 5-bit value `(0..=31)`.
+    pub fn with_dac_value(&mut self, value: u8) -> &mut Self {
+        // TODO: If this is publicly exposed it should probably return an
+        // error rather than panicking. Or perhaps clamp to 31?
+        assert!(
+            value < 32,
+            "DAC output value is out of range ({value} > 31)"
+        );
+        self.dac_value = Some(value);
+        self
+    }
+
+    /// Change the ADC voltage reference.
+    pub fn with_adc_reference(&mut self, vref: VoltageReference) -> &mut Self {
+        self.adc_reference = Some(vref);
+        self
+    }
+
+    /// Change the interrupt settings or clear the interrupt status.
+    pub fn with_interrupt_settings(&mut self, interrupt_settings: InterruptSettings) -> &mut Self {
+        self.interrupt_settings = Some(interrupt_settings);
+        self
+    }
+
+    /// Change the GP pin settings.
+    ///
+    /// This function takes voltage references for the DAC and ADC because changing
+    /// the GP pin settings causes "the reference voltage for Vrm" to be "reinitialized
+    /// to the default value (Vdd) if not explicitly set".
+    ///
+    /// Calling this function with a `None` value for either after using
+    /// [`Self::with_dac_reference()`] or [`Self::with_adc_reference`]
+    /// **will not** overwrite the previous to-be-set value.
+    // TODO: Find out what the datasheet actually means when it says "Vrm is always
+    // reinit to Vdd".
+    pub fn with_gp_settings(
+        &mut self,
+        gp_settings: GpSettings,
+        dac_reference: Option<VoltageReference>,
+        adc_reference: Option<VoltageReference>,
+    ) -> &mut Self {
+        self.gp_settings = Some(gp_settings);
+        if dac_reference.is_some() {
+            self.dac_reference = dac_reference;
+        }
+        if adc_reference.is_some() {
+            self.adc_reference = adc_reference;
+        }
+        self
+    }
+
+    pub(crate) fn apply_to_sram_buffer(&self, buf: &mut [u8; 64]) {
+        // Byte 2: Clock output duty cycle & frequency
+        if let Some(clock) = self.clock_output {
+            // Enable loading of a new clock "divider".
+            buf[2].set_bit(7, true);
+            buf[2].set_bits(0..=4, clock.into());
+        }
+        // Byte 3: DAC voltage reference
+        if let Some(dac_vref) = self.dac_reference {
+            let (vrm_vdd, vrm_level) = dac_vref.into();
+            // Enable loading of a new DAC reference.
+            buf[3].set_bit(7, true);
+            buf[3].set_bits(1..=2, vrm_level);
+            buf[3].set_bit(0, vrm_vdd);
+        }
+        // Byte 4: DAC output value
+        if let Some(value) = self.dac_value {
+            // Enable loading of a new DAC value.
+            buf[4].set_bit(7, true);
+            // TODO: This will panic if `value` is out of range.
+            buf[4].set_bits(0..=4, value);
+        }
+        // Byte 5: ADC voltage reference
+        if let Some(adc_vref) = self.adc_reference {
+            let (vrm_vdd, vrm_level) = adc_vref.into();
+            // Enable loading of a new ADC reference.
+            buf[5].set_bit(7, true);
+            buf[5].set_bits(1..=2, vrm_level);
+            buf[5].set_bit(0, vrm_vdd);
+        }
+        // Byte 6: Interrupt settings
+        if let Some(ref interrupts) = self.interrupt_settings {
+            // Enable the modification of the interrupt detection conditions.
+            buf[6].set_bit(7, true);
+            if let Some(trigger) = interrupts.interrupt_on_positive_edge {
+                // Enable the modification of the positive edge detection.
+                buf[6].set_bit(4, true);
+                buf[6].set_bit(3, trigger);
+            }
+            if let Some(trigger) = interrupts.interrupt_on_negative_edge {
+                // Enable the modification of the negative edge detection.
+                buf[6].set_bit(2, true);
+                buf[6].set_bit(1, trigger);
+            }
+            // Clear the interrupt detection flag?
+            buf[6].set_bit(0, interrupts.clear_interrupt_flag);
+        }
+        // Byte 7..=11: GP pin settings
+        if let Some(ref gp_settings) = self.gp_settings {
+            // Alter GPIO configuration?
+            buf[7].set_bit(7, true);
+
+            // GP0 settings
+            buf[8].set_bit(4, gp_settings.gp0.value.into());
+            buf[8].set_bit(3, gp_settings.gp0.direction.into());
+            buf[8].set_bits(0..=2, gp_settings.gp0.designation.into());
+
+            // GP1 settings
+            buf[9].set_bit(4, gp_settings.gp1.value.into());
+            buf[9].set_bit(3, gp_settings.gp1.direction.into());
+            buf[9].set_bits(0..=2, gp_settings.gp1.designation.into());
+
+            // GP2 settings
+            buf[10].set_bit(4, gp_settings.gp2.value.into());
+            buf[10].set_bit(3, gp_settings.gp2.direction.into());
+            buf[10].set_bits(0..=2, gp_settings.gp2.designation.into());
+
+            // GP3 settings
+            buf[11].set_bit(4, gp_settings.gp3.value.into());
+            buf[11].set_bit(3, gp_settings.gp3.direction.into());
+            buf[11].set_bits(0..=2, gp_settings.gp3.designation.into());
         }
     }
 }
