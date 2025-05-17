@@ -26,6 +26,10 @@ pub(crate) enum McpCommand {
     /// Retrieve the GPIO direction and pin value for those pins set to GPIO operation.
     ///
     /// See section 3.1.12 of the datasheet.
+    SetGpioOutputValues,
+    /// Change GPIO pin output direction and logic level.
+    ///
+    /// See section 3.1.11 of the datasheet.
     GetGpioValues,
     ResetChip,
 }
@@ -82,6 +86,7 @@ impl UsbReport {
             }
             GetSRAMSettings => (0x61, None),
             SetSRAMSettings => (0x60, None),
+            SetGpioOutputValues => (0x50, None),
             GetGpioValues => (0x51, None),
             ResetChip => (0x70, Some(0xAB)),
         };

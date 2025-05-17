@@ -1,10 +1,12 @@
 use clap::{Parser, ValueEnum};
-use mcp2221_hal::gpio;
+use mcp2221_hal::gpio::{self, ChangeGpioValues, GpioDirection, LogicLevel};
 
 #[derive(Debug, Parser)]
 #[command(flatten_help = true)]
 pub(crate) enum PinsCommand {
     Read,
+    #[command(flatten_help = true)]
+    Write(PinValues),
     #[command(flatten_help = true)]
     SetMode(GpModes),
 }
@@ -34,12 +36,12 @@ pub(crate) struct GpModes {
     /// and will only be observed after resetting the MCP2221.
     pub flash: bool,
     #[command(flatten)]
-    pub pin_configs: PinConfigs,
+    pub pin_configs: PinModes,
 }
 
 #[derive(Debug, Parser)]
 #[group(required = true, multiple = true)]
-pub(crate) struct PinConfigs {
+pub(crate) struct PinModes {
     /// GP0 pin settings
     ///
     /// Note the following additional aliases:
@@ -78,7 +80,7 @@ pub(crate) struct PinConfigs {
     pub gp3: Option<Gp3Mode>,
 }
 
-impl PinConfigs {
+impl PinModes {
     pub(crate) fn merge_into_existing(&self, gp_settings: &mut gpio::GpSettings) {
         if let Some(gp0) = self.gp0 {
             gp0.merge_into_existing(&mut gp_settings.gp0);
@@ -259,3 +261,79 @@ merge_impl!(Gp0Mode, gpio::Gp0Settings);
 merge_impl!(Gp1Mode, gpio::Gp1Settings);
 merge_impl!(Gp2Mode, gpio::Gp2Settings);
 merge_impl!(Gp3Mode, gpio::Gp3Settings);
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+enum GpioSetting {
+    /// GPIO output, set high.
+    #[value(aliases = ["high"])]
+    OutputHigh,
+    /// GPIO output, set low.
+    #[value(aliases = ["low"])]
+    OutputLow,
+    /// GPIO input.
+    #[value(aliases = ["in"])]
+    Input,
+}
+
+impl GpioSetting {
+    fn level(&self) -> Option<LogicLevel> {
+        match self {
+            GpioSetting::OutputHigh => Some(LogicLevel::High),
+            GpioSetting::OutputLow => Some(LogicLevel::Low),
+            GpioSetting::Input => None,
+        }
+    }
+}
+
+impl From<GpioSetting> for GpioDirection {
+    fn from(value: GpioSetting) -> Self {
+        match value {
+            GpioSetting::OutputHigh => GpioDirection::Output,
+            GpioSetting::OutputLow => GpioDirection::Output,
+            GpioSetting::Input => GpioDirection::Input,
+        }
+    }
+}
+
+#[derive(Debug, Parser)]
+pub(crate) struct PinValues {
+    #[arg(long, short = '0')]
+    gp0: Option<GpioSetting>,
+    #[arg(long, short = '1')]
+    gp1: Option<GpioSetting>,
+    #[arg(long, short = '2')]
+    gp2: Option<GpioSetting>,
+    #[arg(long, short = '3')]
+    gp3: Option<GpioSetting>,
+}
+
+impl From<PinValues> for ChangeGpioValues {
+    fn from(value: PinValues) -> Self {
+        let mut s = Self::new();
+        if let Some(gp) = value.gp0 {
+            s.with_gp0_direction(gp.into());
+            if let Some(level) = gp.level() {
+                s.with_gp0_level(level);
+            }
+        }
+        if let Some(gp) = value.gp1 {
+            s.with_gp1_direction(gp.into());
+            if let Some(level) = gp.level() {
+                s.with_gp1_level(level);
+            }
+        }
+        if let Some(gp) = value.gp2 {
+            s.with_gp2_direction(gp.into());
+            if let Some(level) = gp.level() {
+                s.with_gp2_level(level);
+            }
+        }
+        if let Some(gp) = value.gp3 {
+            s.with_gp3_direction(gp.into());
+            if let Some(level) = gp.level() {
+                s.with_gp3_level(level);
+            }
+        }
+        s
+    }
+}

@@ -61,3 +61,113 @@ fn direction_from_byte(byte: u8) -> Option<GpioDirection> {
         _ => unreachable!("Invalid byte '{byte:X}' for GPIO pin direction"),
     }
 }
+
+#[derive(Default, Debug)]
+pub struct ChangeGpioValues {
+    gp0_direction: Option<GpioDirection>,
+    gp0_level: Option<LogicLevel>,
+    gp1_direction: Option<GpioDirection>,
+    gp1_level: Option<LogicLevel>,
+    gp2_direction: Option<GpioDirection>,
+    gp2_level: Option<LogicLevel>,
+    gp3_direction: Option<GpioDirection>,
+    gp3_level: Option<LogicLevel>,
+}
+
+impl ChangeGpioValues {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn with_gp0_direction(&mut self, direction: GpioDirection) -> &mut Self {
+        self.gp0_direction = Some(direction);
+        self
+    }
+
+    pub fn with_gp0_level(&mut self, level: LogicLevel) -> &mut Self {
+        self.gp0_level = Some(level);
+        self
+    }
+
+    pub fn with_gp1_direction(&mut self, direction: GpioDirection) -> &mut Self {
+        self.gp1_direction = Some(direction);
+        self
+    }
+
+    pub fn with_gp1_level(&mut self, level: LogicLevel) -> &mut Self {
+        self.gp1_level = Some(level);
+        self
+    }
+
+    pub fn with_gp2_direction(&mut self, direction: GpioDirection) -> &mut Self {
+        self.gp2_direction = Some(direction);
+        self
+    }
+
+    pub fn with_gp2_level(&mut self, level: LogicLevel) -> &mut Self {
+        self.gp2_level = Some(level);
+        self
+    }
+
+    pub fn with_gp3_direction(&mut self, direction: GpioDirection) -> &mut Self {
+        self.gp3_direction = Some(direction);
+        self
+    }
+
+    pub fn with_gp3_level(&mut self, level: LogicLevel) -> &mut Self {
+        self.gp3_level = Some(level);
+        self
+    }
+
+    /// Encode self in the format expected by Set GPIO Output Values.
+    ///
+    /// See section 3.1.11 of the datasheet.
+    pub(crate) fn apply_to_buffer(&self, buf: &mut [u8; 64]) {
+        // Each logic level setting and direction setting has a preceding byte
+        // that determines if a new value is to be loaded. If that "enable" byte
+        // is non-zero, the following byte is the loaded.
+        //
+        // The command write buffer is initially zeroed, which means that we only
+        // need to change the write buffer where we intend to change a setting.
+
+        // GP0
+        if let Some(level) = self.gp0_level {
+            buf[2] = 0x01;
+            buf[3] = level.into();
+        }
+        if let Some(direction) = self.gp0_direction {
+            buf[4] = 0x01;
+            buf[5] = direction.into();
+        }
+
+        // GP1
+        if let Some(level) = self.gp1_level {
+            buf[6] = 0x01;
+            buf[7] = level.into();
+        }
+        if let Some(direction) = self.gp1_direction {
+            buf[8] = 0x01;
+            buf[9] = direction.into();
+        }
+
+        // GP2
+        if let Some(level) = self.gp2_level {
+            buf[10] = 0x01;
+            buf[11] = level.into();
+        }
+        if let Some(direction) = self.gp2_direction {
+            buf[12] = 0x01;
+            buf[13] = direction.into();
+        }
+
+        // GP3
+        if let Some(level) = self.gp3_level {
+            buf[14] = 0x01;
+            buf[15] = level.into();
+        }
+        if let Some(direction) = self.gp3_direction {
+            buf[16] = 0x01;
+            buf[17] = direction.into();
+        }
+    }
+}

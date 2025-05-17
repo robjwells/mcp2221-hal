@@ -5,7 +5,7 @@ use crate::commands::{FlashDataSubCode, McpCommand, UsbReport};
 use crate::common::DeviceString;
 use crate::error::Error;
 use crate::flash_data::{ChipSettings, FlashData};
-use crate::gpio::{GpSettings, GpioValues};
+use crate::gpio::{ChangeGpioValues, GpSettings, GpioValues};
 use crate::i2c::{CancelI2cTransferResponse, I2cSpeed};
 use crate::sram::{ChangeSramSettings, SramSettings};
 use crate::status::Status;
@@ -252,13 +252,29 @@ impl MCP2221 {
         Ok(())
     }
 
-    /// Datasheet: Get GPIO values
+    // TODO: Rewrite this. It's just copied from the datasheet.
+    /// Get GPIO values
     ///
     /// This command is used to retrieve the GPIO direction and pin value for those
     /// GP pins assigned for GPIO operation (GPIO inputs or outputs)
     pub fn get_gpio_values(&mut self) -> Result<GpioValues, Error> {
         let buf = self.transfer(UsbReport::new(McpCommand::GetGpioValues))?;
         Ok(GpioValues::from_buffer(&buf))
+    }
+
+    /// Change GPIO pins' output direction and output logic level.
+    ///
+    /// **NOTE** that this will not change the mode of GP pins that are not
+    /// configured for GPIO operation. That must be done by changing the mode
+    /// settings in SRAM via [`MCP2221::set_sram_settings`], or in flash via
+    /// [`MCP2221::write_gp_settings_to_flash`] and resetting the device.
+    ///
+    /// See section 3.1.11 of the datasheet.
+    pub fn set_gpio_values(&mut self, changes: &ChangeGpioValues) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::SetGpioOutputValues);
+        changes.apply_to_buffer(&mut command.write_buffer);
+        self.transfer(command)?;
+        Ok(())
     }
 
     /// Reset the MCP2221.

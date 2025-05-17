@@ -196,18 +196,26 @@ impl ChangeSramSettings {
         self
     }
 
-    /// Change the GP pin settings.
+    /// Change the GP pin modes.
     ///
+    /// If you only want to change GPIO pin output level or direction, prefer to use
+    /// [`crate::MCP2221::set_gpio_values`].
+    ///
+    /// <div class="warning">
     /// This function takes voltage references for the DAC and ADC because changing
-    /// the GP pin settings causes "the reference voltage for Vrm" to be "reinitialized
-    /// to the default value (Vdd) if not explicitly set".
+    /// the GP pin settings causes “the reference voltage for Vrm” to be “reinitialized
+    /// to the default value (Vdd) if not explicitly set” (section 1.8.11 in the
+    /// datasheet). In practice, this sets the Vrm level to “off”, however this is not
+    /// visible when reading the SRAM settings, only by reading the voltage output
+    /// from the DAC.
+    /// </div>
     ///
     /// Calling this function with a `None` value for either after using
     /// [`Self::with_dac_reference()`] or [`Self::with_adc_reference`]
     /// **will not** overwrite the previous to-be-set value.
     // TODO: Find out what the datasheet actually means when it says "Vrm is always
     // reinit to Vdd".
-    pub fn with_gp_settings(
+    pub fn with_gp_modes(
         &mut self,
         gp_settings: GpSettings,
         dac_reference: Option<VoltageReference>,

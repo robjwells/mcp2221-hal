@@ -125,11 +125,14 @@ fn main() -> McpResult<()> {
             }) => {
                 let mut sram_settings = device.get_sram_settings()?;
                 pin_configs.merge_into_existing(&mut sram_settings.gp_settings);
-                device.set_sram_settings(ChangeSramSettings::new().with_gp_settings(
+                device.set_sram_settings(ChangeSramSettings::new().with_gp_modes(
                     sram_settings.gp_settings,
                     Some(sram_settings.dac_reference),
                     Some(sram_settings.adc_reference),
                 ))?;
+            }
+            pins::PinsCommand::Write(pin_values) => {
+                device.set_gpio_values(&pin_values.into())?;
             }
         },
     }
