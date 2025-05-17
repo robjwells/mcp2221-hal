@@ -188,6 +188,26 @@ impl MCP2221 {
         Ok(())
     }
 
+    /// Retrieve the chip and GP pin settings stored in SRAM.
+    ///
+    /// <div class="warning">
+    ///
+    /// Do not rely on the returned [`SramSettings`] accurately reflecting
+    /// the current state of the MCP2221. Some commands will (in practice) change these
+    /// settings without those changes being shown when subsequently reading the SRAM.
+    ///
+    /// - GPIO pin direction and level after using the `Set GPIO output values` command
+    ///   (implemented by [`MCP2221::set_gpio_values`]).
+    /// - Vrm reference level set to off after setting GP pin settings via `Set SRAM Settings`
+    ///   (implemented by [`MCP2221::set_sram_settings`]) _without_ also explicitly setting
+    ///   the Vrm level. See the note in section 1.8.1.1 of the datasheet, as well
+    ///   as the documentation for [`ChangeSramSettings::with_gp_modes`].
+    ///
+    /// </div>
+    ///
+    /// See section 3.1.13 of the datasheet for details about the underlying `Get SRAM
+    /// Settings` command, and section 1.4 for information about the configuration
+    /// process at power-up.
     pub fn get_sram_settings(&mut self) -> Result<SramSettings, Error> {
         let command = UsbReport::new(McpCommand::GetSRAMSettings);
         let buf = self.transfer(command)?;

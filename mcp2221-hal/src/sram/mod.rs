@@ -210,11 +210,10 @@ impl ChangeSramSettings {
     /// from the DAC.
     /// </div>
     ///
-    /// Calling this function with a `None` value for either after using
-    /// [`Self::with_dac_reference()`] or [`Self::with_adc_reference`]
+    /// Calling this method with a `None` value for either after using
+    /// [`with_dac_reference()`](Self::with_dac_reference) or
+    /// [`with_adc_reference()`](Self::with_adc_reference)
     /// **will not** overwrite the previous to-be-set value.
-    // TODO: Find out what the datasheet actually means when it says "Vrm is always
-    // reinit to Vdd".
     pub fn with_gp_modes(
         &mut self,
         gp_settings: GpSettings,
