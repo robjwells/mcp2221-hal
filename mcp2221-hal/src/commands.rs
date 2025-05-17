@@ -23,7 +23,10 @@ pub(crate) enum McpCommand {
     /// process, particularly regarding the flash settings being copied into SRAM.
     GetSRAMSettings,
     SetSRAMSettings,
-    SetGpioOutputValues,
+    /// Retrieve the GPIO direction and pin value for those pins set to GPIO operation.
+    ///
+    /// See section 3.1.12 of the datasheet.
+    GetGpioValues,
     ResetChip,
 }
 
@@ -79,7 +82,7 @@ impl UsbReport {
             }
             GetSRAMSettings => (0x61, None),
             SetSRAMSettings => (0x60, None),
-            SetGpioOutputValues => (0x50, None),
+            GetGpioValues => (0x51, None),
             ResetChip => (0x70, Some(0xAB)),
         };
         buf[0] = command_byte;

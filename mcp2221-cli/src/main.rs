@@ -108,7 +108,9 @@ fn main() -> McpResult<()> {
             I2cCommand::Speed { speed } => device.set_i2c_bus_speed(speed.into())?,
         },
         Commands::Pins(pins_command) => match pins_command {
-            pins::PinsCommand::Read => todo!(),
+            pins::PinsCommand::Read => {
+                println!("{:#?}", device.get_gpio_values()?);
+            }
             pins::PinsCommand::SetMode(GpModes {
                 flash: true,
                 pin_configs,

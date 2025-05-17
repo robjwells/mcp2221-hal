@@ -9,12 +9,6 @@ pub(crate) enum PinsCommand {
     SetMode(GpModes),
 }
 
-#[derive(Debug, Clone, Copy, ValueEnum)]
-pub(crate) enum GpioDirection {
-    Output,
-    Input,
-}
-
 /// Set the mode for each of the GPx pins.
 ///
 /// Each pin supports digital input and output, as well as pin-specific

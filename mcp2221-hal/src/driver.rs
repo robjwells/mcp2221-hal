@@ -5,7 +5,7 @@ use crate::commands::{FlashDataSubCode, McpCommand, UsbReport};
 use crate::common::DeviceString;
 use crate::error::Error;
 use crate::flash_data::{ChipSettings, FlashData};
-use crate::gpio::GpSettings;
+use crate::gpio::{GpSettings, GpioValues};
 use crate::i2c::{CancelI2cTransferResponse, I2cSpeed};
 use crate::sram::{ChangeSramSettings, SramSettings};
 use crate::status::Status;
@@ -250,6 +250,15 @@ impl MCP2221 {
     pub fn configure_adc_source(&mut self, source: VoltageReference) -> Result<(), Error> {
         self.set_sram_settings(ChangeSramSettings::new().with_adc_reference(source))?;
         Ok(())
+    }
+
+    /// Datasheet: Get GPIO values
+    ///
+    /// This command is used to retrieve the GPIO direction and pin value for those
+    /// GP pins assigned for GPIO operation (GPIO inputs or outputs)
+    pub fn get_gpio_values(&mut self) -> Result<GpioValues, Error> {
+        let buf = self.transfer(UsbReport::new(McpCommand::GetGpioValues))?;
+        Ok(GpioValues::from_buffer(&buf))
     }
 
     /// Reset the MCP2221.
