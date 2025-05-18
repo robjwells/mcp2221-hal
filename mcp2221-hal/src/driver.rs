@@ -217,8 +217,8 @@ impl MCP2221 {
     ///
     /// This can be used to set appropriate defaults for the pin functions for your
     /// use case, and further (temporary) changes can be made at run time via the
-    /// methods [`MCP2221::set_sram_settings`] (for changing pin functions) and
-    /// [`MCP2221::set_gpio_values`] (for changing digital output direction and level).
+    /// methods [`MCP2221::sram_write_settings`] (for changing pin functions) and
+    /// [`MCP2221::gpio_write`] (for changing digital output direction and level).
     ///
     /// Settings stored in the flash memory of the MCP2221 take effect when the device
     /// is powered-up.

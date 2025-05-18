@@ -22,7 +22,7 @@ use crate::security::ChipConfigurationSecurity;
 /// the MCP2221. Certain commands can alter the behaviour of the device without being
 /// show in these settings, notably setting GPIO direction and output levels via the
 /// `Set GPIO Output Values` HID command (implemented in
-/// [`MCP2221::set_gpio_values`](crate::MCP2221::set_gpio_values())), or writing the
+/// [`MCP2221::gpio_write`](crate::MCP2221::gpio_write)), or writing the
 /// GP pin settings in SRAM without also writing the ADC and DAC voltage references
 /// (which resets the Vrm level to "off").
 ///
@@ -238,7 +238,7 @@ impl ChangeSramSettings {
     /// Change the GP pin modes.
     ///
     /// If you only want to change GPIO pin output level or direction, prefer to use
-    /// [`crate::MCP2221::set_gpio_values`].
+    /// [`MCP2221::gpio_write`](crate::MCP2221::gpio_write).
     ///
     /// <div class="warning">
     /// This function takes voltage references for the DAC and ADC because changing
