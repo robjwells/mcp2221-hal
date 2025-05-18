@@ -58,9 +58,9 @@ pub struct Status {
     ///
     /// Bytes 48 & 49.
     pub firmware_revision: (char, char),
-    /// ADC Data (16-bit) values.
+    /// ADC Data (10-bit) values.
     ///
-    /// 3x 16-bit ADC channel values (channel 1, channel 2, channel 3).
+    /// 3x 10-bit ADC channel values (channel 1, channel 2, channel 3).
     ///
     /// Note that in table 3-2 the channels are named 0-2, whereas in table 1-1
     /// they are named 1-3 to match their corresponding GP pin.
