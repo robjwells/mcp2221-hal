@@ -5,11 +5,18 @@ const NOT_GPIO_LEVEL: u8 = 0xEE;
 /// Byte returned for a GP pin's direction if the pin is not in GPIO mode.
 const NOT_GPIO_DIRECTION: u8 = 0xEF;
 
+/// GPIO status read from the device.
+///
+/// Each field is `None` if the corresponding pin is not configured for GPIO operation.
 #[derive(Debug)]
 pub struct GpioValues {
+    /// GPIO settings for GP0.
     pub gp0: Option<PinValue>,
+    /// GPIO settings for GP1.
     pub gp1: Option<PinValue>,
+    /// GPIO settings for GP2.
     pub gp2: Option<PinValue>,
+    /// GPIO settings for GP3.
     pub gp3: Option<PinValue>,
 }
 
@@ -26,9 +33,12 @@ impl GpioValues {
     }
 }
 
+/// Status of an individual GPIO pin.
 #[derive(Debug)]
 pub struct PinValue {
+    /// Whether the pin is configured as an input or output.
     pub direction: GpioDirection,
+    /// The logic level read on the pin (if input) or output on the pin.
     pub level: LogicLevel,
 }
 
@@ -62,6 +72,11 @@ fn direction_from_byte(byte: u8) -> Option<GpioDirection> {
     }
 }
 
+/// Changes to make to GPIO pin direction and logic level.
+///
+/// Note that you can "set" the logic level for an input pin. This reflects the MCP2221
+/// interface (in `Set GPIO Output Values`, section 3.1.11) but it naturally does not
+/// take effect unless and until the pin is set to be an output.
 #[derive(Default, Debug)]
 pub struct ChangeGpioValues {
     gp0_direction: Option<GpioDirection>,
@@ -75,45 +90,62 @@ pub struct ChangeGpioValues {
 }
 
 impl ChangeGpioValues {
+    /// Create a struct with no pending changes.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Set the direction of GP0.
     pub fn with_gp0_direction(&mut self, direction: GpioDirection) -> &mut Self {
         self.gp0_direction = Some(direction);
         self
     }
 
+    /// Set the logic level of GP0.
+    ///
+    /// Not this will only take effect if GP0 is set to be a GPIO output pin.
     pub fn with_gp0_level(&mut self, level: LogicLevel) -> &mut Self {
         self.gp0_level = Some(level);
         self
     }
 
+    /// Set the direction of GP1.
     pub fn with_gp1_direction(&mut self, direction: GpioDirection) -> &mut Self {
         self.gp1_direction = Some(direction);
         self
     }
 
+    /// Set the logic level of GP1.
+    ///
+    /// Not this will only take effect if GP0 is set to be a GPIO output pin.
     pub fn with_gp1_level(&mut self, level: LogicLevel) -> &mut Self {
         self.gp1_level = Some(level);
         self
     }
 
+    /// Set the direction of GP2.
     pub fn with_gp2_direction(&mut self, direction: GpioDirection) -> &mut Self {
         self.gp2_direction = Some(direction);
         self
     }
 
+    /// Set the logic level of GP2.
+    ///
+    /// Not this will only take effect if GP0 is set to be a GPIO output pin.
     pub fn with_gp2_level(&mut self, level: LogicLevel) -> &mut Self {
         self.gp2_level = Some(level);
         self
     }
 
+    /// Set the direction of GP3.
     pub fn with_gp3_direction(&mut self, direction: GpioDirection) -> &mut Self {
         self.gp3_direction = Some(direction);
         self
     }
 
+    /// Set the logic level of GP3.
+    ///
+    /// Not this will only take effect if GP0 is set to be a GPIO output pin.
     pub fn with_gp3_level(&mut self, level: LogicLevel) -> &mut Self {
         self.gp3_level = Some(level);
         self

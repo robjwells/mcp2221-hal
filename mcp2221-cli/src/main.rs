@@ -19,7 +19,7 @@ mod settings;
 mod usb;
 mod util;
 
-type McpResult<T> = Result<T, mcp2221_hal::error::Error>;
+type McpResult<T> = Result<T, mcp2221_hal::Error>;
 
 fn main() -> McpResult<()> {
     let cli = cli::Cli::parse();

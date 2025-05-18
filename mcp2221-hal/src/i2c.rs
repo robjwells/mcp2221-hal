@@ -1,3 +1,6 @@
+//! I2C engine configuration.
+
+/// Response from the MCP2221 after attempting to cancel an I2C transfer.
 #[derive(Debug)]
 pub enum CancelI2cTransferResponse {
     /// The I2C transfer cancellation was issued and the MCP2221 marked the transfer
@@ -10,6 +13,16 @@ pub enum CancelI2cTransferResponse {
     NoTransfer,
 }
 
+/// I2C bus rate.
+///
+/// Only fast (400k) and standard (100k) speeds are currently supported.
+///
+/// The MCP2221 does use an 8-bit divider for this, but with its internal clock
+/// frequency of 12 MHz, the slowest possible speed is still about 47 kHz. The
+/// fastest speed supported by the MCP2221 is 400k.
+///
+/// The formula for the divider (given in a note in section 3.1 of the datasheet) is:
+/// `(12 MHz / desired clock speed) - 2`.
 #[allow(non_camel_case_types)]
 pub enum I2cSpeed {
     /// I2c bus speed of 400kbps ("Fast-mode")

@@ -1,3 +1,5 @@
+//! SRAM settings.
+
 use bit_field::BitField;
 
 use crate::analog::VoltageReference;
@@ -5,6 +7,23 @@ use crate::common::ClockSetting;
 use crate::gpio::GpSettings;
 use crate::security::ChipConfigurationSecurity;
 
+/// Chip and GP pin settings read from the MCP2221’s SRAM.
+///
+/// These settings determine the run-time behaviour of the chip. When the device is
+/// powered-up, the corresponding settings stored in flash memory are copied into SRAM.
+/// See section 1.4 of the datasheet for details about this process.
+///
+/// <div class="warning">
+///
+/// Do not rely on the read SRAM settings accurately reflecting the current state of
+/// the MCP2221. Certain commands can alter the behaviour of the device without being
+/// show in these settings, notably setting GPIO direction and output levels via the
+/// `Set GPIO Output Values` HID command (implemented in
+/// [`MCP2221::set_gpio_values`](crate::MCP2221::set_gpio_values())), or writing the
+/// GP pin settings in SRAM without also writing the ADC and DAC voltage references
+/// (which resets the Vrm level to "off").
+///
+/// </div>
 #[derive(Debug)]
 pub struct SramSettings {
     /// Whether a serial number descriptor will be presented during the
@@ -32,7 +51,7 @@ pub struct SramSettings {
     /// > If the GP pin (exposing the clock output) is enabled for clock output
     /// > operation, the divider value will be used on the 48 MHz USB internal
     /// > clock and its divided output will be sent to this pin.
-    /// > (Bits[4:3] for duty cycle and bits[2:0] for the clock divider.)
+    /// > (Bits\[4:3\] for duty cycle and bits\[2:0\] for the clock divider.)
     ///
     /// Byte 5 bits 4..=0.
     pub clock_output: ClockSetting,
@@ -69,22 +88,16 @@ pub struct SramSettings {
     pub usb_product_id: u16,
     /// USB power attributes.
     ///
-    /// This value will be used by the MCP2221's USB Configuration
-    /// Descriptor (power attributes value) during the USB enumeration.
-    ///
-    /// Please consult the USB 2.0 specification on the correct values
-    /// for power and attributes.
+    /// This value will be used by the MCP2221's USB Configuration Descriptor (power
+    /// attributes value) during the USB enumeration. Please consult the USB 2.0
+    /// specification on the correct values for power and attributes.
     ///
     /// Byte 12.
     pub usb_power_attributes: u8,
-    /// USB requested number of mA.
-    ///
-    /// The requested mA value during the USB enumeration. Please consult the USB 2.0
-    /// specification on the correct values for power and attributes.
+    /// Current requested from the USB host in milliamps.
     ///
     /// Note the datasheet says the actual value is the byte value multiplied by 2.
     /// The value in this struct has already been multiplied by 2 for convenience.
-    ///
     /// As the halved value is stored as a single byte by the MCP2221, the maximum
     /// possible value is 510 mA (stored as `255u8` on the chip);
     ///
@@ -119,20 +132,42 @@ impl SramSettings {
     }
 }
 
+/// Changes to make to the interrupt settings.
+///
+/// Interrupt detection (aka "IOC") is an alternative function on GP1.
 #[derive(Debug)]
 pub struct InterruptSettings {
-    pub clear_interrupt_flag: bool,
-    pub interrupt_on_positive_edge: Option<bool>,
-    pub interrupt_on_negative_edge: Option<bool>,
+    /// Clear the interrupt flag if true.
+    clear_interrupt_flag: bool,
+    /// If `Some`, set whether interrupts should trigger on a positive edge.
+    interrupt_on_positive_edge: Option<bool>,
+    /// If `Some`, set whether interrupts should trigger on a negative edge.
+    interrupt_on_negative_edge: Option<bool>,
 }
 
 impl InterruptSettings {
+    /// Create a new struct set to clear (or not) the interrupt flag.
+    ///
+    /// The "clear flag" argument is the only thing required when changing the
+    /// interrupt settings in SRAM.
     pub fn clear_flag(clear: bool) -> Self {
         Self {
             clear_interrupt_flag: clear,
             interrupt_on_positive_edge: None,
             interrupt_on_negative_edge: None,
         }
+    }
+
+    /// Enable or disable interrupts when a positive edge is detected.
+    pub fn interrupt_on_positive_edge(&mut self, v: bool) -> &mut Self {
+        self.interrupt_on_positive_edge = Some(v);
+        self
+    }
+
+    /// Enable or disable interrupts when a negative edge is detected.
+    pub fn interrupt_on_negative_edge(&mut self, v: bool) -> &mut Self {
+        self.interrupt_on_negative_edge = Some(v);
+        self
     }
 }
 
@@ -154,6 +189,7 @@ pub struct ChangeSramSettings {
 }
 
 impl ChangeSramSettings {
+    /// Create an empty set of changes to SRAM.
     pub fn new() -> Self {
         Self::default()
     }

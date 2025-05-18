@@ -1,3 +1,5 @@
+//! Analog input (ADC) and output (DAC) common types.
+
 /// Three-channel reading of the 10-bit ADC.
 ///
 /// Each channel reading is optional as their values are not defined if the
@@ -18,8 +20,8 @@ pub struct AdcReading {
     pub gp3: Option<u16>,
 }
 
+/// Voltage level for the internal Vrm voltage reference module.
 #[derive(Debug, Clone, Copy)]
-/// Setting of the internal voltage reference (VRM)
 pub enum VrmVoltage {
     /// 4.096V
     ///
@@ -29,10 +31,13 @@ pub enum VrmVoltage {
     V2_048,
     /// 1.024V
     V1_024,
-    /// Reference voltage is off.
+    /// Reference voltage is off and the supply voltage (Vdd) is used.
     ///
-    /// This is useful for the case in which the DAC uses another reference other
-    /// than Vrm DAC; eg Vdd.
+    /// <div class="warning">
+    /// Configuring the DAC to use this voltage reference (Vrm in “off” mode) results
+    /// in an output voltage slightly above the 0 value output voltage for the other
+    /// modes, even when the DAC output value is at maximum (31).
+    /// </div>
     Off,
 }
 
@@ -60,9 +65,16 @@ impl From<VrmVoltage> for u8 {
     }
 }
 
+/// Analog voltage reference source.
+///
+/// Used to set the reference for the analog-to-digital converter (ADC, analog input)
+/// and the digital-to-analog converter (DAC, analog output). Each has a separate
+/// reference, though the options are the same for both.
 #[derive(Debug, Clone, Copy)]
 pub enum VoltageReference {
+    /// Internal voltage reference module with a configurable voltage.
     Vrm(VrmVoltage),
+    /// MCP2221 supply voltage.
     Vdd,
 }
 

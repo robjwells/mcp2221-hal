@@ -1,7 +1,17 @@
+//! Chip configuration protection settings.
+
+/// Protection level of the chip configuration.
 #[derive(Debug, Clone, Copy)]
 pub enum ChipConfigurationSecurity {
+    /// Chip settings are permanently locked and no changes can be made.
+    ///
+    /// This can be set on purpose, and it appears that repeated failed flash settings
+    /// updates will also cause the MCP2221 to become permanently locked (see byte 1 of
+    /// table 3-19 of the datasheet).
     PermanentlyLocked,
+    /// Chip settings are protected by a password.
     PasswordProtected,
+    /// No protection mechanism is in place.
     Unsecured,
 }
 

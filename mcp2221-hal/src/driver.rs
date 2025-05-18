@@ -59,10 +59,14 @@ impl MCP2221 {
     /// The device will cancel the current I2C transfer and will attempt to free the I2C
     /// bus. See table 3-1 in section 3.1.1 of the datasheet.
     ///
-    /// **NOTE** that issuing the cancellation command to the MCP2221 while the I2C
+    /// <div class="warning">
+    ///
+    /// Note that issuing the cancellation command to the MCP2221 while the I2C
     /// engine is already idle appears to put the engine into a busy state. The driver
     /// avoids this by checking the engine status and _not issuing the cancellation_
     /// if the engine is already idle.
+    ///
+    /// </div>
     pub fn cancel_i2c_transfer(&mut self) -> Result<CancelI2cTransferResponse, Error> {
         // Only issue the cancellation command if the I2C engine is busy to avoid it
         // _becoming_ busy by issuing the cancellation..
@@ -84,7 +88,7 @@ impl MCP2221 {
     /// Set the baud rate of the I2C bus.
     ///
     /// Returns `Ok(())` when the speed was set successfully and
-    /// Err([Error::I2cTransferInProgress]) if the speed could not be
+    /// `Err(`[`Error::I2cTransferInProgress`]`)` if the speed could not be
     /// set due to an ongoing I2C transfer.
     pub fn set_i2c_bus_speed(&mut self, speed: I2cSpeed) -> Result<(), Error> {
         let mut uc = UsbReport::new(McpCommand::StatusSetParameters);
@@ -196,7 +200,7 @@ impl MCP2221 {
     /// the current state of the MCP2221. Some commands will (in practice) change these
     /// settings without those changes being shown when subsequently reading the SRAM.
     ///
-    /// - GPIO pin direction and level after using the `Set GPIO output values` command
+    /// - GPIO pin direction and level after using the Set GPIO Output Values command
     ///   (implemented by [`MCP2221::set_gpio_values`]).
     /// - Vrm reference level set to off after setting GP pin settings via `Set SRAM Settings`
     ///   (implemented by [`MCP2221::set_sram_settings`]) _without_ also explicitly setting
@@ -214,6 +218,20 @@ impl MCP2221 {
         Ok(SramSettings::from_buffer(&buf))
     }
 
+    /// Change run-time chip and GP pin settings.
+    ///
+    /// If you only need to change GPIO pin direction or output level, use the
+    /// [`MCP2221::set_gpio_values()`] method.
+    ///
+    /// <div class="warning">
+    /// Changing the GP pin settings without also setting the ADC and DAC voltage
+    /// references will result in them being set to Vrm in "off" mode. See the note
+    /// in section 1.8.1.1 of the datasheet.
+    /// </div>
+    ///
+    /// Changes made in this way (to SRAM) do not persist across device reset.
+    ///
+    /// See section 3.1.13 of the datasheet for details about the underlying command.
     pub fn set_sram_settings(&mut self, settings: &ChangeSramSettings) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::SetSRAMSettings);
         settings.apply_to_sram_buffer(&mut command.write_buffer);
@@ -272,11 +290,11 @@ impl MCP2221 {
         Ok(())
     }
 
-    // TODO: Rewrite this. It's just copied from the datasheet.
-    /// Get GPIO values
+    /// Get GPIO pin direction and current logic levels.
     ///
-    /// This command is used to retrieve the GPIO direction and pin value for those
-    /// GP pins assigned for GPIO operation (GPIO inputs or outputs)
+    /// Only pins that are configured for GPIO operation are present in the returned
+    /// [`GpioValues`] struct. The logic level listed for output pins is the currently
+    /// set output, and for input pins it is the voltage level read on that pin.
     pub fn get_gpio_values(&mut self) -> Result<GpioValues, Error> {
         let buf = self.transfer(UsbReport::new(McpCommand::GetGpioValues))?;
         Ok(GpioValues::from_buffer(&buf))
@@ -284,12 +302,17 @@ impl MCP2221 {
 
     /// Change GPIO pins' output direction and output logic level.
     ///
-    /// **NOTE** that this will not change the mode of GP pins that are not
-    /// configured for GPIO operation. That must be done by changing the mode
-    /// settings in SRAM via [`MCP2221::set_sram_settings`], or in flash via
+    /// <div class="warning">
+    ///
+    /// This method will not change the mode of GP pins that are not configured for
+    /// GPIO operation. That must be done by changing the mode settings in SRAM via
+    /// [`MCP2221::set_sram_settings`], or in flash via
     /// [`MCP2221::write_gp_settings_to_flash`] and resetting the device.
     ///
-    /// See section 3.1.11 of the datasheet.
+    /// </div>
+    ///
+    /// See section 3.1.11 of the datasheet for the underlying Set GPIO Output Values
+    /// command.
     pub fn set_gpio_values(&mut self, changes: &ChangeGpioValues) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::SetGpioOutputValues);
         changes.apply_to_buffer(&mut command.write_buffer);

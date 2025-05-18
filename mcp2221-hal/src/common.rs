@@ -1,5 +1,11 @@
+//! Utility types for various settings.
+
 use bit_field::BitField;
 
+/// String with at most 30 UTF-16 code points.
+///
+/// The strings stored in the MCP2221 flash memory (used during USB enumeration)
+/// are limited to at most 60 bytes of UTF-16-encoded text.
 #[derive(Debug, Clone)]
 pub struct DeviceString(String);
 
@@ -79,14 +85,14 @@ impl std::fmt::Display for DeviceString {
 /// Each case is the percentage of one clock period that is a high logic level.
 #[derive(Debug, Default, Clone, Copy)]
 pub enum DutyCycle {
-    // 75% duty cycle.
+    /// 75% duty cycle.
     P75,
-    // 50% duty cycle (factory default).
+    /// 50% duty cycle (factory default).
     #[default]
     P50,
-    // 25% duty cycle.
+    /// 25% duty cycle.
     P25,
-    // 0% duty cycle.
+    /// 0% duty cycle.
     P0,
 }
 

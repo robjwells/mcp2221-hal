@@ -24,7 +24,12 @@ pub enum Error {
     /// The command code echoed by the MCP2221 was not the command code written to it.
     ///
     /// In practice this should not occur(!). Please report any occurrences.
-    MismatchedCommandCodeEcho { sent: u8, received: u8 },
+    MismatchedCommandCodeEcho {
+        /// Command code that was sent to the MCP2221.
+        sent: u8,
+        /// Command code echoed from the MCP2221.
+        received: u8,
+    },
     /// Attempt to write DAC value not in the range 0..=31.
     DacValueOutOfRange,
     /// An error occured when attempting to open the MCP2221 USB device.

@@ -1,3 +1,5 @@
+//! Configuration of and interaction with the GP pins.
+
 mod common;
 mod settings;
 mod values;

@@ -30,10 +30,12 @@ pub struct GpSettings {
 }
 
 impl GpSettings {
+    /// Parse GP pin settings read from flash memory.
     pub fn from_flash_buffer(buf: &[u8; 64]) -> Self {
         GpSettings::from_buffer(GpSettingsSource::Flash, buf)
     }
 
+    /// Parse GP pin settings read from SRAM.
     pub fn from_sram_buffer(buf: &[u8; 64]) -> Self {
         GpSettings::from_buffer(GpSettingsSource::Sram, buf)
     }
@@ -114,6 +116,16 @@ pub enum Gp0Designation {
     ///
     /// The pin operates as a digital input or a digital output.
     GPIO,
+    /// The pin function is undefined.
+    ///
+    /// This will likely indicate an error has occurred.
+    ///
+    /// This represents the unused bit pattern for the GP0 designation. If it is
+    /// read from or written to the device, the pin designation is undefined.
+    // TODO: Should this even be present in the enum? It's a possible value, but it's
+    // not clear in what situations we would ever read DontCare from the MCP2221.
+    // Certainly we shouldn't support _writing_ this to the device in case it causes
+    // some kind of problem.
     DontCare,
 }
 
@@ -170,6 +182,12 @@ pub enum Gp1Designation {
     ///
     /// The pin operates as a digital input or a digital output.
     GPIO,
+    /// The pin function is undefined.
+    ///
+    /// This will likely indicate an error has occurred.
+    ///
+    /// This represents the unused bit pattern for the GP1 designation. If it is
+    /// read from or written to the device, the pin designation is undefined.
     DontCare,
 }
 
@@ -226,6 +244,12 @@ pub enum Gp2Designation {
     ///
     /// The pin operates as a digital input or a digital output.
     GPIO,
+    /// The pin function is undefined.
+    ///
+    /// This will likely indicate an error has occurred.
+    ///
+    /// This represents the unused bit pattern for the GP2 designation. If it is
+    /// read from or written to the device, the pin designation is undefined.
     DontCare,
 }
 
@@ -280,6 +304,12 @@ pub enum Gp3Designation {
     ///
     /// The pin operates as a digital input or a digital output.
     GPIO,
+    /// The pin function is undefined.
+    ///
+    /// This will likely indicate an error has occurred.
+    ///
+    /// This represents the unused bit pattern for the GP3 designation. If it is
+    /// read from or written to the device, the pin designation is undefined.
     DontCare,
 }
 
@@ -396,7 +426,6 @@ impl Gp2Settings {
     }
 }
 
-
 /// GP pin 3 configuration.
 #[derive(Debug)]
 pub struct Gp3Settings {
@@ -428,7 +457,6 @@ impl Gp3Settings {
         matches!(self.designation, Gp3Designation::ADC3)
     }
 }
-
 
 impl From<(LogicLevel, GpioDirection, Gp0Designation)> for Gp0Settings {
     fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp0Designation)) -> Self {
