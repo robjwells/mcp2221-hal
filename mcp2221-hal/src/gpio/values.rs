@@ -7,10 +7,10 @@ const NOT_GPIO_DIRECTION: u8 = 0xEF;
 
 #[derive(Debug)]
 pub struct GpioValues {
-    gp0: Option<PinValue>,
-    gp1: Option<PinValue>,
-    gp2: Option<PinValue>,
-    gp3: Option<PinValue>,
+    pub gp0: Option<PinValue>,
+    pub gp1: Option<PinValue>,
+    pub gp2: Option<PinValue>,
+    pub gp3: Option<PinValue>,
 }
 
 impl GpioValues {
@@ -28,8 +28,8 @@ impl GpioValues {
 
 #[derive(Debug)]
 pub struct PinValue {
-    direction: GpioDirection,
-    level: LogicLevel,
+    pub direction: GpioDirection,
+    pub level: LogicLevel,
 }
 
 impl PinValue {
