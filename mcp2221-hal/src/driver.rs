@@ -49,7 +49,7 @@ impl MCP2221 {
     ///
     /// This is read via the Status/Set Parameters command. See section 3.11 of the
     /// datasheet for details.
-    pub fn status(&mut self) -> Result<Status, Error> {
+    pub fn status(&self) -> Result<Status, Error> {
         let buf = self.transfer(UsbReport::new(McpCommand::StatusSetParameters))?;
         Ok(Status::from_buffer(&buf))
     }
@@ -67,7 +67,7 @@ impl MCP2221 {
     /// if the engine is already idle.
     ///
     /// </div>
-    pub fn cancel_i2c_transfer(&mut self) -> Result<CancelI2cTransferResponse, Error> {
+    pub fn cancel_i2c_transfer(&self) -> Result<CancelI2cTransferResponse, Error> {
         // Only issue the cancellation command if the I2C engine is busy to avoid it
         // _becoming_ busy by issuing the cancellation..
         if self.status()?.i2c_engine_is_idle {
@@ -90,7 +90,7 @@ impl MCP2221 {
     /// Returns `Ok(())` when the speed was set successfully and
     /// `Err(`[`Error::I2cTransferInProgress`]`)` if the speed could not be
     /// set due to an ongoing I2C transfer.
-    pub fn set_i2c_bus_speed(&mut self, speed: I2cSpeed) -> Result<(), Error> {
+    pub fn set_i2c_bus_speed(&self, speed: I2cSpeed) -> Result<(), Error> {
         let mut uc = UsbReport::new(McpCommand::StatusSetParameters);
         // When this value is put in this field, the device will take the next command
         // field and interpret it as the system clock divider that will give the
@@ -109,7 +109,7 @@ impl MCP2221 {
     ///
     /// These settings take effect on power-up. See section 1.4 for information on the
     /// configuration process. See section 3.1.2 for the Read Flash Data command.
-    pub fn read_flash_data(&mut self) -> Result<FlashData, Error> {
+    pub fn read_flash_data(&self) -> Result<FlashData, Error> {
         use FlashDataSubCode::*;
         use McpCommand::ReadFlashData;
 
@@ -142,7 +142,7 @@ impl MCP2221 {
     /// device to "unlocked" mode. If you have previously password-locked the MCP2221
     /// via other means, you will likely encounter an error.
     /// </div>
-    pub fn write_chip_settings_to_flash(&mut self, cs: ChipSettings) -> Result<(), Error> {
+    pub fn write_chip_settings_to_flash(&self, cs: ChipSettings) -> Result<(), Error> {
         let mut command =
             UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::ChipSettings));
         cs.apply_to_flash_buffer(&mut command.write_buffer);
@@ -155,7 +155,7 @@ impl MCP2221 {
     /// This changes the power-up setting and will not affect the active SRAM settings.
     /// To have this change take effect, reset the device or apply the same changes to
     /// the SRAM settings.
-    pub fn write_gp_settings_to_flash(&mut self, gp: GpSettings) -> Result<(), Error> {
+    pub fn write_gp_settings_to_flash(&self, gp: GpSettings) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::GPSettings));
         gp.apply_to_flash_buffer(&mut command.write_buffer);
         self.transfer(command)?;
@@ -163,7 +163,7 @@ impl MCP2221 {
     }
 
     /// Update the USB manufacturer string descriptor used during USB enumeration.
-    pub fn write_usb_manufacturer_descriptor(&mut self, s: &DeviceString) -> Result<(), Error> {
+    pub fn write_usb_manufacturer_descriptor(&self, s: &DeviceString) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(
             FlashDataSubCode::UsbManufacturerDescriptor,
         ));
@@ -173,7 +173,7 @@ impl MCP2221 {
     }
 
     /// Update the USB product string descriptor used during USB enumeration.
-    pub fn write_usb_product_descriptor(&mut self, s: &DeviceString) -> Result<(), Error> {
+    pub fn write_usb_product_descriptor(&self, s: &DeviceString) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(
             FlashDataSubCode::UsbProductDescriptor,
         ));
@@ -183,7 +183,7 @@ impl MCP2221 {
     }
 
     /// Update the USB serial number descriptor string used during USB enumeration.
-    pub fn write_usb_serial_number_descriptor(&mut self, s: &DeviceString) -> Result<(), Error> {
+    pub fn write_usb_serial_number_descriptor(&self, s: &DeviceString) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::WriteFlashData(
             FlashDataSubCode::UsbSerialNumberDescriptor,
         ));
@@ -212,7 +212,7 @@ impl MCP2221 {
     /// See section 3.1.13 of the datasheet for details about the underlying `Get SRAM
     /// Settings` command, and section 1.4 for information about the configuration
     /// process at power-up.
-    pub fn get_sram_settings(&mut self) -> Result<SramSettings, Error> {
+    pub fn get_sram_settings(&self) -> Result<SramSettings, Error> {
         let command = UsbReport::new(McpCommand::GetSRAMSettings);
         let buf = self.transfer(command)?;
         Ok(SramSettings::from_buffer(&buf))
@@ -232,7 +232,7 @@ impl MCP2221 {
     /// Changes made in this way (to SRAM) do not persist across device reset.
     ///
     /// See section 3.1.13 of the datasheet for details about the underlying command.
-    pub fn set_sram_settings(&mut self, settings: &ChangeSramSettings) -> Result<(), Error> {
+    pub fn set_sram_settings(&self, settings: &ChangeSramSettings) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::SetSRAMSettings);
         settings.apply_to_sram_buffer(&mut command.write_buffer);
         self.transfer(command)?;
@@ -242,7 +242,7 @@ impl MCP2221 {
     /// Configure the DAC voltage reference in SRAM.
     ///
     /// This setting is not persisted across reset.
-    pub fn configure_dac_source(&mut self, source: VoltageReference) -> Result<(), Error> {
+    pub fn configure_dac_source(&self, source: VoltageReference) -> Result<(), Error> {
         self.set_sram_settings(ChangeSramSettings::new().with_dac_reference(source))?;
         Ok(())
     }
@@ -255,7 +255,7 @@ impl MCP2221 {
     ///
     /// Returns [`Error::DacValueOutOfRange`] if the value is too large (maximum 31
     /// for the 5-bit DAC) or if an error occurred communicating with the MCP2221.
-    pub fn set_dac_output_value(&mut self, value: u8) -> Result<(), Error> {
+    pub fn set_dac_output_value(&self, value: u8) -> Result<(), Error> {
         // TODO: Should this be an error or should the value be clamped?
         if value > 31 {
             return Err(Error::DacValueOutOfRange);
@@ -266,7 +266,7 @@ impl MCP2221 {
     }
 
     /// Read the current values of the three-channel ADC.
-    pub fn read_adc(&mut self) -> Result<AdcReading, Error> {
+    pub fn read_adc(&self) -> Result<AdcReading, Error> {
         let (ch1, ch2, ch3) = self.status()?.adc_values;
         let SramSettings {
             adc_reference: vref,
@@ -285,7 +285,7 @@ impl MCP2221 {
     /// Configure the ADC voltage reference in SRAM.
     ///
     /// This setting is not persisted across reset.
-    pub fn configure_adc_source(&mut self, source: VoltageReference) -> Result<(), Error> {
+    pub fn configure_adc_source(&self, source: VoltageReference) -> Result<(), Error> {
         self.set_sram_settings(ChangeSramSettings::new().with_adc_reference(source))?;
         Ok(())
     }
@@ -295,7 +295,7 @@ impl MCP2221 {
     /// Only pins that are configured for GPIO operation are present in the returned
     /// [`GpioValues`] struct. The logic level listed for output pins is the currently
     /// set output, and for input pins it is the voltage level read on that pin.
-    pub fn get_gpio_values(&mut self) -> Result<GpioValues, Error> {
+    pub fn get_gpio_values(&self) -> Result<GpioValues, Error> {
         let buf = self.transfer(UsbReport::new(McpCommand::GetGpioValues))?;
         Ok(GpioValues::from_buffer(&buf))
     }
@@ -313,7 +313,7 @@ impl MCP2221 {
     ///
     /// See section 3.1.11 of the datasheet for the underlying Set GPIO Output Values
     /// command.
-    pub fn set_gpio_values(&mut self, changes: &ChangeGpioValues) -> Result<(), Error> {
+    pub fn set_gpio_values(&self, changes: &ChangeGpioValues) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::SetGpioOutputValues);
         changes.apply_to_buffer(&mut command.write_buffer);
         self.transfer(command)?;
