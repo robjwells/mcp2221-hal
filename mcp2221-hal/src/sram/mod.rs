@@ -7,6 +7,9 @@ use crate::common::ClockSetting;
 use crate::gpio::GpSettings;
 use crate::security::ChipConfigurationSecurity;
 
+// TODO: This is just the flash chip settings with the GpSettings included.
+//       Really the chip settings should be unified, as they use the same
+//       byte offsets. GpSettings is another issue, though.
 /// Chip and GP pin settings read from the MCP2221’s SRAM.
 ///
 /// These settings determine the run-time behaviour of the chip. When the device is

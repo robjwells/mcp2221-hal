@@ -8,6 +8,8 @@ use bit_field::BitField;
 /// to table 3-1 in section 3.1.1 (Status/Set Parameters) of the datasheet.
 #[derive(Debug)]
 pub struct Status {
+    // TODO: The I2C-related fields should be grouped together into some kind of
+    // I2C status struct as there's so many of them.
     /// I2C engine in idle mode.
     ///
     /// Byte 8.

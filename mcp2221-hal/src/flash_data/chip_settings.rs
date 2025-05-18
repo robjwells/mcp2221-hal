@@ -83,7 +83,7 @@ pub struct ChipSettings {
     /// USB power attributes.
     ///
     /// This value will be used by the MCP2221's USB Configuration
-    /// Descriptor (power attributes value) during the USB enumeration.
+    /// Descriptor (power attributes alue) during the USB enumeration.
     ///
     /// Please consult the USB 2.0 specification on the correct values
     /// for power and attributes.

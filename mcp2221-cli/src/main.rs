@@ -28,16 +28,14 @@ fn main() -> McpResult<()> {
         Commands::Status => println!("{:#?}", device.status()?),
         Commands::Settings(settings_command) => match settings_command {
             SettingsCommand::Read { which } => match which {
-                SettingsType::Flash => println!("{:#?}", device.read_flash_data()?),
-                SettingsType::Sram => println!("{:#?}", device.get_sram_settings()?),
+                SettingsType::Flash => println!("{:#?}", device.flash_read_settings()?),
+                SettingsType::Sram => println!("{:#?}", device.sram_read_settings()?),
             },
             SettingsCommand::Write(write_command) => match write_command {
                 SettingsWriteCommand::Manufacturer { string } => {
-                    device.write_usb_manufacturer_descriptor(&string)?
+                    device.change_usb_manufacturer(&string)?
                 }
-                SettingsWriteCommand::Product { string } => {
-                    device.write_usb_product_descriptor(&string)?
-                }
+                SettingsWriteCommand::Product { string } => device.change_usb_product(&string)?,
             },
         },
         Commands::Usb => {
@@ -47,16 +45,16 @@ fn main() -> McpResult<()> {
             DacCommand::Write { flash: true, value } => {
                 // TODO: This is querying all the flash data, when we only need the
                 // chip settings. Perhaps break up the read_flash_data() method?
-                let mut cs = device.read_flash_data()?.chip_settings;
+                let mut cs = device.flash_read_settings()?.chip_settings;
                 cs.dac_power_up_value = value;
-                device.write_chip_settings_to_flash(cs)?;
+                device.flash_write_chip_settings(cs)?;
             }
             DacCommand::Write {
                 flash: false,
                 value,
             } => {
                 // do sram write
-                device.set_dac_output_value(value)?;
+                device.analog_write(value)?;
             }
 
             DacCommand::Configure {
@@ -66,38 +64,38 @@ fn main() -> McpResult<()> {
             } => {
                 // TODO: This is querying all the flash data, when we only need the
                 // chip settings. Perhaps break up the read_flash_data() method?
-                let mut cs = device.read_flash_data()?.chip_settings;
+                let mut cs = device.flash_read_settings()?.chip_settings;
                 cs.dac_reference = reference.into_mcp_vref(vrm_level);
-                device.write_chip_settings_to_flash(cs)?;
+                device.flash_write_chip_settings(cs)?;
             }
             DacCommand::Configure {
                 flash: false,
                 reference,
                 vrm_level,
             } => {
-                device.configure_dac_source(reference.into_mcp_vref(vrm_level))?;
+                device.dac_set_reference(reference.into_mcp_vref(vrm_level))?;
             }
         },
         Commands::Adc(adc_command) => match adc_command {
-            AdcCommand::Read => println!("{:#?}", device.read_adc()?),
+            AdcCommand::Read => println!("{:#?}", device.analog_read()?),
             AdcCommand::Configure {
                 flash: false,
                 reference,
                 vrm_level,
-            } => device.configure_adc_source(reference.into_mcp_vref(vrm_level))?,
+            } => device.adc_set_reference(reference.into_mcp_vref(vrm_level))?,
             AdcCommand::Configure {
                 flash: true,
                 reference,
                 vrm_level,
             } => {
-                let mut cs = device.read_flash_data()?.chip_settings;
+                let mut cs = device.flash_read_settings()?.chip_settings;
                 cs.adc_reference = reference.into_mcp_vref(vrm_level);
-                device.write_chip_settings_to_flash(cs)?;
+                device.flash_write_chip_settings(cs)?;
             }
         },
-        Commands::Reset => device.reset_chip()?,
+        Commands::Reset => device.reset()?,
         Commands::I2c(i2c_command) => match i2c_command {
-            I2cCommand::Cancel => match device.cancel_i2c_transfer()? {
+            I2cCommand::Cancel => match device.i2c_cancel_transfer()? {
                 CancelI2cTransferResponse::MarkedForCancellation => {
                     println!("Transfer marked for cancellation.")
                 }
@@ -105,34 +103,34 @@ fn main() -> McpResult<()> {
                     println!("There was no ongoing I2C transfer to cancel.")
                 }
             },
-            I2cCommand::Speed { speed } => device.set_i2c_bus_speed(speed.into())?,
+            I2cCommand::Speed { speed } => device.i2c_set_bus_speed(speed.into())?,
         },
         Commands::Pins(pins_command) => match pins_command {
             pins::PinsCommand::Read => {
-                println!("{:#?}", device.get_gpio_values()?);
+                println!("{:#?}", device.gpio_read()?);
             }
             pins::PinsCommand::SetMode(GpModes {
                 flash: true,
                 pin_configs,
             }) => {
-                let mut gp_settings = device.read_flash_data()?.gp_settings;
+                let mut gp_settings = device.flash_read_settings()?.gp_settings;
                 pin_configs.merge_into_existing(&mut gp_settings);
-                device.write_gp_settings_to_flash(gp_settings)?;
+                device.flash_write_gp_settings(gp_settings)?;
             }
             pins::PinsCommand::SetMode(GpModes {
                 flash: false,
                 pin_configs,
             }) => {
-                let mut sram_settings = device.get_sram_settings()?;
+                let mut sram_settings = device.sram_read_settings()?;
                 pin_configs.merge_into_existing(&mut sram_settings.gp_settings);
-                device.set_sram_settings(ChangeSramSettings::new().with_gp_modes(
+                device.sram_write_settings(ChangeSramSettings::new().with_gp_modes(
                     sram_settings.gp_settings,
                     Some(sram_settings.dac_reference),
                     Some(sram_settings.adc_reference),
                 ))?;
             }
             pins::PinsCommand::Write(pin_values) => {
-                device.set_gpio_values(&pin_values.into())?;
+                device.gpio_write(&pin_values.into())?;
             }
         },
     }
