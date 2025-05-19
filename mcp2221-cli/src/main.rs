@@ -1,7 +1,7 @@
 use analog::{AdcCommand, DacCommand};
 use cli::Commands;
 use i2c::I2cCommand;
-use mcp2221_hal::sram::ChangeSramSettings;
+use mcp2221_hal::ChangeSramSettings;
 use pins::GpModes;
 use settings::{SettingsCommand, SettingsType, SettingsWriteCommand};
 use usb::UsbInfo;

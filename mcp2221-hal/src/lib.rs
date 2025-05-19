@@ -4,16 +4,22 @@
 #![deny(unsafe_code)]
 
 pub mod analog;
+mod chip_settings;
 mod commands;
 pub mod common;
 mod driver;
 mod error;
-pub mod flash_data;
+mod flash_data;
 pub mod gpio;
 pub mod i2c;
-pub mod security;
-pub mod sram;
-pub mod status;
+mod security;
+mod sram;
+mod status;
 
+pub use chip_settings::ChipSettings;
 pub use driver::MCP2221;
 pub use error::Error;
+pub use flash_data::FlashData;
+pub use security::ChipConfigurationSecurity;
+pub use sram::{ChangeSramSettings, SramSettings};
+pub use status::Status;
