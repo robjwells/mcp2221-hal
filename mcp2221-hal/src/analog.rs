@@ -21,6 +21,11 @@ pub struct AdcReading {
 }
 
 /// Voltage level for the internal Vrm voltage reference module.
+///
+/// # Datasheet
+///
+/// See section 1.8.1.1 for details about the Vrm voltage levels (with the caveat
+/// listed for [`VrmVoltage::Off`]).
 #[derive(Debug, Clone, Copy)]
 pub enum VrmVoltage {
     /// 4.096V
@@ -34,9 +39,11 @@ pub enum VrmVoltage {
     /// Reference voltage is off and the supply voltage (Vdd) is used.
     ///
     /// <div class="warning">
+    ///
     /// Configuring the DAC to use this voltage reference (Vrm in “off” mode) results
     /// in an output voltage slightly above the 0 value output voltage for the other
     /// modes, even when the DAC output value is at maximum (31).
+    ///
     /// </div>
     Off,
 }
@@ -72,6 +79,19 @@ impl From<VrmVoltage> for u8 {
 /// Used to set the reference for the analog-to-digital converter (ADC, analog input)
 /// and the digital-to-analog converter (DAC, analog output). Each has a separate
 /// reference, though the options are the same for both.
+///
+/// <div class="warning">
+///
+/// Setting the voltage reference in flash for either the DAC or ADC to Vrm (at any
+/// level) will cause them to behave on power-up as if they had been set to Vrm with
+/// a level of "off".
+///
+/// </div>
+///
+/// # Datasheet
+///
+/// See section 1.8 for information about the Vrm modules, and general information
+/// about the ADC and DAC.
 #[derive(Debug, Clone, Copy)]
 pub enum VoltageReference {
     /// Internal voltage reference module with a configurable voltage.
@@ -83,6 +103,7 @@ pub enum VoltageReference {
 #[doc(hidden)]
 impl From<(bool, u8)> for VoltageReference {
     fn from((source_bit, vrm_level): (bool, u8)) -> Self {
+        // 1 = Vrm, 0 = Vdd, despite the inconsistency of the datasheet.
         match source_bit {
             true => Self::Vrm(VrmVoltage::from(vrm_level)),
             false => Self::Vdd,
