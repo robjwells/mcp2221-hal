@@ -2,9 +2,7 @@
 #[command(flatten_help = true)]
 pub(crate) enum I2cCommand {
     /// Set the I2C bus clock speed
-    Speed {
-        speed: I2cSpeed
-    },
+    Speed { speed: I2cSpeed },
     /// Cancel the current I2C transfer and attempt to free the bus.
     Cancel,
 }
