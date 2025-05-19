@@ -125,8 +125,8 @@ fn main() -> McpResult<()> {
                 pin_configs.merge_into_existing(&mut sram_settings.gp_settings);
                 device.sram_write_settings(ChangeSramSettings::new().with_gp_modes(
                     sram_settings.gp_settings,
-                    Some(sram_settings.dac_reference),
-                    Some(sram_settings.adc_reference),
+                    Some(sram_settings.chip_settings.dac_reference),
+                    Some(sram_settings.chip_settings.adc_reference),
                 ))?;
             }
             pins::PinsCommand::Write(pin_values) => {

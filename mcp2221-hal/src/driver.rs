@@ -442,7 +442,11 @@ impl MCP2221 {
     pub fn analog_read(&self) -> Result<AdcReading, Error> {
         let (ch1, ch2, ch3) = self.status()?.adc_values;
         let SramSettings {
-            adc_reference: vref,
+            chip_settings:
+                ChipSettings {
+                    adc_reference: vref,
+                    ..
+                },
             gp_settings: gp,
             ..
         } = self.sram_read_settings()?;

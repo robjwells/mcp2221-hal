@@ -5,11 +5,29 @@ use crate::security::ChipConfigurationSecurity;
 use bit_field::BitField;
 
 #[derive(Debug)]
-/// Chip settings stored in the MCP2221's flash memory.
+/// Various chip configuration settings.
 ///
-/// Byte and bit addresses in this documentation refer to their position when _reading_
-/// from the MCP2221. For their position in the write buffer, subtract two from
-/// the byte address.
+/// The chip settings gathers together several important but unrelated settings.
+/// Consult the documentation for each field and table 3-12 of the datasheet for
+/// information on each option.
+///
+/// The chip settings layout is the same in both flash and SRAM, though fewer things
+/// can be changed in the SRAM chip settings.
+///
+/// <div class="warning">
+///
+/// If the GP pin settings are changed in SRAM without also setting the Vrm level for
+/// the ADC and DAC, the [`adc_reference`](Self::adc_reference) and
+/// [`dac_reference`](Self::dac_reference) fields may not correspond to the actual
+/// setting (a Vrm level of "off"). This appears to be an MCP2221 firmware bug and
+/// is noted in section 1.8.1.1 of the datasheet.
+///
+/// </div>
+///
+/// # Datasheet
+///
+/// See table 3-5 in section 3.1.2 (Read Flash Data) or table 3-39 in section 3.1.14
+/// (Get SRAM Settings) for the datasheet's listing of each returned value.
 pub struct ChipSettings {
     /// Whether a serial number descriptor will be presented during the
     /// USB enumeration of the CDC interface.
@@ -106,6 +124,13 @@ pub struct ChipSettings {
 }
 
 impl ChipSettings {
+    /// Parse the buffer returned from the MCP2221.
+    ///
+    /// The flash and SRAM chip settings response buffers use the same layout.
+    ///
+    /// # Datasheet
+    ///
+    /// See table 3-5 for the flash response layout and table 3-39 for the SRAM response.
     pub(crate) fn from_buffer(buf: &[u8; 64]) -> Self {
         use bit_field::BitField;
         Self {
@@ -128,6 +153,7 @@ impl ChipSettings {
         // Note the bytes positions when writing are -2 from the position when reading.
         buf[2].set_bit(7, self.cdc_serial_number_enumeration_enabled);
         // TODO: support security settings.
+        // While unimplemented, the 0 bits correspond to the "unsecured" setting.
         buf[2].set_bits(0..=1, ChipConfigurationSecurity::Unsecured.into());
 
         // Byte 3 (write) / byte 5 (read)
@@ -168,5 +194,6 @@ impl ChipSettings {
         buf[11] = (self.usb_requested_number_of_ma / 2) as u8;
 
         // TODO: Password support (bytes 12..=19).
+        // While unimplemented the password is left at its default (all zeroes).
     }
 }
