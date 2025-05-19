@@ -15,6 +15,7 @@ pub enum ChipConfigurationSecurity {
     Unsecured,
 }
 
+#[doc(hidden)]
 impl From<u8> for ChipConfigurationSecurity {
     fn from(value: u8) -> Self {
         assert!(value <= 0b11, "Incorrect use of the from constructor.");
@@ -27,6 +28,7 @@ impl From<u8> for ChipConfigurationSecurity {
     }
 }
 
+#[doc(hidden)]
 impl From<ChipConfigurationSecurity> for u8 {
     fn from(value: ChipConfigurationSecurity) -> Self {
         match value {

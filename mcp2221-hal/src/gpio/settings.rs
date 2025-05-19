@@ -129,6 +129,7 @@ pub enum Gp0Designation {
     DontCare,
 }
 
+#[doc(hidden)]
 impl From<u8> for Gp0Designation {
     fn from(value: u8) -> Self {
         assert!(value <= 0b111, "Incorrect use of the from constructor.");
@@ -141,6 +142,7 @@ impl From<u8> for Gp0Designation {
     }
 }
 
+#[doc(hidden)]
 impl From<Gp0Designation> for u8 {
     fn from(value: Gp0Designation) -> Self {
         match value {
@@ -191,6 +193,7 @@ pub enum Gp1Designation {
     DontCare,
 }
 
+#[doc(hidden)]
 impl From<u8> for Gp1Designation {
     fn from(value: u8) -> Self {
         assert!(value <= 0b111, "Incorrect use of the from constructor.");
@@ -206,6 +209,7 @@ impl From<u8> for Gp1Designation {
     }
 }
 
+#[doc(hidden)]
 impl From<Gp1Designation> for u8 {
     fn from(value: Gp1Designation) -> Self {
         match value {
@@ -253,6 +257,7 @@ pub enum Gp2Designation {
     DontCare,
 }
 
+#[doc(hidden)]
 impl From<u8> for Gp2Designation {
     fn from(value: u8) -> Self {
         assert!(value <= 0b111, "Incorrect use of the from constructor.");
@@ -266,6 +271,7 @@ impl From<u8> for Gp2Designation {
     }
 }
 
+#[doc(hidden)]
 impl From<Gp2Designation> for u8 {
     fn from(value: Gp2Designation) -> Self {
         // The datasheet incorrectly lists "clock output" when writing the GP2 settings
@@ -313,6 +319,7 @@ pub enum Gp3Designation {
     DontCare,
 }
 
+#[doc(hidden)]
 impl From<u8> for Gp3Designation {
     fn from(value: u8) -> Self {
         assert!(value <= 0b111, "Incorrect use of the from constructor.");
@@ -326,6 +333,7 @@ impl From<u8> for Gp3Designation {
     }
 }
 
+#[doc(hidden)]
 impl From<Gp3Designation> for u8 {
     fn from(value: Gp3Designation) -> Self {
         match value {
@@ -458,6 +466,7 @@ impl Gp3Settings {
     }
 }
 
+#[doc(hidden)]
 impl From<(LogicLevel, GpioDirection, Gp0Designation)> for Gp0Settings {
     fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp0Designation)) -> Self {
         Self {
@@ -468,6 +477,7 @@ impl From<(LogicLevel, GpioDirection, Gp0Designation)> for Gp0Settings {
     }
 }
 
+#[doc(hidden)]
 impl From<(LogicLevel, GpioDirection, Gp1Designation)> for Gp1Settings {
     fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp1Designation)) -> Self {
         Self {
@@ -478,6 +488,7 @@ impl From<(LogicLevel, GpioDirection, Gp1Designation)> for Gp1Settings {
     }
 }
 
+#[doc(hidden)]
 impl From<(LogicLevel, GpioDirection, Gp2Designation)> for Gp2Settings {
     fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp2Designation)) -> Self {
         Self {
@@ -488,6 +499,7 @@ impl From<(LogicLevel, GpioDirection, Gp2Designation)> for Gp2Settings {
     }
 }
 
+#[doc(hidden)]
 impl From<(LogicLevel, GpioDirection, Gp3Designation)> for Gp3Settings {
     fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp3Designation)) -> Self {
         Self {

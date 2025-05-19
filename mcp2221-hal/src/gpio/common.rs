@@ -10,12 +10,14 @@ pub enum LogicLevel {
     Low,
 }
 
+#[doc(hidden)]
 impl From<bool> for LogicLevel {
     fn from(value: bool) -> Self {
         if value { Self::High } else { Self::Low }
     }
 }
 
+#[doc(hidden)]
 impl From<LogicLevel> for bool {
     fn from(value: LogicLevel) -> Self {
         match value {
@@ -25,6 +27,7 @@ impl From<LogicLevel> for bool {
     }
 }
 
+#[doc(hidden)]
 impl From<LogicLevel> for u8 {
     /// Convert a [`LogicLevel`] to 1 (if high) or 0 (if low).
     fn from(value: LogicLevel) -> Self {
@@ -44,12 +47,14 @@ pub enum GpioDirection {
     Output,
 }
 
+#[doc(hidden)]
 impl From<bool> for GpioDirection {
     fn from(value: bool) -> Self {
         if value { Self::Input } else { Self::Output }
     }
 }
 
+#[doc(hidden)]
 impl From<GpioDirection> for bool {
     fn from(value: GpioDirection) -> Self {
         match value {
@@ -59,6 +64,7 @@ impl From<GpioDirection> for bool {
     }
 }
 
+#[doc(hidden)]
 impl From<GpioDirection> for u8 {
     /// Convert a [`GpioDirection`] to 1 (if input) or 0 (if output).
     fn from(value: GpioDirection) -> Self {

@@ -36,6 +36,7 @@ pub enum Error {
     HidApi(hidapi::HidError),
 }
 
+#[doc(hidden)]
 impl From<hidapi::HidError> for Error {
     fn from(value: hidapi::HidError) -> Self {
         Self::HidApi(value)

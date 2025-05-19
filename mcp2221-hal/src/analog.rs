@@ -41,6 +41,7 @@ pub enum VrmVoltage {
     Off,
 }
 
+#[doc(hidden)]
 impl From<u8> for VrmVoltage {
     fn from(value: u8) -> Self {
         assert!(value <= 0b11, "Incorrect use of the from constructor.");
@@ -54,6 +55,7 @@ impl From<u8> for VrmVoltage {
     }
 }
 
+#[doc(hidden)]
 impl From<VrmVoltage> for u8 {
     fn from(value: VrmVoltage) -> Self {
         match value {
@@ -78,6 +80,7 @@ pub enum VoltageReference {
     Vdd,
 }
 
+#[doc(hidden)]
 impl From<(bool, u8)> for VoltageReference {
     fn from((source_bit, vrm_level): (bool, u8)) -> Self {
         match source_bit {
@@ -87,6 +90,7 @@ impl From<(bool, u8)> for VoltageReference {
     }
 }
 
+#[doc(hidden)]
 impl From<VoltageReference> for (bool, u8) {
     fn from(value: VoltageReference) -> Self {
         match value {

@@ -96,6 +96,7 @@ pub enum DutyCycle {
     P0,
 }
 
+#[doc(hidden)]
 impl From<u8> for DutyCycle {
     fn from(value: u8) -> Self {
         assert!(value <= 0b11, "Invalid bit pattern for duty cycle");
@@ -109,6 +110,7 @@ impl From<u8> for DutyCycle {
     }
 }
 
+#[doc(hidden)]
 impl From<DutyCycle> for u8 {
     fn from(value: DutyCycle) -> u8 {
         match value {
@@ -142,6 +144,7 @@ pub enum ClockFrequency {
     MHz24,
 }
 
+#[doc(hidden)]
 impl From<u8> for ClockFrequency {
     /// Create a `ClockFrequency` from the 3 low bits of the raw "divider".
     ///
@@ -167,6 +170,7 @@ impl From<u8> for ClockFrequency {
     }
 }
 
+#[doc(hidden)]
 impl From<ClockFrequency> for u8 {
     fn from(value: ClockFrequency) -> Self {
         match value {
@@ -189,6 +193,7 @@ impl From<ClockFrequency> for u8 {
 #[derive(Debug, Default, Clone, Copy)]
 pub struct ClockSetting(pub DutyCycle, pub ClockFrequency);
 
+#[doc(hidden)]
 impl From<u8> for ClockSetting {
     /// Create a `ClockSetting` from the 5-bit "divider" read from the MCP2221.
     ///
@@ -208,6 +213,7 @@ impl From<u8> for ClockSetting {
     }
 }
 
+#[doc(hidden)]
 impl From<ClockSetting> for u8 {
     fn from(value: ClockSetting) -> Self {
         let ClockSetting(duty_cycle, frequency) = value;
