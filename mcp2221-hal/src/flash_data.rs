@@ -1,5 +1,6 @@
 //! Configuration stored in the MCP2221's flash memory.
 
+use crate::Error;
 pub use crate::chip_settings::ChipSettings;
 use crate::common::DeviceString;
 use crate::gpio::GpSettings;
@@ -33,17 +34,17 @@ impl FlashData {
         usb_product: &[u8; 64],
         usb_serial: &[u8; 64],
         chip_factory_serial: &[u8; 64],
-    ) -> Self {
-        Self {
+    ) -> Result<Self, Error> {
+        Ok(Self {
             chip_settings: ChipSettings::from_buffer(chip_settings),
             gp_settings: GpSettings::from_flash_buffer(gp_settings),
-            usb_manufacturer_descriptor: DeviceString::from_device_report(usb_mfr),
-            usb_product_descriptor: DeviceString::from_device_report(usb_product),
-            usb_serial_number_descriptor: DeviceString::from_device_report(usb_serial),
+            usb_manufacturer_descriptor: DeviceString::try_from_buffer(usb_mfr)?,
+            usb_product_descriptor: DeviceString::try_from_buffer(usb_product)?,
+            usb_serial_number_descriptor: DeviceString::try_from_buffer(usb_serial)?,
             chip_factory_serial_number: FlashData::buffer_to_chip_factory_serial(
                 chip_factory_serial,
             ),
-        }
+        })
     }
 
     // Chip factory serial is ASCII chars, and always "01234567".

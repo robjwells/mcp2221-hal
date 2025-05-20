@@ -2,6 +2,8 @@
 
 use bit_field::BitField;
 
+use crate::Error;
+
 /// String with at most 30 UTF-16 code points.
 ///
 /// The strings stored in the MCP2221 flash memory (used during USB enumeration)
@@ -30,7 +32,7 @@ impl std::str::FromStr for DeviceString {
 }
 
 impl DeviceString {
-    pub(crate) fn from_device_report(buf: &[u8; 64]) -> Self {
+    pub(crate) fn try_from_buffer(buf: &[u8; 64]) -> Result<Self, Error> {
         assert_eq!(buf[3], 0x03, "String response sanity check.");
 
         let n_bytes = buf[2] as usize - 2;
@@ -50,10 +52,9 @@ impl DeviceString {
             str_utf16.push(utf16);
         }
 
-        // TODO: Really this should be an error, not a panic.
-        let s = String::from_utf16(str_utf16.as_slice())
-            .expect("Invalid Unicode string received from device.");
-        Self(s)
+        String::from_utf16(str_utf16.as_slice())
+            .map(Self)
+            .map_err(Error::InvalidStringFromDevice)
     }
 
     /// Write the utf-16 string to the buffer to be written to the MCP2221.

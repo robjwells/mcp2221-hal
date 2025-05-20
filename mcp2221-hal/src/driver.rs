@@ -172,14 +172,14 @@ impl MCP2221 {
         let chip_factory_serial =
             self.transfer(UsbReport::new(ReadFlashData(ChipFactorySerialNumber)))?;
 
-        Ok(FlashData::from_buffers(
+        FlashData::from_buffers(
             &chip_settings,
             &gp_settings,
             &usb_mfr,
             &usb_product,
             &usb_serial,
             &chip_factory_serial,
-        ))
+        )
     }
 
     /// Write chip settings to flash memory.

@@ -1,3 +1,5 @@
+use std::string::FromUtf16Error;
+
 /// Wrapper for problems when communicating with the MCP2221.
 #[derive(Debug)]
 pub enum Error {
@@ -30,6 +32,8 @@ pub enum Error {
         /// Command code echoed from the MCP2221.
         received: u8,
     },
+    /// String received from the MCP2221 was not valid UTF-16.
+    InvalidStringFromDevice(FromUtf16Error),
     /// An error occurred when attempting to open the MCP2221 USB device.
     HidApi(hidapi::HidError),
 }
@@ -64,6 +68,9 @@ impl std::fmt::Display for Error {
                 f,
                 "incorrect command code echo from the MCP2221 (got {received:#X}, expected {sent:#X})",
             ),
+            Error::InvalidStringFromDevice(e) => {
+                write!(f, "invalid utf-16 string received from the MCP2221: {e}")
+            }
             Error::HidApi(hid_error) => write!(f, "HidApi error: {hid_error}"),
         }
     }
@@ -72,6 +79,7 @@ impl std::fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            Error::InvalidStringFromDevice(utf_error) => Some(utf_error),
             Error::HidApi(hid_error) => Some(hid_error),
             _ => None,
         }
