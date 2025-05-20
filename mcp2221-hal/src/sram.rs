@@ -2,10 +2,10 @@
 
 use bit_field::BitField;
 
+use crate::ChipSettings;
 use crate::Error;
 use crate::analog::VoltageReference;
 use crate::common::ClockSetting;
-use crate::flash_data::ChipSettings;
 use crate::gpio::GpSettings;
 
 /// Chip and GP pin settings read from the MCP2221’s SRAM.

@@ -28,7 +28,7 @@ fn main() -> McpResult<()> {
         Commands::Status => println!("{:#?}", device.status()?),
         Commands::Settings(settings_command) => match settings_command {
             SettingsCommand::Read { which } => match which {
-                SettingsType::Flash => println!("{:#?}", device.flash_read_settings()?),
+                SettingsType::Flash => print_all_flash_data(&device)?,
                 SettingsType::Sram => println!("{:#?}", device.sram_read_settings()?),
             },
             SettingsCommand::Write(write_command) => match write_command {
@@ -43,9 +43,7 @@ fn main() -> McpResult<()> {
         }
         Commands::Dac(dac_command) => match dac_command {
             DacCommand::Write { flash: true, value } => {
-                // TODO: This is querying all the flash data, when we only need the
-                // chip settings. Perhaps break up the read_flash_data() method?
-                let mut cs = device.flash_read_settings()?.chip_settings;
+                let mut cs = device.flash_read_chip_settings()?;
                 cs.dac_power_up_value = value;
                 device.flash_write_chip_settings(cs)?;
             }
@@ -62,9 +60,7 @@ fn main() -> McpResult<()> {
                 reference,
                 vrm_level,
             } => {
-                // TODO: This is querying all the flash data, when we only need the
-                // chip settings. Perhaps break up the read_flash_data() method?
-                let mut cs = device.flash_read_settings()?.chip_settings;
+                let mut cs = device.flash_read_chip_settings()?;
                 cs.dac_reference = reference.into_mcp_vref(vrm_level);
                 device.flash_write_chip_settings(cs)?;
             }
@@ -88,7 +84,7 @@ fn main() -> McpResult<()> {
                 reference,
                 vrm_level,
             } => {
-                let mut cs = device.flash_read_settings()?.chip_settings;
+                let mut cs = device.flash_read_chip_settings()?;
                 cs.adc_reference = reference.into_mcp_vref(vrm_level);
                 device.flash_write_chip_settings(cs)?;
             }
@@ -113,7 +109,7 @@ fn main() -> McpResult<()> {
                 flash: true,
                 pin_configs,
             }) => {
-                let mut gp_settings = device.flash_read_settings()?.gp_settings;
+                let mut gp_settings = device.flash_read_gp_settings()?;
                 pin_configs.merge_into_existing(&mut gp_settings);
                 device.flash_write_gp_settings(gp_settings)?;
             }
@@ -135,6 +131,25 @@ fn main() -> McpResult<()> {
         },
     }
 
+    Ok(())
+}
+
+fn print_all_flash_data(device: &mcp2221_hal::MCP2221) -> McpResult<()> {
+    println!("{:#?}", device.flash_read_chip_settings()?);
+    println!("{:#?}", device.flash_read_gp_settings()?);
+    println!(
+        r#"USB Manufacturer:  "{}""#,
+        device.read_usb_manufacturer()?
+    );
+    println!(r#"USB Product:       "{}""#, device.read_usb_product()?);
+    println!(
+        r#"USB Serial Number: "{}""#,
+        device.read_usb_serial_number()?
+    );
+    println!(
+        r#"Factory serial:    "{}""#,
+        device.read_factory_serial_number()?
+    );
     Ok(())
 }
 
