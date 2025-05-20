@@ -163,7 +163,9 @@ impl ChipSettings {
         let (dac_vrm_vdd, dac_vrm_level) = self.dac_reference.into();
         buf[4].set_bits(6..=7, dac_vrm_level);
         buf[4].set_bit(5, dac_vrm_vdd);
-        buf[4].set_bits(0..=4, self.dac_power_up_value);
+        // Limit the DAC value to a maximum of 31 to avoid panicking.
+        // Because we don't use setters for ChipSettings, this has to be done here.
+        buf[4].set_bits(0..=4, self.dac_power_up_value & 31);
 
         // Byte 5 (write) / byte 6 (read) -- Interrupts and ADC
         buf[5].set_bit(6, self.interrupt_on_negative_edge);

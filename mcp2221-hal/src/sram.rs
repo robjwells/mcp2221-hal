@@ -126,15 +126,10 @@ impl ChangeSramSettings {
 
     /// Change the DAC output value.
     ///
-    /// `value` must be a valid 5-bit value `(0..=31)`.
+    /// Values above the 5-bit range of the DAC (`0..=31`) are clamped to the maximum
+    /// value of 31.
     pub fn with_dac_value(&mut self, value: u8) -> &mut Self {
-        // TODO: If this is publicly exposed it should probably return an
-        // error rather than panicking. Or perhaps clamp to 31?
-        assert!(
-            value < 32,
-            "DAC output value is out of range ({value} > 31)"
-        );
-        self.dac_value = Some(value);
+        self.dac_value = Some(value & 31);
         self
     }
 
@@ -203,7 +198,7 @@ impl ChangeSramSettings {
         if let Some(value) = self.dac_value {
             // Enable loading of a new DAC value.
             buf[4].set_bit(7, true);
-            // TODO: This will panic if `value` is out of range.
+            // with_dac_value limits the DAC output value to 31.
             buf[4].set_bits(0..=4, value);
         }
         // Byte 5: ADC voltage reference

@@ -30,8 +30,6 @@ pub enum Error {
         /// Command code echoed from the MCP2221.
         received: u8,
     },
-    /// Attempt to write DAC value not in the range 0..=31.
-    DacValueOutOfRange,
     /// An error occurred when attempting to open the MCP2221 USB device.
     HidApi(hidapi::HidError),
 }
@@ -67,7 +65,6 @@ impl std::fmt::Display for Error {
                 "incorrect command code echo from the MCP2221 (got {received:#X}, expected {sent:#X})",
             ),
             Error::HidApi(hid_error) => write!(f, "HidApi error: {hid_error}"),
-            Error::DacValueOutOfRange => todo!("To be removed"),
         }
     }
 }

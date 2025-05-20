@@ -395,27 +395,22 @@ impl MCP2221 {
     /// can be used for analog output pins, though they share the single DAC and will
     /// have the same voltage.
     ///
+    /// Values above the 5-bit range of the DAC (`0..=31`) are clamped to the
+    /// maximum value of 31.
+    ///
     /// Note that the DAC output is not linear from 0V to the reference and (at least
-    /// with 3.3V supply) does not reach the reference voltage.
+    /// with 3.3V supply) does not reach the reference voltage. This is detailed in
+    /// the crate readme.
     ///
     /// This setting is not persisted across reset. See [`MCP2221::flash_write_chip_settings`]
     /// to set the DAC to output a particular value at power-on.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`Error::DacValueOutOfRange`] if the value is too large (maximum 31
-    /// for the 5-bit DAC) or if an error occurred communicating with the MCP2221.
     ///
     /// # Datasheet
     ///
     /// See section 1.8.3 for information about the 5-bit DAC, and section 3.1.13 for
     /// the underlying Set SRAM Settings HID command.
     pub fn analog_write(&self, value: u8) -> Result<(), Error> {
-        // TODO: Values above 31 should just be clamped and a warning emitted.
-        if value > 31 {
-            return Err(Error::DacValueOutOfRange);
-        }
-
+        // with_dac_value limits the value to 31.
         self.sram_write_settings(ChangeSramSettings::new().with_dac_value(value))?;
         Ok(())
     }
