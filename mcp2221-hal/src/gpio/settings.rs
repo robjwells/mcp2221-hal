@@ -1,6 +1,19 @@
 use bit_field::BitField;
 
+use crate::Error;
+
 use super::{GpioDirection, LogicLevel};
+
+/// Helper to return invalid pin mode errors
+#[doc(hidden)]
+macro_rules! pin_err {
+    ($pin:literal, $mode:ident) => {
+        return Err(Error::InvalidPinModeFromDevice {
+            pin: $pin,
+            mode: $mode,
+        })
+    };
+}
 
 /// The source of the GP settings determines their position in the read buffer.
 enum GpSettingsSource {
@@ -31,47 +44,47 @@ pub struct GpSettings {
 
 impl GpSettings {
     /// Parse GP pin settings read from flash memory.
-    pub fn from_flash_buffer(buf: &[u8; 64]) -> Self {
-        GpSettings::from_buffer(GpSettingsSource::Flash, buf)
+    pub fn try_from_flash_buffer(buf: &[u8; 64]) -> Result<Self, Error> {
+        GpSettings::try_from_buffer(GpSettingsSource::Flash, buf)
     }
 
     /// Parse GP pin settings read from SRAM.
-    pub fn from_sram_buffer(buf: &[u8; 64]) -> Self {
-        GpSettings::from_buffer(GpSettingsSource::Sram, buf)
+    pub fn try_from_sram_buffer(buf: &[u8; 64]) -> Result<Self, Error> {
+        GpSettings::try_from_buffer(GpSettingsSource::Sram, buf)
     }
 
-    fn from_buffer(source: GpSettingsSource, buf: &[u8; 64]) -> Self {
+    fn try_from_buffer(source: GpSettingsSource, buf: &[u8; 64]) -> Result<Self, Error> {
         let start_byte = match source {
             GpSettingsSource::Flash => 4,
             GpSettingsSource::Sram => 22,
         };
 
-        Self {
+        Ok(Self {
             gp0: (
                 buf[start_byte].get_bit(4).into(),
                 buf[start_byte].get_bit(3).into(),
-                buf[start_byte].get_bits(0..=2).into(),
+                buf[start_byte].get_bits(0..=2).try_into()?,
             )
                 .into(),
             gp1: (
                 buf[start_byte + 1].get_bit(4).into(),
                 buf[start_byte + 1].get_bit(3).into(),
-                buf[start_byte + 1].get_bits(0..=2).into(),
+                buf[start_byte + 1].get_bits(0..=2).try_into()?,
             )
                 .into(),
             gp2: (
                 buf[start_byte + 2].get_bit(4).into(),
                 buf[start_byte + 2].get_bit(3).into(),
-                buf[start_byte + 2].get_bits(0..=2).into(),
+                buf[start_byte + 2].get_bits(0..=2).try_into()?,
             )
                 .into(),
             gp3: (
                 buf[start_byte + 3].get_bit(4).into(),
                 buf[start_byte + 3].get_bit(3).into(),
-                buf[start_byte + 3].get_bits(0..=2).into(),
+                buf[start_byte + 3].get_bits(0..=2).try_into()?,
             )
                 .into(),
-        }
+        })
     }
 
     pub(crate) fn apply_to_flash_buffer(&self, buf: &mut [u8; 64]) {
@@ -116,29 +129,20 @@ pub enum Gp0Designation {
     ///
     /// The pin operates as a digital input or a digital output.
     GPIO,
-    /// The pin function is undefined.
-    ///
-    /// This will likely indicate an error has occurred.
-    ///
-    /// This represents the unused bit pattern for the GP0 designation. If it is
-    /// read from or written to the device, the pin designation is undefined.
-    // TODO: Should this even be present in the enum? It's a possible value, but it's
-    // not clear in what situations we would ever read DontCare from the MCP2221.
-    // Certainly we shouldn't support _writing_ this to the device in case it causes
-    // some kind of problem.
-    DontCare,
 }
 
 #[doc(hidden)]
-impl From<u8> for Gp0Designation {
-    fn from(value: u8) -> Self {
-        assert!(value <= 0b111, "Incorrect use of the from constructor.");
-        match value {
+impl TryFrom<u8> for Gp0Designation {
+    type Error = Error;
+
+    fn try_from(mode: u8) -> Result<Self, Error> {
+        assert!(mode <= 0b111, "Incorrect use of the from constructor.");
+        Ok(match mode {
             0b010 => Self::LED_UART_RX,
             0b001 => Self::SSPND,
             0b000 => Self::GPIO,
-            _ => Self::DontCare,
-        }
+            _ => pin_err!("GP0", mode),
+        })
     }
 }
 
@@ -149,7 +153,6 @@ impl From<Gp0Designation> for u8 {
             Gp0Designation::SSPND => 0b010,
             Gp0Designation::LED_UART_RX => 0b001,
             Gp0Designation::GPIO => 0b000,
-            Gp0Designation::DontCare => 0b111,
         }
     }
 }
@@ -184,28 +187,22 @@ pub enum Gp1Designation {
     ///
     /// The pin operates as a digital input or a digital output.
     GPIO,
-    /// The pin function is undefined.
-    ///
-    /// This will likely indicate an error has occurred.
-    ///
-    /// This represents the unused bit pattern for the GP1 designation. If it is
-    /// read from or written to the device, the pin designation is undefined.
-    DontCare,
 }
 
 #[doc(hidden)]
-impl From<u8> for Gp1Designation {
-    fn from(value: u8) -> Self {
-        assert!(value <= 0b111, "Incorrect use of the from constructor.");
+impl TryFrom<u8> for Gp1Designation {
+    type Error = Error;
+    fn try_from(mode: u8) -> Result<Self, Error> {
+        assert!(mode <= 0b111, "Incorrect use of the from constructor.");
         // Note the case order here matches the order in the datasheet.
-        match value {
+        Ok(match mode {
             0b001 => Self::ClockOutput,
             0b100 => Self::InterruptDetection,
             0b011 => Self::LED_UART_TX,
             0b010 => Self::ADC1,
             0b000 => Self::GPIO,
-            _ => Self::DontCare,
-        }
+            _ => pin_err!("GP1", mode),
+        })
     }
 }
 
@@ -218,7 +215,6 @@ impl From<Gp1Designation> for u8 {
             Gp1Designation::ADC1 => 0b010,
             Gp1Designation::ClockOutput => 0b001,
             Gp1Designation::GPIO => 0b000,
-            Gp1Designation::DontCare => 0b111,
         }
     }
 }
@@ -248,26 +244,21 @@ pub enum Gp2Designation {
     ///
     /// The pin operates as a digital input or a digital output.
     GPIO,
-    /// The pin function is undefined.
-    ///
-    /// This will likely indicate an error has occurred.
-    ///
-    /// This represents the unused bit pattern for the GP2 designation. If it is
-    /// read from or written to the device, the pin designation is undefined.
-    DontCare,
 }
 
 #[doc(hidden)]
-impl From<u8> for Gp2Designation {
-    fn from(value: u8) -> Self {
-        assert!(value <= 0b111, "Incorrect use of the from constructor.");
-        match value {
+impl TryFrom<u8> for Gp2Designation {
+    type Error = Error;
+
+    fn try_from(mode: u8) -> Result<Self, Error> {
+        assert!(mode <= 0b111, "Incorrect use of the from constructor.");
+        Ok(match mode {
             0b011 => Self::DAC1,
             0b010 => Self::ADC2,
             0b001 => Self::USBCFG,
             0b000 => Self::GPIO,
-            _ => Self::DontCare,
-        }
+            _ => pin_err!("GP2", mode),
+        })
     }
 }
 
@@ -281,7 +272,6 @@ impl From<Gp2Designation> for u8 {
             Gp2Designation::ADC2 => 0b010,
             Gp2Designation::USBCFG => 0b001,
             Gp2Designation::GPIO => 0b000,
-            Gp2Designation::DontCare => 0b111,
         }
     }
 }
@@ -310,26 +300,21 @@ pub enum Gp3Designation {
     ///
     /// The pin operates as a digital input or a digital output.
     GPIO,
-    /// The pin function is undefined.
-    ///
-    /// This will likely indicate an error has occurred.
-    ///
-    /// This represents the unused bit pattern for the GP3 designation. If it is
-    /// read from or written to the device, the pin designation is undefined.
-    DontCare,
 }
 
 #[doc(hidden)]
-impl From<u8> for Gp3Designation {
-    fn from(value: u8) -> Self {
-        assert!(value <= 0b111, "Incorrect use of the from constructor.");
-        match value {
+impl TryFrom<u8> for Gp3Designation {
+    type Error = Error;
+
+    fn try_from(mode: u8) -> Result<Self, Error> {
+        assert!(mode <= 0b111, "Incorrect use of the from constructor.");
+        Ok(match mode {
             0b011 => Self::DAC2,
             0b010 => Self::ADC3,
             0b001 => Self::LED_I2C,
             0b000 => Self::GPIO,
-            _ => Self::DontCare,
-        }
+            _ => pin_err!("GP3", mode),
+        })
     }
 }
 
@@ -341,7 +326,6 @@ impl From<Gp3Designation> for u8 {
             Gp3Designation::ADC3 => 0b010,
             Gp3Designation::LED_I2C => 0b001,
             Gp3Designation::GPIO => 0b000,
-            Gp3Designation::DontCare => 0b111,
         }
     }
 }

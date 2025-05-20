@@ -2,14 +2,12 @@
 
 use bit_field::BitField;
 
+use crate::Error;
 use crate::analog::VoltageReference;
 use crate::common::ClockSetting;
 use crate::flash_data::ChipSettings;
 use crate::gpio::GpSettings;
 
-// TODO: This is just the flash chip settings with the GpSettings included.
-//       Really the chip settings should be unified, as they use the same
-//       byte offsets. GpSettings is another issue, though.
 /// Chip and GP pin settings read from the MCP2221’s SRAM.
 ///
 /// These settings determine the run-time behaviour of the chip. When the device is
@@ -42,11 +40,11 @@ pub struct SramSettings {
 
 impl SramSettings {
     /// Create [`SramSettings`] from a 64-byte report read from the MCP2221.
-    pub(crate) fn from_buffer(buf: &[u8; 64]) -> Self {
-        Self {
+    pub(crate) fn try_from_buffer(buf: &[u8; 64]) -> Result<Self, Error> {
+        Ok(Self {
             chip_settings: ChipSettings::from_buffer(buf),
-            gp_settings: GpSettings::from_sram_buffer(buf),
-        }
+            gp_settings: GpSettings::try_from_sram_buffer(buf)?,
+        })
     }
 }
 

@@ -172,7 +172,7 @@ impl MCP2221 {
         let chip_factory_serial =
             self.transfer(UsbReport::new(ReadFlashData(ChipFactorySerialNumber)))?;
 
-        FlashData::from_buffers(
+        FlashData::try_from_buffers(
             &chip_settings,
             &gp_settings,
             &usb_mfr,
@@ -333,7 +333,7 @@ impl MCP2221 {
     pub fn sram_read_settings(&self) -> Result<SramSettings, Error> {
         let command = UsbReport::new(McpCommand::GetSRAMSettings);
         let buf = self.transfer(command)?;
-        Ok(SramSettings::from_buffer(&buf))
+        SramSettings::try_from_buffer(&buf)
     }
 
     /// Change run-time chip and GP pin settings.

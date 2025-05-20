@@ -34,6 +34,13 @@ pub enum Error {
     },
     /// String received from the MCP2221 was not valid UTF-16.
     InvalidStringFromDevice(FromUtf16Error),
+    /// Invalid pin mode bit pattern received from the MCP2221.
+    InvalidPinModeFromDevice {
+        /// MCP2221 pin name, eg "GP0".
+        pin: &'static str,
+        /// Invalid bit pattern received for the pin's mode/designation.
+        mode: u8,
+    },
     /// An error occurred when attempting to open the MCP2221 USB device.
     HidApi(hidapi::HidError),
 }
@@ -71,6 +78,10 @@ impl std::fmt::Display for Error {
             Error::InvalidStringFromDevice(e) => {
                 write!(f, "invalid utf-16 string received from the MCP2221: {e}")
             }
+            Error::InvalidPinModeFromDevice { pin, mode } => write!(
+                f,
+                "invalid pin mode bit pattern {mode:#b} received for {pin}"
+            ),
             Error::HidApi(hid_error) => write!(f, "HidApi error: {hid_error}"),
         }
     }

@@ -27,7 +27,7 @@ pub struct FlashData {
 }
 
 impl FlashData {
-    pub(crate) fn from_buffers(
+    pub(crate) fn try_from_buffers(
         chip_settings: &[u8; 64],
         gp_settings: &[u8; 64],
         usb_mfr: &[u8; 64],
@@ -37,7 +37,7 @@ impl FlashData {
     ) -> Result<Self, Error> {
         Ok(Self {
             chip_settings: ChipSettings::from_buffer(chip_settings),
-            gp_settings: GpSettings::from_flash_buffer(gp_settings),
+            gp_settings: GpSettings::try_from_flash_buffer(gp_settings)?,
             usb_manufacturer_descriptor: DeviceString::try_from_buffer(usb_mfr)?,
             usb_product_descriptor: DeviceString::try_from_buffer(usb_product)?,
             usb_serial_number_descriptor: DeviceString::try_from_buffer(usb_serial)?,
