@@ -128,8 +128,8 @@ impl MCP2221 {
     ///
     /// # Errors
     ///
-    /// An [`Error::I2cTransferInProgress`] may be returned if an ongoing I2C transfer
-    /// prevented the device from setting the bus speed.
+    /// An [`Error::I2cTransferPreventedSpeedChange`] may be returned if an ongoing
+    /// I2C transfer prevented the device from setting the bus speed.
     ///
     /// # Datasheet
     ///
@@ -145,7 +145,7 @@ impl MCP2221 {
         let read_buffer = self.transfer(uc)?;
         match read_buffer[3] {
             0x20 => Ok(()),
-            0x21 => Err(Error::I2cTransferInProgress),
+            0x21 => Err(Error::I2cTransferPreventedSpeedChange),
             _ => unreachable!("Invalid response from MCP2221 for I2C speed set command."),
         }
     }

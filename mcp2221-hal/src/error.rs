@@ -19,8 +19,8 @@ pub enum Error {
     CommandNotAllowed,
     /// The I2C bus speed could not be changed because a transfer was in progress.
     ///
-    /// THis can only occur when attempting to change the I2C bus speed.
-    I2cTransferInProgress,
+    /// This can only occur when attempting to change the I2C bus speed.
+    I2cTransferPreventedSpeedChange,
     /// The command code echoed by the MCP2221 was not the command code written to it.
     ///
     /// In practice this should not occur(!). Please report any occurrences.
@@ -32,7 +32,7 @@ pub enum Error {
     },
     /// Attempt to write DAC value not in the range 0..=31.
     DacValueOutOfRange,
-    /// An error occured when attempting to open the MCP2221 USB device.
+    /// An error occurred when attempting to open the MCP2221 USB device.
     HidApi(hidapi::HidError),
 }
 
@@ -40,5 +40,43 @@ pub enum Error {
 impl From<hidapi::HidError> for Error {
     fn from(value: hidapi::HidError) -> Self {
         Self::HidApi(value)
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::CommandFailed(e) => write!(
+                f,
+                "MCP2221 command did not complete successfully and returned error code {e:#X}.",
+            ),
+            Error::CommandNotSupported => write!(
+                f,
+                "command rejected by the MCP2221 because it is unsupported"
+            ),
+            Error::CommandNotAllowed => write!(
+                f,
+                "command rejected by the MCP2221 because it is not allowed"
+            ),
+            Error::I2cTransferPreventedSpeedChange => write!(
+                f,
+                "I2C bus speed could not be changed because a transfer is in progress",
+            ),
+            Error::MismatchedCommandCodeEcho { sent, received } => write!(
+                f,
+                "incorrect command code echo from the MCP2221 (got {received:#X}, expected {sent:#X})",
+            ),
+            Error::HidApi(hid_error) => write!(f, "HidApi error: {hid_error}"),
+            Error::DacValueOutOfRange => todo!("To be removed"),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::HidApi(hid_error) => Some(hid_error),
+            _ => None,
+        }
     }
 }
