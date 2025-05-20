@@ -4,17 +4,6 @@ use crate::Error;
 
 use super::{GpioDirection, LogicLevel};
 
-/// Helper to return invalid pin mode errors
-#[doc(hidden)]
-macro_rules! pin_err {
-    ($pin:literal, $mode:ident) => {
-        return Err(Error::InvalidPinModeFromDevice {
-            pin: $pin,
-            mode: $mode,
-        })
-    };
-}
-
 /// The source of the GP settings determines their position in the read buffer.
 enum GpSettingsSource {
     /// GP settings at bytes 4..=7
@@ -60,30 +49,26 @@ impl GpSettings {
         };
 
         Ok(Self {
-            gp0: (
+            gp0: Gp0Settings::new(
                 buf[start_byte].get_bit(4).into(),
                 buf[start_byte].get_bit(3).into(),
                 buf[start_byte].get_bits(0..=2).try_into()?,
-            )
-                .into(),
-            gp1: (
+            ),
+            gp1: Gp1Settings::new(
                 buf[start_byte + 1].get_bit(4).into(),
                 buf[start_byte + 1].get_bit(3).into(),
                 buf[start_byte + 1].get_bits(0..=2).try_into()?,
-            )
-                .into(),
-            gp2: (
+            ),
+            gp2: Gp2Settings::new(
                 buf[start_byte + 2].get_bit(4).into(),
                 buf[start_byte + 2].get_bit(3).into(),
                 buf[start_byte + 2].get_bits(0..=2).try_into()?,
-            )
-                .into(),
-            gp3: (
+            ),
+            gp3: Gp3Settings::new(
                 buf[start_byte + 3].get_bit(4).into(),
                 buf[start_byte + 3].get_bit(3).into(),
                 buf[start_byte + 3].get_bits(0..=2).try_into()?,
-            )
-                .into(),
+            ),
         })
     }
 
@@ -108,6 +93,17 @@ impl GpSettings {
         buf[5].set_bit(3, self.gp3.direction.into());
         buf[5].set_bits(0..=2, self.gp3.designation.into());
     }
+}
+
+/// Helper to return invalid pin mode errors
+#[doc(hidden)]
+macro_rules! pin_mode_err {
+    ($pin:literal, $mode:ident) => {
+        return Err(Error::InvalidPinModeFromDevice {
+            pin: $pin,
+            mode: $mode,
+        })
+    };
 }
 
 /// GP pin 0 operation mode.
@@ -141,7 +137,7 @@ impl TryFrom<u8> for Gp0Designation {
             0b010 => Self::LED_UART_RX,
             0b001 => Self::SSPND,
             0b000 => Self::GPIO,
-            _ => pin_err!("GP0", mode),
+            _ => pin_mode_err!("GP0", mode),
         })
     }
 }
@@ -201,7 +197,7 @@ impl TryFrom<u8> for Gp1Designation {
             0b011 => Self::LED_UART_TX,
             0b010 => Self::ADC1,
             0b000 => Self::GPIO,
-            _ => pin_err!("GP1", mode),
+            _ => pin_mode_err!("GP1", mode),
         })
     }
 }
@@ -257,7 +253,7 @@ impl TryFrom<u8> for Gp2Designation {
             0b010 => Self::ADC2,
             0b001 => Self::USBCFG,
             0b000 => Self::GPIO,
-            _ => pin_err!("GP2", mode),
+            _ => pin_mode_err!("GP2", mode),
         })
     }
 }
@@ -313,7 +309,7 @@ impl TryFrom<u8> for Gp3Designation {
             0b010 => Self::ADC3,
             0b001 => Self::LED_I2C,
             0b000 => Self::GPIO,
-            _ => pin_err!("GP3", mode),
+            _ => pin_mode_err!("GP3", mode),
         })
     }
 }
@@ -328,6 +324,22 @@ impl From<Gp3Designation> for u8 {
             Gp3Designation::GPIO => 0b000,
         }
     }
+}
+
+/// Helper to generate the constructors for each of the pin settings structs.
+#[doc(hidden)]
+macro_rules! pin_settings_new {
+    ($gp_settings_type:ty, $mode_type:ty) => {
+        impl $gp_settings_type {
+            fn new(value: LogicLevel, direction: GpioDirection, designation: $mode_type) -> Self {
+                Self {
+                    value,
+                    direction,
+                    designation,
+                }
+            }
+        }
+    };
 }
 
 /// GP pin 0 configuration.
@@ -354,6 +366,8 @@ pub struct Gp0Settings {
     pub designation: Gp0Designation,
 }
 
+pin_settings_new!(Gp0Settings, Gp0Designation);
+
 /// GP pin 1 configuration.
 #[derive(Debug)]
 pub struct Gp1Settings {
@@ -377,6 +391,8 @@ pub struct Gp1Settings {
     /// Byte 5 bits 0..=2.
     pub designation: Gp1Designation,
 }
+
+pin_settings_new!(Gp1Settings, Gp1Designation);
 
 impl Gp1Settings {
     /// Returns `true` if GP1 is set as an analog input.
@@ -410,6 +426,8 @@ pub struct Gp2Settings {
     pub designation: Gp2Designation,
 }
 
+pin_settings_new!(Gp2Settings, Gp2Designation);
+
 impl Gp2Settings {
     /// Returns `true` if GP2 is set as an analog input.
     #[must_use]
@@ -442,54 +460,12 @@ pub struct Gp3Settings {
     pub designation: Gp3Designation,
 }
 
+pin_settings_new!(Gp3Settings, Gp3Designation);
+
 impl Gp3Settings {
     /// Returns `true` if GP3 is set as an analog input.
     #[must_use]
     pub fn is_adc(&self) -> bool {
         matches!(self.designation, Gp3Designation::ADC3)
-    }
-}
-
-#[doc(hidden)]
-impl From<(LogicLevel, GpioDirection, Gp0Designation)> for Gp0Settings {
-    fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp0Designation)) -> Self {
-        Self {
-            value,
-            direction,
-            designation,
-        }
-    }
-}
-
-#[doc(hidden)]
-impl From<(LogicLevel, GpioDirection, Gp1Designation)> for Gp1Settings {
-    fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp1Designation)) -> Self {
-        Self {
-            value,
-            direction,
-            designation,
-        }
-    }
-}
-
-#[doc(hidden)]
-impl From<(LogicLevel, GpioDirection, Gp2Designation)> for Gp2Settings {
-    fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp2Designation)) -> Self {
-        Self {
-            value,
-            direction,
-            designation,
-        }
-    }
-}
-
-#[doc(hidden)]
-impl From<(LogicLevel, GpioDirection, Gp3Designation)> for Gp3Settings {
-    fn from((value, direction, designation): (LogicLevel, GpioDirection, Gp3Designation)) -> Self {
-        Self {
-            value,
-            direction,
-            designation,
-        }
     }
 }
