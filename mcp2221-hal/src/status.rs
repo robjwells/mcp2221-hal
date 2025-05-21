@@ -3,6 +3,8 @@
 
 use bit_field::BitField;
 
+use crate::i2c::I2cSpeed;
+
 /// I2C engine status
 ///
 /// This struct bundles together the I2C-related fields of the Status command response.
@@ -30,11 +32,11 @@ pub struct I2cStatus {
     ///
     /// This field is not explained in the datasheet.
     pub internal_data_buffer_counter: u8,
-    /// I2C bus speed divider.
-    // TODO: This should really be the I2cSpeed struct, but I need to allow for
-    // non-standard speeds to be able to reliably parse this divider (which is
-    // (more or less) actually a divider, unlike with the clock output divider).
-    pub communication_speed_divider: u8,
+    /// I2C bus speed.
+    ///
+    /// Note that the MCP2221 I2C engine is limited to a bus speed between 46,692 bps
+    /// and 400,000 bps.
+    pub bus_speed: I2cSpeed,
     /// I2C engine timeout value.
     ///
     /// It is not explained in the datasheet how this value should be interpreted.
@@ -113,7 +115,7 @@ impl Status {
                 transfer_requested_length: u16::from_le_bytes([buf[9], buf[10]]),
                 transfer_completed_length: u16::from_le_bytes([buf[11], buf[12]]),
                 internal_data_buffer_counter: buf[13],
-                communication_speed_divider: buf[14],
+                bus_speed: buf[14].into(),
                 timeout_value: buf[15],
                 address_being_used: u16::from_le_bytes([buf[16], buf[17]]),
                 // Note that this is being inverted: 0 means ACK received.

@@ -7,7 +7,7 @@ use settings::{SettingsCommand, SettingsType, SettingsWriteCommand};
 use usb::UsbInfo;
 
 use mcp2221_hal::MCP2221;
-use mcp2221_hal::i2c::CancelI2cTransferResponse;
+use mcp2221_hal::i2c::{CancelI2cTransferResponse, I2cSpeed};
 
 use clap::Parser;
 
@@ -99,7 +99,7 @@ fn main() -> McpResult<()> {
                     println!("There was no ongoing I2C transfer to cancel.")
                 }
             },
-            I2cCommand::Speed { speed } => device.i2c_set_bus_speed(speed.into())?,
+            I2cCommand::Speed { kbps } => device.i2c_set_bus_speed(I2cSpeed::new(kbps * 1000))?,
         },
         Commands::Pins(pins_command) => match pins_command {
             pins::PinsCommand::Read => {

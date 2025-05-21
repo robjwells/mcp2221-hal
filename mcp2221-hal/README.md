@@ -29,7 +29,7 @@ in fixing [a bug with UART registers][errata] and allowing faster UART baud rate
         - [ ] 3.1.9 I2C Read Data Repeated Start
     + [ ] WriteRead
     + [x] Standard I2C bus speeds (100k/400k)
-    + [ ] Custom I2C bus speeds (47k–400k)
+    + [x] Custom I2C bus speeds (47k–400k)
 - [ ] [embedded-hal] traits
 - [ ] UART serial (for now, interact with the MCP2221 CDC device directly)
 

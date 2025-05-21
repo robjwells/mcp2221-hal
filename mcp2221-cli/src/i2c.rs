@@ -1,25 +1,13 @@
 #[derive(Debug, clap::Parser)]
-#[command(flatten_help = true)]
 pub(crate) enum I2cCommand {
-    /// Set the I2C bus clock speed
-    Speed { speed: I2cSpeed },
+    /// Set the I2C bus clock speed in kbps.
+    ///
+    /// Standard I2C bus speeds are 400 kbps and 100 kbps. The MCP2221 can use bus
+    /// speeds from 47 kbps to 400 kbps.
+    Speed {
+        /// Desired I2C bus speed in kbps.
+        kbps: u32,
+    },
     /// Cancel the current I2C transfer and attempt to free the bus.
     Cancel,
-}
-
-#[derive(Debug, Clone, Copy, clap::ValueEnum)]
-pub(crate) enum I2cSpeed {
-    /// 400kbps "fast" mode
-    Fast,
-    /// 100kbps "standard" mode
-    Standard,
-}
-
-impl From<I2cSpeed> for mcp2221_hal::i2c::I2cSpeed {
-    fn from(value: I2cSpeed) -> mcp2221_hal::i2c::I2cSpeed {
-        match value {
-            I2cSpeed::Fast => mcp2221_hal::i2c::I2cSpeed::Fast_400kbps,
-            I2cSpeed::Standard => mcp2221_hal::i2c::I2cSpeed::Standard_100kbps,
-        }
-    }
 }
