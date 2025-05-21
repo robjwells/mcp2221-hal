@@ -1,3 +1,5 @@
+use crate::Error;
+
 pub(crate) enum McpCommand {
     /// Poll for the status of the device, cancel an I2C transfer,
     /// or set the I2C bus speed.
@@ -22,12 +24,15 @@ pub(crate) enum McpCommand {
     ///
     /// See section 3.1.3 of the datasheet.
     WriteFlashData(FlashDataSubCode),
+    /// Configure the run-time chip and GP pin settings.
+    ///
+    /// See section 3.1.13 of the datasheet for the Set SRAM Settings HID command.
+    SetSRAMSettings,
     /// Retrieve the run-time chip and GP pin settings.
     ///
     /// See section 1.4 of the datasheet for information about the configuration
     /// process, particularly regarding the flash settings being copied into SRAM.
     GetSRAMSettings,
-    SetSRAMSettings,
     /// Retrieve the GPIO direction and pin value for those pins set to GPIO operation.
     ///
     /// See section 3.1.12 of the datasheet.
@@ -36,13 +41,76 @@ pub(crate) enum McpCommand {
     ///
     /// See section 3.1.11 of the datasheet.
     GetGpioValues,
+    /// Force a reset of the device.
+    ///
+    /// See section 3.1.15 of the datasheet.
     ResetChip,
+}
+
+impl McpCommand {
+    /// Command prefix to be applied to the buffer sent to the MCP2221.
+    ///
+    /// In most cases this just involves writing the command code to byte 0 of the
+    /// outgoing buffer. Some commands have subcommand bytes (byte 1), but Reset Chip
+    /// four bytes in total.
+    fn buffer_prefix(&self) -> &[u8] {
+        match self {
+            McpCommand::StatusSetParameters => &[0x10],
+            McpCommand::ReadFlashData(sub_code) => match sub_code {
+                FlashDataSubCode::ChipSettings => &[0xB0, 0x00],
+                FlashDataSubCode::GPSettings => &[0xB0, 0x01],
+                FlashDataSubCode::UsbManufacturerDescriptor => &[0xB0, 0x02],
+                FlashDataSubCode::UsbProductDescriptor => &[0xB0, 0x03],
+                FlashDataSubCode::UsbSerialNumberDescriptor => &[0xB0, 0x04],
+            },
+            McpCommand::ReadChipFactorySerialNumber => &[0xB0, 0x05],
+            McpCommand::WriteFlashData(sub_code) => match sub_code {
+                FlashDataSubCode::ChipSettings => &[0xB1, 0x00],
+                FlashDataSubCode::GPSettings => &[0xB1, 0x01],
+                FlashDataSubCode::UsbManufacturerDescriptor => &[0xB1, 0x02],
+                FlashDataSubCode::UsbProductDescriptor => &[0xB1, 0x03],
+                FlashDataSubCode::UsbSerialNumberDescriptor => &[0xB1, 0x04],
+            },
+            McpCommand::SetSRAMSettings => &[0x60],
+            McpCommand::GetSRAMSettings => &[0x61],
+            McpCommand::SetGpioOutputValues => &[0x50],
+            McpCommand::GetGpioValues => &[0x51],
+            McpCommand::ResetChip => &[0x70, 0xAB, 0xCD, 0xEF],
+        }
+    }
+}
+
+impl McpCommand {
+    /// Returns true if the command has no response buffer to read.
+    fn has_no_response(&self) -> bool {
+        matches!(self, &Self::ResetChip)
+    }
+
+    /// Check error code for command-specific errors.
+    ///
+    /// A handful of commands have their own error codes that are not shared.
+    fn check_error_code(&self, code: u8) -> Result<(), Error> {
+        match (code, self) {
+            (0x01, Self::ReadFlashData(_)) => Err(Error::CommandNotSupported),
+            (0x02, Self::WriteFlashData(_)) => Err(Error::CommandNotSupported),
+            (0x03, Self::WriteFlashData(_)) => Err(Error::CommandNotAllowed),
+            // Not implemented yet, but took these from the datasheet:
+            // (0x01, Self::I2cWriteData) => Err(Error::I2cEngineBusy),
+            // (0x01, Self::I2cWriteDataRepeatedStart) => Err(Error::I2cEngineBusy),
+            // (0x01, Self::I2cWriteDataNoStop) => Err(Error::I2cEngineBusy),
+            // (0x01, Self::I2cReadData) => Err(Error::I2cEngineBusy),
+            // (0x01, Self::I2cReadDataRepeatedStart) => Err(Error::I2cEngineBusy),
+            // (0x41, Self::I2cGetData) => Err(Error::I2cEngineReadError),
+            (_, _) => Ok(()),
+        }
+    }
 }
 
 /// Read various settings stored in the flash memory.
 pub(crate) enum FlashDataSubCode {
+    /// Chip configuration power-up settings.
     ChipSettings,
-    // GP pin power-up settings.
+    /// GP pin power-up settings.
     GPSettings,
     /// USB manufacturer string descriptor used during USB enumeration.
     UsbManufacturerDescriptor,
@@ -53,6 +121,12 @@ pub(crate) enum FlashDataSubCode {
 }
 
 pub(crate) struct UsbReport {
+    /// Underlying HID command.
+    command: McpCommand,
+    /// Outgoing buffer sized to match those in the datasheet.
+    ///
+    /// The actual outgoing buffer will be 65 bytes, as the HidApi crate requires
+    /// the USB HID report number to be prepended to the data bytes.
     pub(crate) write_buffer: [u8; 64],
 }
 
@@ -67,34 +141,24 @@ impl UsbReport {
     ///
     /// write_buffer starts with the dummy/default report number, so the
     /// actual MCP command is at write_buffer[1..=65].
-    pub(crate) fn new(c: McpCommand) -> Self {
+    pub(crate) fn new(command: McpCommand) -> Self {
         let mut buf = [0u8; 64];
-        use FlashDataSubCode::*;
-        use McpCommand::*;
-        let (command_byte, sub_command_byte): (u8, Option<u8>) = match c {
-            StatusSetParameters => (0x10, None),
-            ReadFlashData(ChipSettings) => (0xB0, Some(0x00)),
-            ReadFlashData(GPSettings) => (0xB0, Some(0x01)),
-            ReadFlashData(UsbManufacturerDescriptor) => (0xB0, Some(0x02)),
-            ReadFlashData(UsbProductDescriptor) => (0xB0, Some(0x03)),
-            ReadFlashData(UsbSerialNumberDescriptor) => (0xB0, Some(0x04)),
-            ReadChipFactorySerialNumber => (0xB0, Some(0x05)),
-            WriteFlashData(ChipSettings) => (0xB1, Some(0x00)),
-            WriteFlashData(GPSettings) => (0xB1, Some(0x01)),
-            WriteFlashData(UsbManufacturerDescriptor) => (0xB1, Some(0x02)),
-            WriteFlashData(UsbProductDescriptor) => (0xB1, Some(0x03)),
-            WriteFlashData(UsbSerialNumberDescriptor) => (0xB1, Some(0x04)),
-            GetSRAMSettings => (0x61, None),
-            SetSRAMSettings => (0x60, None),
-            SetGpioOutputValues => (0x50, None),
-            GetGpioValues => (0x51, None),
-            ResetChip => (0x70, Some(0xAB)),
-        };
-        buf[0] = command_byte;
-        if let Some(sub_command_byte) = sub_command_byte {
-            buf[1] = sub_command_byte;
+        let prefix = command.buffer_prefix();
+        buf[0..prefix.len()].copy_from_slice(prefix);
+        Self {
+            command,
+            write_buffer: buf,
         }
-        Self { write_buffer: buf }
+    }
+
+    /// Returns true if the command has no response buffer to read.
+    pub(crate) fn has_no_response(&self) -> bool {
+        self.command.has_no_response()
+    }
+
+    /// Check for a command-specific error.
+    pub(crate) fn check_error_code(&self, code: u8) -> Result<(), Error> {
+        self.command.check_error_code(code)
     }
 
     /// Write a single data byte in the outgoing USB report.

@@ -75,7 +75,9 @@ impl MCP2221 {
     /// See section 3.11 of the datasheet for the underlying Status/Set Parameters
     /// HID command.
     pub fn status(&self) -> Result<Status, Error> {
-        let buf = self.transfer(UsbReport::new(McpCommand::StatusSetParameters))?;
+        let buf = self
+            .transfer(UsbReport::new(McpCommand::StatusSetParameters))?
+            .expect("Always has response buffer.");
         Ok(Status::from_buffer(&buf))
     }
 
@@ -108,7 +110,7 @@ impl MCP2221 {
 
         let mut uc = UsbReport::new(McpCommand::StatusSetParameters);
         uc.set_data_byte(2, 0x10);
-        let read_buffer = self.transfer(uc)?;
+        let read_buffer = self.transfer(uc)?.expect("Always has response buffer.");
 
         match read_buffer[2] {
             0x10 => Ok(CancelI2cTransferResponse::MarkedForCancellation),
@@ -145,7 +147,7 @@ impl MCP2221 {
         // I2C/SMBus communication clock.
         uc.set_data_byte(3, 0x20);
         uc.set_data_byte(4, speed.to_clock_divider());
-        let read_buffer = self.transfer(uc)?;
+        let read_buffer = self.transfer(uc)?.expect("Always has response buffer.");
         match read_buffer[3] {
             0x20 => Ok(()),
             0x21 => Err(Error::I2cTransferPreventedSpeedChange),
@@ -168,7 +170,9 @@ impl MCP2221 {
     /// relevant subcommand.
     pub fn flash_read_chip_settings(&self) -> Result<ChipSettings, Error> {
         let command = McpCommand::ReadFlashData(FlashDataSubCode::ChipSettings);
-        let buf = self.transfer(UsbReport::new(command))?;
+        let buf = self
+            .transfer(UsbReport::new(command))?
+            .expect("Always has response buffer.");
         Ok(ChipSettings::from_buffer(&buf))
     }
 
@@ -185,7 +189,9 @@ impl MCP2221 {
     /// relevant subcommand.
     pub fn flash_read_gp_settings(&self) -> Result<GpSettings, Error> {
         let command = McpCommand::ReadFlashData(FlashDataSubCode::GPSettings);
-        let buf = self.transfer(UsbReport::new(command))?;
+        let buf = self
+            .transfer(UsbReport::new(command))?
+            .expect("Always has response buffer.");
         GpSettings::try_from_flash_buffer(&buf)
     }
 
@@ -256,7 +262,9 @@ impl MCP2221 {
     /// table 3-7 for the relevant subcommand.
     pub fn read_usb_manufacturer(&self) -> Result<DeviceString, Error> {
         let command = McpCommand::ReadFlashData(FlashDataSubCode::UsbManufacturerDescriptor);
-        let buf = self.transfer(UsbReport::new(command))?;
+        let buf = self
+            .transfer(UsbReport::new(command))?
+            .expect("Always has response buffer.");
         DeviceString::try_from_buffer(&buf)
     }
 
@@ -297,7 +305,9 @@ impl MCP2221 {
     /// table 3-8 for the relevant subcommand.
     pub fn read_usb_product(&self) -> Result<DeviceString, Error> {
         let command = McpCommand::ReadFlashData(FlashDataSubCode::UsbProductDescriptor);
-        let buf = self.transfer(UsbReport::new(command))?;
+        let buf = self
+            .transfer(UsbReport::new(command))?
+            .expect("Always has response buffer.");
         DeviceString::try_from_buffer(&buf)
     }
 
@@ -335,7 +345,9 @@ impl MCP2221 {
     /// table 3-9 for the relevant subcommand.
     pub fn read_usb_serial_number(&self) -> Result<DeviceString, Error> {
         let command = McpCommand::ReadFlashData(FlashDataSubCode::UsbSerialNumberDescriptor);
-        let buf = self.transfer(UsbReport::new(command))?;
+        let buf = self
+            .transfer(UsbReport::new(command))?
+            .expect("Always has response buffer.");
         DeviceString::try_from_buffer(&buf)
     }
 
@@ -377,7 +389,9 @@ impl MCP2221 {
     /// table 3-10 for the relevant subcommand.
     pub fn read_factory_serial_number(&self) -> Result<String, Error> {
         let command = McpCommand::ReadChipFactorySerialNumber;
-        let buf = self.transfer(UsbReport::new(command))?;
+        let buf = self
+            .transfer(UsbReport::new(command))?
+            .expect("Always has response buffer.");
         let length = buf[2] as usize;
         let serial_number_portion = &buf[4..(4 + length)];
         Ok(String::from_utf8_lossy(serial_number_portion).into())
@@ -411,7 +425,9 @@ impl MCP2221 {
     /// process at power-up.
     pub fn sram_read_settings(&self) -> Result<SramSettings, Error> {
         let command = UsbReport::new(McpCommand::GetSRAMSettings);
-        let buf = self.transfer(command)?;
+        let buf = self
+            .transfer(command)?
+            .expect("Always has response buffer.");
         SramSettings::try_from_buffer(&buf)
     }
 
@@ -571,7 +587,9 @@ impl MCP2221 {
     ///
     /// See section 3.1.12 for the underlying Get GPIO Values HID command.
     pub fn gpio_read(&self) -> Result<GpioValues, Error> {
-        let buf = self.transfer(UsbReport::new(McpCommand::GetGpioValues))?;
+        let buf = self
+            .transfer(UsbReport::new(McpCommand::GetGpioValues))?
+            .expect("Always has response buffer.");
         Ok(GpioValues::from_buffer(&buf))
     }
 
@@ -635,13 +653,16 @@ impl MCP2221 {
     }
 
     /// Write the given command to the MCP and read the 64-byte response.
-    fn transfer(&self, command: UsbReport) -> Result<[u8; 64], Error> {
+    ///
+    /// Returning an optional buffer is not great for the callers' ergonomics
+    /// but it's the most straightforward way of representing the non-response
+    /// from Reset Chip that doesn't return an empty array.
+    fn transfer(&self, command: UsbReport) -> Result<Option<[u8; 64]>, Error> {
+        const SUCCESS: u8 = 0x00;
         let out_command_byte = command.write_buffer[0];
         let written = self.inner.write(&command.report_bytes())?;
-        if out_command_byte == 0x70 {
-            // TODO: Fix this. Manual checking for reset command. This is horrible.
-            // Also faking the response buffer (no response from reset) is gross.
-            return Ok([0u8; 64]);
+        if command.has_no_response() {
+            return Ok(None);
         }
 
         let mut read_buffer = [0u8; 64];
@@ -660,15 +681,16 @@ impl MCP2221 {
             });
         }
 
-        // Check success code.
-        match (out_command_byte, read_buffer[1]) {
-            (_, 0x00) => Ok(read_buffer),
-            // Read Flash Data extra error code
-            (0xB0, 0x01) => Err(Error::CommandNotSupported),
-            // Write Flash Data extra error codes
-            (0xB1, 0x02) => Err(Error::CommandNotSupported),
-            (0xB1, 0x03) => Err(Error::CommandNotAllowed),
-            (_, code) => Err(Error::CommandFailed(code)),
+        let status_code = read_buffer[1];
+        if status_code == SUCCESS {
+            Ok(Some(read_buffer))
+        } else {
+            // Command has failed, so we check the command to see if there is a more
+            // specific Error case, otherwise we return the most general one, and
+            // enclose the failure code.
+            command
+                .check_error_code(status_code)
+                .and(Err(Error::CommandFailed(status_code)))
         }
     }
 }
