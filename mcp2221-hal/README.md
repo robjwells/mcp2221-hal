@@ -8,6 +8,51 @@ in fixing [a bug with UART registers][errata] and allowing faster UART baud rate
 [microchip]: https://www.microchip.com/en-us/product/mcp2221a
 [errata]: https://www.microchip.com/en-us/product/mcp2221#Documentation
 
+## Supported features
+
+(My todo list!)
+
+- [x] Read and write settings
+    + [x] Power-up settings in flash memory
+    + [x] Run-time settings in SRAM
+- [x] GP pin modes
+    + [x] Digital input and output (GPIO)
+    + [x] Analog input and output
+    + [x] Clock output, LED indicator output, interrupt detection
+- [ ] I2C
+    + [ ] Write
+        - [ ] 3.1.5 I2C Write Data
+        - [ ] 3.1.6 I2C Write Data Repeated Start
+        - [ ] 3.1.7 I2C Write Data No Stop
+    + [ ] Read
+        - [ ] 3.1.8 I2C Read Data
+        - [ ] 3.1.9 I2C Read Data Repeated Start
+    + [ ] WriteRead
+    + [x] Standard I2C bus speeds (100k/400k)
+    + [ ] Custom I2C bus speeds (47k–400k)
+- [ ] [embedded-hal] traits
+- [ ] UART serial (for now, interact with the MCP2221 CDC device directly)
+
+[embedded-hal]: https://github.com/rust-embedded/embedded-hal
+
+## Unsupported features
+
+Currently there is no plan to support the following, though please [open an issue]
+if you are in need of them.
+
+- SMBus\*
+- Password protected settings
+- Permanently locked settings
+
+\* Note that the MCP2221 has no special support for SMBus other than its I2C support.
+Any particular support for SMBus must be done in software.
+
+## `embedded-hal` support
+
+Note that the MCP2221 cannot support the full generality of the `I2c::transaction`
+method of the `embedded-hal::i2c::I2c` trait, because there is no command to issue
+a read without issuing a Stop condition at the end.
+
 ## Deviations from the datasheet
 
 ### Vrm level selection
