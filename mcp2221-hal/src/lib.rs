@@ -12,11 +12,10 @@ pub mod gpio;
 pub mod i2c;
 mod security;
 mod sram;
-mod status;
+pub mod status;
 
 pub use chip_settings::ChipSettings;
 pub use driver::MCP2221;
 pub use error::Error;
 pub use security::ChipConfigurationSecurity;
 pub use sram::{ChangeSramSettings, SramSettings};
-pub use status::Status;

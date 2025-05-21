@@ -98,8 +98,8 @@ impl MCP2221 {
     /// HID command.
     pub fn i2c_cancel_transfer(&self) -> Result<CancelI2cTransferResponse, Error> {
         // Only issue the cancellation command if the I2C engine is busy to avoid it
-        // _becoming_ busy by issuing the cancellation..
-        if self.status()?.i2c_engine_is_idle {
+        // _becoming_ busy by issuing the cancellation.
+        if self.status()?.i2c.engine_idle {
             return Ok(CancelI2cTransferResponse::NoTransfer);
         }
 
@@ -511,7 +511,7 @@ impl MCP2221 {
     /// See section 1.8.2 for information about the 10-bit ADC and section 3.1.1 for
     /// the underlying Status/Set Parameters HID command.
     pub fn analog_read(&self) -> Result<AdcReading, Error> {
-        let (ch1, ch2, ch3) = self.status()?.adc_values;
+        let raw = self.status()?.adc_values;
         let SramSettings {
             chip_settings:
                 ChipSettings {
@@ -523,9 +523,9 @@ impl MCP2221 {
         } = self.sram_read_settings()?;
         let reading = AdcReading {
             vref,
-            gp1: gp.gp1.is_adc().then_some(ch1),
-            gp2: gp.gp2.is_adc().then_some(ch2),
-            gp3: gp.gp3.is_adc().then_some(ch3),
+            gp1: gp.gp1.is_adc().then_some(raw.ch1),
+            gp2: gp.gp2.is_adc().then_some(raw.ch2),
+            gp3: gp.gp3.is_adc().then_some(raw.ch3),
         };
         Ok(reading)
     }
