@@ -16,8 +16,10 @@ use bit_field::BitField;
 /// because it's unclear how it should be interpreted.
 #[derive(Debug)]
 pub struct I2cStatus {
-    /// I2C engine is in idle mode.
-    pub engine_idle: bool,
+    /// I2C engine communication state.
+    ///
+    /// Records whether the I2C engine is idle or a timeout has occurred.
+    pub communication_state: I2cCommunicationState,
     /// The current requested I2C transfer length.
     pub transfer_requested_length: u16,
     /// Number of bytes already transferred.
@@ -43,11 +45,14 @@ pub struct I2cStatus {
     ///
     /// It is presumed that this is the address of the I2C target currently being
     /// communicated with, but it is not explained in the datasheet.
-    pub address_being_used: u16,
-    /// ACK was received from client.
     ///
-    /// Presumably this is an ACK from an I2C target, though which of the (potentially
-    /// many) I2C ACKS this might be is not explained in the datasheet.
+    /// Additionally, it appears from the Java driver that the target address used
+    /// to be set via the status command, so perhaps this is a remnant of that?
+    pub address_being_used: u16,
+    /// I2C target acknowledged its address.
+    ///
+    /// This is not further explained in the datasheet, but is described in the Java
+    /// driver as being the ACK to the I2C slave address.
     pub ack_received: bool,
     /// I2C clock line is high.
     ///
@@ -104,7 +109,7 @@ impl Status {
     pub(crate) fn from_buffer(buf: &[u8; 64]) -> Self {
         Self {
             i2c: I2cStatus {
-                engine_idle: buf[8] == 0,
+                communication_state: buf[8].into(),
                 transfer_requested_length: u16::from_le_bytes([buf[9], buf[10]]),
                 transfer_completed_length: u16::from_le_bytes([buf[11], buf[12]]),
                 internal_data_buffer_counter: buf[13],
@@ -182,5 +187,70 @@ pub struct RawAdcValues {
 impl RawAdcValues {
     fn new(ch1: u16, ch2: u16, ch3: u16) -> Self {
         Self { ch1, ch2, ch3 }
+    }
+}
+
+/// State of the I2C engine.
+///
+/// Most of the cases are guesswork from constant names in the Microchip C and Android
+/// Java drivers, and their meaning is not documented. The datasheet only says that a
+/// state other than 0 is a timeout.
+#[derive(Debug)]
+pub enum I2cCommunicationState {
+    /// Engine is idle.
+    Idle,
+    /// I2CM_SM_START_TOUT.
+    StartTimeout,
+    /// I2CM_SM_REPSTART_TOUT.
+    RepeatedStartTimeout,
+    /// I2CM_SM_WRADDL_WAITSEND.
+    WriteAddressWaitSend,
+    /// Target address timeout.
+    ///
+    /// - RESP_I2C_WRADDRL_TOUT in C.
+    /// - I2CM_SM_WRADDRL_TOUT in Java.
+    AddressTimeout,
+    /// Target did not acknowledge its address.
+    ///
+    /// - RESP_ADDR_NACK in C.
+    /// - I2CM_SM_WRADDL_NACK_STOP in Java.
+    AddressNack,
+    /// I2CM_SM_WRITEDATA_TOUT.
+    WriteDataTimeout,
+    /// Engine has finished sending data from an I2C Write Data No Stop command.
+    ///
+    /// I2CM_SM_WRITEDATA_END_NOSTOP.
+    WriteDataEndNoStop,
+    /// I2CM_SM_READDATA_TOUT.
+    ReadDataTimeout,
+    /// I2CM_SM_STOP_TOUT.
+    StopTimeout,
+    /// I2C engine is in some other state.
+    Other(u8),
+}
+
+impl I2cCommunicationState {
+    /// I2C engine is idle.
+    pub fn is_idle(&self) -> bool {
+        matches!(self, Self::Idle)
+    }
+}
+
+impl From<u8> for I2cCommunicationState {
+    fn from(value: u8) -> Self {
+        // Hex values taken from the Java driver.
+        match value {
+            0x00 => Self::Idle,
+            0x12 => Self::StartTimeout,
+            0x17 => Self::RepeatedStartTimeout,
+            0x21 => Self::WriteAddressWaitSend,
+            0x23 => Self::AddressTimeout,
+            0x25 => Self::AddressNack,
+            0x44 => Self::WriteDataTimeout,
+            0x45 => Self::WriteDataEndNoStop,
+            0x52 => Self::ReadDataTimeout,
+            0x62 => Self::StopTimeout,
+            n => Self::Other(n),
+        }
     }
 }

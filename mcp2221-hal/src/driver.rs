@@ -92,6 +92,9 @@ impl MCP2221 {
     ///
     /// </div>
     ///
+    /// Microchip's Android Java driver for the MCP2221 describes this command
+    /// as "forc\[ing\] a STOP condition into the SCL/SDA lines".
+    ///
     /// # Datasheet
     ///
     /// See section 3.11 of the datasheet for the underlying Status/Set Parameters
@@ -99,7 +102,7 @@ impl MCP2221 {
     pub fn i2c_cancel_transfer(&self) -> Result<CancelI2cTransferResponse, Error> {
         // Only issue the cancellation command if the I2C engine is busy to avoid it
         // _becoming_ busy by issuing the cancellation.
-        if self.status()?.i2c.engine_idle {
+        if self.status()?.i2c.communication_state.is_idle() {
             return Ok(CancelI2cTransferResponse::NoTransfer);
         }
 
