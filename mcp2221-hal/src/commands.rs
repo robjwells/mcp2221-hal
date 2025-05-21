@@ -12,6 +12,11 @@ pub(crate) enum McpCommand {
     /// Many of these settings determine start-up values that can be changed
     /// at runtime (the MCP2221 copies them into SRAM). See section 1.4.3.
     ReadFlashData(FlashDataSubCode),
+    /// Read the fixed chip factory serial number (always "01234567").
+    ///
+    /// See section 3.1.2 of the datasheet for the underlying Read Flash Data command.
+    /// This is not include as a `FlashDataSubCode` case because it cannot be written.
+    ReadChipFactorySerialNumber,
     /// Write various important data structures and strings into the flash memory
     /// of the MCP2221.
     ///
@@ -45,8 +50,6 @@ pub(crate) enum FlashDataSubCode {
     UsbProductDescriptor,
     /// USB serial number string descriptor used during USB enumeration.
     UsbSerialNumberDescriptor,
-    /// Factory-set serial number. Always "01234567".
-    ChipFactorySerialNumber,
 }
 
 pub(crate) struct UsbReport {
@@ -75,15 +78,12 @@ impl UsbReport {
             ReadFlashData(UsbManufacturerDescriptor) => (0xB0, Some(0x02)),
             ReadFlashData(UsbProductDescriptor) => (0xB0, Some(0x03)),
             ReadFlashData(UsbSerialNumberDescriptor) => (0xB0, Some(0x04)),
-            ReadFlashData(ChipFactorySerialNumber) => (0xB0, Some(0x05)),
+            ReadChipFactorySerialNumber => (0xB0, Some(0x05)),
             WriteFlashData(ChipSettings) => (0xB1, Some(0x00)),
             WriteFlashData(GPSettings) => (0xB1, Some(0x01)),
             WriteFlashData(UsbManufacturerDescriptor) => (0xB1, Some(0x02)),
             WriteFlashData(UsbProductDescriptor) => (0xB1, Some(0x03)),
             WriteFlashData(UsbSerialNumberDescriptor) => (0xB1, Some(0x04)),
-            WriteFlashData(ChipFactorySerialNumber) => {
-                todo!("Chip factory serial number cannot be changed. Error I guess?")
-            }
             GetSRAMSettings => (0x61, None),
             SetSRAMSettings => (0x60, None),
             SetGpioOutputValues => (0x50, None),

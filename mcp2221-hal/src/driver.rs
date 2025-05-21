@@ -376,7 +376,7 @@ impl MCP2221 {
     /// See section 3.1.2 for the underlying Read Flash Data HID command, and
     /// table 3-10 for the relevant subcommand.
     pub fn read_factory_serial_number(&self) -> Result<String, Error> {
-        let command = McpCommand::ReadFlashData(FlashDataSubCode::ChipFactorySerialNumber);
+        let command = McpCommand::ReadChipFactorySerialNumber;
         let buf = self.transfer(UsbReport::new(command))?;
         let length = buf[2] as usize;
         let serial_number_portion = &buf[4..(4 + length)];
