@@ -152,8 +152,7 @@ impl ChipSettings {
     pub(crate) fn apply_to_flash_buffer(&self, buf: &mut [u8; 64]) {
         // Note the bytes positions when writing are -2 from the position when reading.
         buf[2].set_bit(7, self.cdc_serial_number_enumeration_enabled);
-        // TODO: support security settings.
-        // While unimplemented, the 0 bits correspond to the "unsecured" setting.
+        // Chip protection is not supported, so always set to unsecured.
         buf[2].set_bits(0..=1, ChipConfigurationSecurity::Unsecured.into());
 
         // Byte 3 (write) / byte 5 (read)
@@ -195,7 +194,6 @@ impl ChipSettings {
         // When reading we double the value to be less confusing to users.
         buf[11] = (self.usb_requested_number_of_ma / 2) as u8;
 
-        // TODO: Password support (bytes 12..=19).
-        // While unimplemented the password is left at its default (all zeroes).
+        // Password bytes follow. The default is zero, so we leave it at zero.
     }
 }
