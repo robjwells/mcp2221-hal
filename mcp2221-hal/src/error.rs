@@ -53,6 +53,10 @@ pub enum Error {
     I2cWriteEmpty,
     /// Exhausted retries for an I2C operation.
     I2cOperationFailed,
+    /// I2C target address didn't acknowledge its address.
+    I2cAddressNack,
+    /// Attempt to perform a zero-length I2C read.
+    I2cZeroLengthRead,
 }
 
 #[doc(hidden)]
@@ -105,6 +109,12 @@ impl std::fmt::Display for Error {
             }
             Error::I2cWriteEmpty => {
                 write!(f, "empty I2C write not supported")
+            }
+            Error::I2cAddressNack => {
+                write!(f, "I2C target didn't acknowledge its address")
+            }
+            Error::I2cZeroLengthRead => {
+                write!(f, "zero-length I2C reads are not supported")
             }
         }
     }

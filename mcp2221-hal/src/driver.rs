@@ -660,18 +660,18 @@ impl MCP2221 {
     /// The address must be the 7-bit address, not an 8-bit read or write address.
     /// 10-bit addresses are not supported by the MCP2221.
     ///
-    /// Zero-length transfers are not performed and return immediately, as they can
-    /// cause the target to lock up the I2C bus if it holds SDA low for the first bit.
+    /// Zero-length transfers are not accepted, as they can cause the target to lock
+    /// up the I2C bus if it holds SDA low for the first bit.
     ///
     /// # Datasheet
     ///
     /// See section 3.1.8 for the underlying I2C Read Data HID command.
     pub fn i2c_read(&self, seven_bit_address: u8, transfer_length: u16) -> Result<Vec<u8>, Error> {
-        // Return immediately if the transfer length is 0, as attempting a zero-length
+        // Don't attempt to read if the transfer length is 0, as attempting a zero-length
         // read will lock up the bus if the peripheral pulls SDA low trying to transmit.
         // Note the MCP2221 will happily let you do that!
         if transfer_length == 0 {
-            return Ok(Vec::with_capacity(0));
+            return Err(Error::I2cZeroLengthRead);
         }
 
         use crate::i2c::I2cAddressing;
@@ -681,7 +681,20 @@ impl MCP2221 {
         read_command.set_data_byte(2, tx_len_high);
         read_command.set_data_byte(3, seven_bit_address.into_read_address());
         self.transfer(&read_command)?;
+        // Clean up if the target did not acknowledge.
+        self.i2c_bail_for_nack()?;
         self.i2c_read_get_data(transfer_length)
+    }
+
+    /// Cancel the I2C transfer if the target device did not acknowledge its address.
+    fn i2c_bail_for_nack(&self) -> Result<(), Error> {
+        match self.status()?.i2c.ack_received {
+            true => Ok(()),
+            false => {
+                self.i2c_cancel_transfer()?;
+                Err(Error::I2cAddressNack)
+            }
+        }
     }
 
     /// Read I2C target data back from the MCP2221.
@@ -751,9 +764,8 @@ impl MCP2221 {
     /// The given `data` buffer cannot be more than 65,535 bytes long, as this is the
     /// maximum transfer size supported by the MCP2221.
     ///
-    /// Zero-length writes are not supported by this function due to the need to special
-    /// case them and also instruct the MCP2221 to cancel the I2C transfer. Use
-    /// [`MCP2221::i2c_check_address`].
+    /// Zero-length writes are not accepted, you want [`MCP2221::i2c_check_address`]
+    /// instead.
     ///
     /// # Datasheet
     ///
@@ -773,17 +785,25 @@ impl MCP2221 {
         command.set_data_byte(3, seven_bit_address.into_write_address());
 
         // Retries appear less necessary than when reading, but the host can still
-        // attempt to write faster than the MCP2221 can accept the writes, so we
-        // set a retry limit to avoid a potentially infinite loop.
+        // attempt to write faster than the MCP2221 can accept them, so we set a retry
+        // limit to avoid a potentially infinite loop.
         const MAX_RETRIES: u8 = 20;
         const RETRY_DELAY: Duration = Duration::from_millis(2);
 
-        for chunk in data.chunks(60) {
+        for (idx, chunk) in data.chunks(60).enumerate() {
             let mut retries = MAX_RETRIES;
             loop {
                 command.write_buffer[4..4 + chunk.len()].copy_from_slice(chunk);
                 match self.transfer(&command) {
-                    Ok(_) => break,
+                    Ok(_) => {
+                        if idx == 0 {
+                            // Check for address acknowledgement, otherwise clean up,
+                            // but only for the first chunk. MCP2221 will happily
+                            // take writes for a missing target.
+                            self.i2c_bail_for_nack()?;
+                        }
+                        break;
+                    }
                     Err(Error::I2cEngineBusy) if retries > 0 => {
                         retries -= 1;
                         std::thread::sleep(RETRY_DELAY);
@@ -800,8 +820,8 @@ impl MCP2221 {
     /// Check if an I2C target acknowledges the given address.
     ///
     /// This is a special-case of an I2C write, where no bytes are actually written
-    /// to the target. It is a separate function because of the need to also cancel
-    /// the I2C transfer after the write.
+    /// to the target. It is a separate function because of the need to potentially
+    /// also cancel the I2C transfer after the write if the device does not respond.
     pub fn i2c_check_address(&self, seven_bit_address: u8) -> Result<bool, Error> {
         use crate::i2c::I2cAddressing;
         let mut command = UsbReport::new(McpCommand::I2cWriteData);
