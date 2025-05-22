@@ -15,4 +15,13 @@ pub(crate) enum I2cCommand {
         address: u8,
         length: u16,
     },
+    Write {
+        #[arg(value_parser = crate::util::seven_bit_address)]
+        address: u8,
+        data: Vec<u8>,
+    },
+    CheckAddress {
+        #[arg(value_parser = crate::util::seven_bit_address)]
+        address: u8,
+    }
 }

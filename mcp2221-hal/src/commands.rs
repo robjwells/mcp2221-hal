@@ -51,7 +51,13 @@ pub(crate) enum McpCommand {
     /// Get Data command.
     I2cReadData,
     /// Read requested I2C data back from the MCP2221.
+    ///
+    /// See section 3.1.10 of the datasheet.
     I2cGetData,
+    /// Write data to an I2C target.
+    ///
+    /// See section 3.1.5 of the datasheet.
+    I2cWriteData,
 }
 
 impl McpCommand {
@@ -85,6 +91,7 @@ impl McpCommand {
             McpCommand::ResetChip => &[0x70, 0xAB, 0xCD, 0xEF],
             McpCommand::I2cReadData => &[0x91],
             McpCommand::I2cGetData => &[0x40],
+            McpCommand::I2cWriteData => &[0x90],
         }
     }
 }
@@ -104,7 +111,7 @@ impl McpCommand {
             (0x02, Self::WriteFlashData(_)) => Err(Error::CommandNotSupported),
             (0x03, Self::WriteFlashData(_)) => Err(Error::CommandNotAllowed),
             // Not implemented yet, but took these from the datasheet:
-            // (0x01, Self::I2cWriteData) => Err(Error::I2cEngineBusy),
+            (0x01, Self::I2cWriteData) => Err(Error::I2cEngineBusy),
             // (0x01, Self::I2cWriteDataRepeatedStart) => Err(Error::I2cEngineBusy),
             // (0x01, Self::I2cWriteDataNoStop) => Err(Error::I2cEngineBusy),
             (0x01, Self::I2cReadData) => Err(Error::I2cEngineBusy),

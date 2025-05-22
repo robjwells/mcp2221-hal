@@ -3,6 +3,8 @@
 /// Response from the MCP2221 after attempting to cancel an I2C transfer.
 #[derive(Debug)]
 pub enum CancelI2cTransferResponse {
+    /// Cancellation successful.
+    Done,
     /// The I2C transfer cancellation was issued and the MCP2221 marked the transfer
     /// for cancellation.
     MarkedForCancellation,

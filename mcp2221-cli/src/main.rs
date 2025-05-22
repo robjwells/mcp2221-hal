@@ -98,6 +98,9 @@ fn main() -> McpResult<()> {
                 CancelI2cTransferResponse::NoTransfer => {
                     println!("There was no ongoing I2C transfer to cancel.")
                 }
+                CancelI2cTransferResponse::Done => {
+                    println!("Transfer cancelled.");
+                }
             },
             I2cCommand::Speed { kbps } => device.i2c_set_bus_speed(I2cSpeed::new(kbps * 1000))?,
             I2cCommand::Read { address, length } => {
@@ -110,6 +113,16 @@ fn main() -> McpResult<()> {
                     println!();
                 }
             }
+            I2cCommand::Write { address, data } => {
+                device.i2c_write(address, data.as_slice())?;
+            }
+            I2cCommand::CheckAddress { address } => match device.i2c_check_address(address) {
+                Ok(true) => println!("Device found at {address:#04X}"),
+                Ok(false) => println!("No device found at {address:#04X}"),
+                Err(e) => {
+                    eprintln!("{e}")
+                }
+            },
         },
         Commands::Pins(pins_command) => match pins_command {
             pins::PinsCommand::Read => {

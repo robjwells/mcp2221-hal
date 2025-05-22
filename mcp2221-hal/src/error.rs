@@ -47,6 +47,12 @@ pub enum Error {
     I2cEngineBusy,
     /// I2C target data could not be read from the I2C engine.
     I2cEngineReadError,
+    /// The number of bytes to write to an I2C target was more than 65,535.
+    I2cWriteTooLong,
+    /// The number of bytes to write to an I2C target was 0.
+    I2cWriteEmpty,
+    /// Exhausted retries for an I2C operation.
+    I2cOperationFailed,
 }
 
 #[doc(hidden)]
@@ -90,6 +96,15 @@ impl std::fmt::Display for Error {
             Error::I2cEngineBusy => write!(f, "I2C engine busy"),
             Error::I2cEngineReadError => {
                 write!(f, "could not read I2C target data from the I2C engine")
+            }
+            Error::I2cWriteTooLong => {
+                write!(f, "attempt to write more than 65,535 bytes to I2C target")
+            }
+            Error::I2cOperationFailed => {
+                write!(f, "all retries exhausted attempt to perform I2C operation")
+            }
+            Error::I2cWriteEmpty => {
+                write!(f, "empty I2C write not supported")
             }
         }
     }
