@@ -100,6 +100,16 @@ fn main() -> McpResult<()> {
                 }
             },
             I2cCommand::Speed { kbps } => device.i2c_set_bus_speed(I2cSpeed::new(kbps * 1000))?,
+            I2cCommand::Read { address, length } => {
+                let data = device.i2c_read(address, length)?;
+                eprintln!("{} bytes read", data.len());
+                for chunk in data.chunks(8) {
+                    for byte in chunk {
+                        print!("{byte:02X} ");
+                    }
+                    println!();
+                }
+            }
         },
         Commands::Pins(pins_command) => match pins_command {
             pins::PinsCommand::Read => {

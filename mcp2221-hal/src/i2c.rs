@@ -89,3 +89,21 @@ impl From<u8> for I2cSpeed {
         Self::new(Self::divider_to_speed(divider))
     }
 }
+
+#[allow(dead_code)]
+pub(crate) trait I2cAddressing {
+    /// Shift a seven-bit address over, with the R/_W bit set to 1 (read).
+    fn into_read_address(self) -> u8;
+    /// Shift a seven-bit address over, with the R/_W bit set to 0 (write).
+    fn into_write_address(self) -> u8;
+}
+
+impl I2cAddressing for u8 {
+    fn into_read_address(self) -> u8 {
+        (self << 1) + 1
+    }
+
+    fn into_write_address(self) -> u8 {
+        self << 1
+    }
+}

@@ -35,16 +35,23 @@ pub(crate) enum McpCommand {
     GetSRAMSettings,
     /// Retrieve the GPIO direction and pin value for those pins set to GPIO operation.
     ///
-    /// See section 3.1.12 of the datasheet.
+    /// See section 3.1.11 of the datasheet.
     SetGpioOutputValues,
     /// Change GPIO pin output direction and logic level.
     ///
-    /// See section 3.1.11 of the datasheet.
+    /// See section 3.1.12 of the datasheet.
     GetGpioValues,
     /// Force a reset of the device.
     ///
     /// See section 3.1.15 of the datasheet.
     ResetChip,
+    /// Request a read from an I2C target.
+    ///
+    /// The read data is not returned in response to this command, but to the
+    /// Get Data command.
+    I2cReadData,
+    /// Read requested I2C data back from the MCP2221.
+    I2cGetData,
 }
 
 impl McpCommand {
@@ -76,6 +83,8 @@ impl McpCommand {
             McpCommand::SetGpioOutputValues => &[0x50],
             McpCommand::GetGpioValues => &[0x51],
             McpCommand::ResetChip => &[0x70, 0xAB, 0xCD, 0xEF],
+            McpCommand::I2cReadData => &[0x91],
+            McpCommand::I2cGetData => &[0x40],
         }
     }
 }
@@ -98,9 +107,9 @@ impl McpCommand {
             // (0x01, Self::I2cWriteData) => Err(Error::I2cEngineBusy),
             // (0x01, Self::I2cWriteDataRepeatedStart) => Err(Error::I2cEngineBusy),
             // (0x01, Self::I2cWriteDataNoStop) => Err(Error::I2cEngineBusy),
-            // (0x01, Self::I2cReadData) => Err(Error::I2cEngineBusy),
+            (0x01, Self::I2cReadData) => Err(Error::I2cEngineBusy),
             // (0x01, Self::I2cReadDataRepeatedStart) => Err(Error::I2cEngineBusy),
-            // (0x41, Self::I2cGetData) => Err(Error::I2cEngineReadError),
+            (0x41, Self::I2cGetData) => Err(Error::I2cEngineReadError),
             (_, _) => Ok(()),
         }
     }
@@ -165,12 +174,10 @@ impl UsbReport {
     ///
     /// `byte_index` must be in the range `2..=63`.
     ///
-    /// Command and subcommand bytes (indices 0 and 1) cannot be set
-    /// with this command.
+    /// Command at index 0 cannot be overwritten with this method.
     pub(crate) fn set_data_byte(&mut self, byte_index: usize, value: u8) {
         assert!(byte_index < 64, "Byte index {byte_index} too large.");
         assert!(byte_index != 0, "Cannot write to command byte index.");
-        assert!(byte_index != 1, "Cannot write to subcommand byte index.");
         self.write_buffer[byte_index] = value;
     }
 }

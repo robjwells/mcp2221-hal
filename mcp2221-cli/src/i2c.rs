@@ -10,4 +10,9 @@ pub(crate) enum I2cCommand {
     },
     /// Cancel the current I2C transfer and attempt to free the bus.
     Cancel,
+    Read {
+        #[arg(value_parser = crate::util::seven_bit_address)]
+        address: u8,
+        length: u16,
+    },
 }

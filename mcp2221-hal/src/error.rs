@@ -43,6 +43,10 @@ pub enum Error {
     },
     /// An error occurred when attempting to open the MCP2221 USB device.
     HidApi(hidapi::HidError),
+    /// I2C engine could not handle the request because it was busy.
+    I2cEngineBusy,
+    /// I2C target data could not be read from the I2C engine.
+    I2cEngineReadError,
 }
 
 #[doc(hidden)]
@@ -83,6 +87,10 @@ impl std::fmt::Display for Error {
                 "invalid pin mode bit pattern {mode:#b} received for {pin}"
             ),
             Error::HidApi(hid_error) => write!(f, "HidApi error: {hid_error}"),
+            Error::I2cEngineBusy => write!(f, "I2C engine busy"),
+            Error::I2cEngineReadError => {
+                write!(f, "could not read I2C target data from the I2C engine")
+            }
         }
     }
 }
