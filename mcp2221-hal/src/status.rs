@@ -24,9 +24,7 @@ pub struct I2cStatus {
     pub communication_state: I2cCommunicationState,
     /// The current requested I2C transfer length.
     pub transfer_requested_length: u16,
-    /// Number of bytes already transferred.
-    // TODO: Is this _total_ transferred or just the _current_ transfer?
-    //       Should be easy to test once I have I2C implemented.
+    /// Number of bytes already transferred in the current transfer.
     pub transfer_completed_length: u16,
     /// Internal I2C data buffer counter.
     ///

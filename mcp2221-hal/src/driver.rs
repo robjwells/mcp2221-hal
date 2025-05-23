@@ -666,8 +666,8 @@ impl MCP2221 {
     /// # Datasheet
     ///
     /// See section 3.1.8 for the underlying I2C Read Data HID command.
-    pub fn i2c_read(&self, seven_bit_address: u8, transfer_length: u16) -> Result<Vec<u8>, Error> {
-        self._i2c_read(seven_bit_address, transfer_length, i2c::ReadType::Normal)
+    pub fn i2c_read(&self, seven_bit_address: u8, read_buffer: &mut [u8]) -> Result<(), Error> {
+        self._i2c_read(seven_bit_address, read_buffer, i2c::ReadType::Normal)
     }
 
     /// Read data from an I2C target with a repeated START condition.
@@ -701,43 +701,41 @@ impl MCP2221 {
     pub fn i2c_read_repeated_start(
         &self,
         seven_bit_address: u8,
-        transfer_length: u16,
-    ) -> Result<Vec<u8>, Error> {
-        self._i2c_read(
-            seven_bit_address,
-            transfer_length,
-            i2c::ReadType::RepeatedStart,
-        )
+        read_buffer: &mut [u8],
+    ) -> Result<(), Error> {
+        self._i2c_read(seven_bit_address, read_buffer, i2c::ReadType::RepeatedStart)
     }
 
     /// Perform an I2C read of the type specified.
     ///
     /// The I2C HID commands only differ in their command bytes (and their semantics),
     /// so this is the underlying implementation for the two i2c_read_\* functions.
-    // TODO: Probably this should take a &mut slice rather than a length?
     fn _i2c_read(
         &self,
         seven_bit_address: u8,
-        transfer_length: u16,
+        read_buffer: &mut [u8],
         read_type: i2c::ReadType,
-    ) -> Result<Vec<u8>, Error> {
+    ) -> Result<(), Error> {
         // Don't attempt to read if the transfer length is 0, as attempting a zero-length
         // read will lock up the bus if the peripheral pulls SDA low trying to transmit.
         // Note the MCP2221 will happily let you do that!
-        if transfer_length == 0 {
+        if read_buffer.is_empty() {
             return Err(Error::I2cZeroLengthRead);
         }
+        let Ok(tx_len): Result<u16, _> = read_buffer.len().try_into() else {
+            return Err(Error::I2cReadTooLong);
+        };
 
         use crate::i2c::I2cAddressing;
         let mut read_command = UsbReport::new(read_type.into());
-        let [tx_len_low, tx_len_high] = transfer_length.to_le_bytes();
+        let [tx_len_low, tx_len_high] = tx_len.to_le_bytes();
         read_command.set_data_byte(1, tx_len_low);
         read_command.set_data_byte(2, tx_len_high);
         read_command.set_data_byte(3, seven_bit_address.into_read_address());
         self.transfer(&read_command)?;
         // Clean up if the target did not acknowledge.
         self.i2c_bail_for_nack()?;
-        self.i2c_read_get_data(transfer_length)
+        self.i2c_read_get_data(read_buffer)
     }
 
     /// Cancel the I2C transfer if the target device did not acknowledge its address.
@@ -754,7 +752,7 @@ impl MCP2221 {
     /// Read I2C target data back from the MCP2221.
     ///
     /// This is called after requesting a read to get the actual data.
-    fn i2c_read_get_data(&self, transfer_length: u16) -> Result<Vec<u8>, Error> {
+    fn i2c_read_get_data(&self, read_buffer: &mut [u8]) -> Result<(), Error> {
         // Retries are necessary because it is likely the host will request data from
         // the MCP2221 faster than it can process it, in which case it returns the
         // "error reading from the engine" 0x41 code.
@@ -769,17 +767,17 @@ impl MCP2221 {
         // overall time taken.
         const RETRY_DELAY: Duration = Duration::from_millis(2);
         // Sanity check that the driver never tries to read zero bytes.
-        assert_ne!(
-            transfer_length, 0,
-            "Attempt to read 0 bytes from the I2C engine."
-        );
+        if read_buffer.is_empty() {
+            return Err(Error::I2cZeroLengthRead);
+        }
 
-        let transfer_length = transfer_length as usize;
-        let mut data = Vec::<u8>::with_capacity(transfer_length);
+        let transfer_length = read_buffer.len();
+        let mut read_so_far: usize = 0;
+
         let get_command = UsbReport::new(McpCommand::I2cGetData);
         let mut retries = MAX_RETRIES;
 
-        while data.len() < transfer_length {
+        while read_so_far < transfer_length {
             match self.transfer(&get_command) {
                 Ok(Some(buffer)) => {
                     // Reset the number of retries.
@@ -790,7 +788,9 @@ impl MCP2221 {
                         continue;
                     }
                     let data_length = buffer[3] as usize;
-                    data.extend_from_slice(&buffer[4..4 + data_length]);
+                    read_buffer[read_so_far..read_so_far + data_length]
+                        .copy_from_slice(&buffer[4..4 + data_length]);
+                    read_so_far += data_length;
                 }
                 Ok(None) => unreachable!("Get Data always returns a buffer."),
                 Err(Error::I2cEngineReadError) if retries > 0 => {
@@ -807,7 +807,7 @@ impl MCP2221 {
             }
         }
 
-        Ok(data)
+        Ok(())
     }
 
     /// Write data to an I2C target.
@@ -824,8 +824,8 @@ impl MCP2221 {
     /// # Datasheet
     ///
     /// See section 3.1.5 for the underlying I2C Write Data HID command.
-    pub fn i2c_write(&self, seven_bit_address: u8, data: &[u8]) -> Result<(), Error> {
-        self._i2c_write(seven_bit_address, data, i2c::WriteType::Normal)
+    pub fn i2c_write(&self, seven_bit_address: u8, write_buffer: &[u8]) -> Result<(), Error> {
+        self._i2c_write(seven_bit_address, write_buffer, i2c::WriteType::Normal)
     }
 
     /// Write data to an I2C target with a repeated START condition.
@@ -858,9 +858,13 @@ impl MCP2221 {
     pub fn i2c_write_repeated_start(
         &self,
         seven_bit_address: u8,
-        data: &[u8],
+        write_buffer: &[u8],
     ) -> Result<(), Error> {
-        self._i2c_write(seven_bit_address, data, i2c::WriteType::RepeatedStart)
+        self._i2c_write(
+            seven_bit_address,
+            write_buffer,
+            i2c::WriteType::RepeatedStart,
+        )
     }
 
     /// Write data to an I2C target without a final STOP condition.
@@ -876,8 +880,12 @@ impl MCP2221 {
     /// # Datasheet
     ///
     /// See section 3.1.7 for the underlying I2C Write Data NO STOP HID command.
-    pub fn i2c_write_no_stop(&self, seven_bit_address: u8, data: &[u8]) -> Result<(), Error> {
-        self._i2c_write(seven_bit_address, data, i2c::WriteType::NoStop)
+    pub fn i2c_write_no_stop(
+        &self,
+        seven_bit_address: u8,
+        write_buffer: &[u8],
+    ) -> Result<(), Error> {
+        self._i2c_write(seven_bit_address, write_buffer, i2c::WriteType::NoStop)
     }
 
     /// Perform an I2C write of the type specified.
@@ -887,13 +895,14 @@ impl MCP2221 {
     fn _i2c_write(
         &self,
         seven_bit_address: u8,
-        data: &[u8],
+        write_buffer: &[u8],
         write_type: i2c::WriteType,
     ) -> Result<(), Error> {
-        let Ok([tx_len_low, tx_len_high]) = u16::try_from(data.len()).map(u16::to_le_bytes) else {
+        let Ok([tx_len_low, tx_len_high]) = u16::try_from(write_buffer.len()).map(u16::to_le_bytes)
+        else {
             return Err(Error::I2cWriteTooLong);
         };
-        if data.is_empty() {
+        if write_buffer.is_empty() {
             return Err(Error::I2cWriteEmpty);
         }
 
@@ -909,7 +918,7 @@ impl MCP2221 {
         const MAX_RETRIES: u8 = 20;
         const RETRY_DELAY: Duration = Duration::from_millis(2);
 
-        for (idx, chunk) in data.chunks(60).enumerate() {
+        for (idx, chunk) in write_buffer.chunks(60).enumerate() {
             let mut retries = MAX_RETRIES;
             loop {
                 command.write_buffer[4..4 + chunk.len()].copy_from_slice(chunk);
@@ -948,11 +957,11 @@ impl MCP2221 {
     pub fn i2c_write_read(
         &self,
         seven_bit_address: u8,
-        data: &[u8],
-        read_length: u16,
-    ) -> Result<Vec<u8>, Error> {
-        self.i2c_write_no_stop(seven_bit_address, data)?;
-        self.i2c_read_repeated_start(seven_bit_address, read_length)
+        write_buffer: &[u8],
+        read_buffer: &mut [u8],
+    ) -> Result<(), Error> {
+        self.i2c_write_no_stop(seven_bit_address, write_buffer)?;
+        self.i2c_read_repeated_start(seven_bit_address, read_buffer)
     }
 
     /// Check if an I2C target acknowledges the given address.

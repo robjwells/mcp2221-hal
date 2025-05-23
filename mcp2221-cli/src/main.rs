@@ -104,7 +104,10 @@ fn main() -> McpResult<()> {
             },
             I2cCommand::Speed { kbps } => device.i2c_set_bus_speed(I2cSpeed::new(kbps * 1000))?,
             I2cCommand::Read { address, length } => {
-                let data = device.i2c_read(address, length)?;
+                // Length as u16 ensures it's within the MCP2221's limits, even if
+                // we immediately convert it to a usize.
+                let mut data = vec![0; length as usize];
+                device.i2c_read(address, data.as_mut_slice())?;
                 print_bytes(&data);
             }
             I2cCommand::Write { address, data } => {
@@ -120,10 +123,13 @@ fn main() -> McpResult<()> {
             I2cCommand::WriteRead {
                 address,
                 read_length,
-                data,
+                write_data,
             } => {
-                let data = device.i2c_write_read(address, &data, read_length)?;
-                print_bytes(&data);
+                // read_length as u16 ensures it's within the MCP2221's limits, even if
+                // we immediately convert it to a usize.
+                let mut read_data = vec![0; read_length as usize];
+                device.i2c_write_read(address, &write_data, &mut read_data)?;
+                print_bytes(&read_data);
             }
         },
         Commands::Pins(pins_command) => match pins_command {

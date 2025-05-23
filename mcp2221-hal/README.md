@@ -19,15 +19,15 @@ in fixing [a bug with UART registers][errata] and allowing faster UART baud rate
     + [x] Digital input and output (GPIO)
     + [x] Analog input and output
     + [x] Clock output, LED indicator output, interrupt detection
-- [ ] I2C
-    + [ ] Write
-        - [ ] 3.1.5 I2C Write Data
-        - [ ] 3.1.6 I2C Write Data Repeated Start
-        - [ ] 3.1.7 I2C Write Data No Stop
-    + [ ] Read
-        - [ ] 3.1.8 I2C Read Data
-        - [ ] 3.1.9 I2C Read Data Repeated Start
-    + [ ] WriteRead
+- [x] I2C
+    + [x] Write
+        - [x] 3.1.5 I2C Write Data
+        - [x] 3.1.6 I2C Write Data Repeated Start
+        - [x] 3.1.7 I2C Write Data No Stop
+    + [x] Read
+        - [x] 3.1.8 I2C Read Data
+        - [x] 3.1.9 I2C Read Data Repeated Start
+    + [x] WriteRead
     + [x] Standard I2C bus speeds (100k/400k)
     + [x] Custom I2C bus speeds (47k–400k)
 - [ ] [embedded-hal] traits
@@ -133,8 +133,6 @@ I2C engine to idle.
 
 This behaviour is not documented in the datasheet. This driver works around it by only
 issuing a cancellation if the engine is not idle (as read from the Status command).
-
-<!-- TODO: Update this if performing I2C transfers clears the busy state. -->
 
 ## DAC output curve
 
