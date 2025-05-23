@@ -8,7 +8,7 @@ use crate::commands::{FlashDataSubCode, McpCommand, UsbReport};
 use crate::common::DeviceString;
 use crate::error::Error;
 use crate::gpio::{ChangeGpioValues, GpSettings, GpioValues};
-use crate::i2c::{CancelI2cTransferResponse, I2cSpeed};
+use crate::i2c::{self, CancelI2cTransferResponse, I2cSpeed};
 use crate::sram::{ChangeSramSettings, SramSettings};
 use crate::status::Status;
 
@@ -667,6 +667,55 @@ impl MCP2221 {
     ///
     /// See section 3.1.8 for the underlying I2C Read Data HID command.
     pub fn i2c_read(&self, seven_bit_address: u8, transfer_length: u16) -> Result<Vec<u8>, Error> {
+        self._i2c_read(seven_bit_address, transfer_length, i2c::ReadType::Normal)
+    }
+
+    /// Read data from an I2C target with a repeated START condition.
+    ///
+    /// <div class="warning">
+    ///
+    /// If this method is called as the first I2C read or write after the MCP2221 is
+    /// powered-up, it will put the I2C engine into an error state.
+    ///
+    /// </div>
+    ///
+    /// It is unclear from the datasheet how this differs from the standard I2C read HID
+    /// command or how it should be used. Formally, a repeated-START in I2C is just a
+    /// START condition when the previous transfer has not been terminated by a STOP
+    /// condition, so this _should_ be the same as issuing a normal read.
+    ///
+    /// In this library, this method is called after writing with no stop, in order to
+    /// perform a write-read (ST, address-w, data-out, SR, address-r, data-in, SP).
+    /// It is exposed to users for completeness with no guarantees or suggestions about
+    /// its usage.
+    ///
+    /// In general, it appears that this exposes some of the internal details of the
+    /// MCP2221 I2C engine, but without the explanation needed to make sense of it.
+    ///
+    /// The restrictions from [`MCP2221::i2c_read`] also apply: the address provided
+    /// must be the 7-bit address, and zero-length transfers are not supported.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.9 for the underlying I2C Read Data Repeated-START HID command.
+    pub fn i2c_read_repeated_start(
+        &self,
+        seven_bit_address: u8,
+        transfer_length: u16,
+    ) -> Result<Vec<u8>, Error> {
+        self._i2c_read(
+            seven_bit_address,
+            transfer_length,
+            i2c::ReadType::RepeatedStart,
+        )
+    }
+
+    fn _i2c_read(
+        &self,
+        seven_bit_address: u8,
+        transfer_length: u16,
+        read_type: i2c::ReadType,
+    ) -> Result<Vec<u8>, Error> {
         // Don't attempt to read if the transfer length is 0, as attempting a zero-length
         // read will lock up the bus if the peripheral pulls SDA low trying to transmit.
         // Note the MCP2221 will happily let you do that!
@@ -675,7 +724,7 @@ impl MCP2221 {
         }
 
         use crate::i2c::I2cAddressing;
-        let mut read_command = UsbReport::new(McpCommand::I2cReadData);
+        let mut read_command = UsbReport::new(read_type.into());
         let [tx_len_low, tx_len_high] = transfer_length.to_le_bytes();
         read_command.set_data_byte(1, tx_len_low);
         read_command.set_data_byte(2, tx_len_high);

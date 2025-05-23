@@ -1,5 +1,7 @@
 //! I2C engine configuration.
 
+use crate::commands::McpCommand;
+
 /// Response from the MCP2221 after attempting to cancel an I2C transfer.
 #[derive(Debug)]
 pub enum CancelI2cTransferResponse {
@@ -107,5 +109,37 @@ impl I2cAddressing for u8 {
 
     fn into_write_address(self) -> u8 {
         self << 1
+    }
+}
+
+/// Specific I2C read type that has a corresponding HID command.
+///
+/// The HID commands have different command bytes but otherwise identical arguments.
+pub(crate) enum ReadType {
+    /// Read with a START and STOP condition.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.8 for the underlying I2C command.
+    Normal,
+    /// Read with a repeated START condition and a STOP condition.
+    ///
+    /// In the I2C protocol, a repeated start is just a START condition where a STOP
+    /// condition has not terminated the previous transfer. Formally, it _should_
+    /// be no different from a "normal" read, but it is not clear from the datasheet
+    /// if the MCP2221 treats a repeated start in a special manner.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.9 for the underlying I2C command.
+    RepeatedStart,
+}
+
+impl From<ReadType> for McpCommand {
+    fn from(value: ReadType) -> Self {
+        match value {
+            ReadType::Normal => McpCommand::I2cReadData,
+            ReadType::RepeatedStart => McpCommand::I2cReadDataRepeatedStart,
+        }
     }
 }

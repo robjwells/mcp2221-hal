@@ -50,6 +50,11 @@ pub(crate) enum McpCommand {
     /// The read data is not returned in response to this command, but to the
     /// Get Data command.
     I2cReadData,
+    /// Request a read from an I2C target with a repeated START condition.
+    ///
+    /// The read data is not returned in response to this command, but to the
+    /// Get Data command.
+    I2cReadDataRepeatedStart,
     /// Read requested I2C data back from the MCP2221.
     ///
     /// See section 3.1.10 of the datasheet.
@@ -90,6 +95,7 @@ impl McpCommand {
             McpCommand::GetGpioValues => &[0x51],
             McpCommand::ResetChip => &[0x70, 0xAB, 0xCD, 0xEF],
             McpCommand::I2cReadData => &[0x91],
+            McpCommand::I2cReadDataRepeatedStart => &[0x93],
             McpCommand::I2cGetData => &[0x40],
             McpCommand::I2cWriteData => &[0x90],
         }
