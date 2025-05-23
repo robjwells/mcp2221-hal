@@ -105,13 +105,7 @@ fn main() -> McpResult<()> {
             I2cCommand::Speed { kbps } => device.i2c_set_bus_speed(I2cSpeed::new(kbps * 1000))?,
             I2cCommand::Read { address, length } => {
                 let data = device.i2c_read(address, length)?;
-                eprintln!("{} bytes read", data.len());
-                for chunk in data.chunks(8) {
-                    for byte in chunk {
-                        print!("{byte:02X} ");
-                    }
-                    println!();
-                }
+                print_bytes(&data);
             }
             I2cCommand::Write { address, data } => {
                 device.i2c_write(address, data.as_slice())?;
@@ -123,6 +117,14 @@ fn main() -> McpResult<()> {
                     eprintln!("{e}")
                 }
             },
+            I2cCommand::WriteRead {
+                address,
+                read_length,
+                data,
+            } => {
+                let data = device.i2c_write_read(address, &data, read_length)?;
+                print_bytes(&data);
+            }
         },
         Commands::Pins(pins_command) => match pins_command {
             pins::PinsCommand::Read => {
@@ -174,6 +176,16 @@ fn print_all_flash_data(device: &mcp2221_hal::MCP2221) -> McpResult<()> {
         device.read_factory_serial_number()?
     );
     Ok(())
+}
+
+fn print_bytes(data: &[u8]) {
+    eprintln!("{} bytes read", data.len());
+    for chunk in data.chunks(8) {
+        for byte in chunk {
+            print!("{byte:02X} ");
+        }
+        println!();
+    }
 }
 
 #[cfg(test)]

@@ -63,6 +63,14 @@ pub(crate) enum McpCommand {
     ///
     /// See section 3.1.5 of the datasheet.
     I2cWriteData,
+    /// Write data to an I2C target with a repeated START condition.
+    ///
+    /// See section 3.1.6 of the datasheet.
+    I2cWriteDataRepeatedStart,
+    /// Write data to an I2C target without a STOP condition.
+    ///
+    /// See section 3.1.7 of the datasheet.
+    I2cWriteDataNoStop,
 }
 
 impl McpCommand {
@@ -98,6 +106,8 @@ impl McpCommand {
             McpCommand::I2cReadDataRepeatedStart => &[0x93],
             McpCommand::I2cGetData => &[0x40],
             McpCommand::I2cWriteData => &[0x90],
+            McpCommand::I2cWriteDataRepeatedStart => &[0x92],
+            McpCommand::I2cWriteDataNoStop => &[0x94],
         }
     }
 }

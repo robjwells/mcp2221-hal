@@ -120,7 +120,7 @@ pub(crate) enum ReadType {
     ///
     /// # Datasheet
     ///
-    /// See section 3.1.8 for the underlying I2C command.
+    /// See section 3.1.8 for the underlying HID command.
     Normal,
     /// Read with a repeated START condition and a STOP condition.
     ///
@@ -140,6 +140,48 @@ impl From<ReadType> for McpCommand {
         match value {
             ReadType::Normal => McpCommand::I2cReadData,
             ReadType::RepeatedStart => McpCommand::I2cReadDataRepeatedStart,
+        }
+    }
+}
+
+/// Specific I2C write type that has a corresponding HID command.
+///
+/// The HID commands have different command bytes but otherwise identical arguments.
+pub(crate) enum WriteType {
+    /// Write with a START and STOP condition.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.5 for the underlying HID command.
+    Normal,
+    /// Write with a repeated START condition and a STOP condition.
+    ///
+    /// In the I2C protocol, a repeated start is just a START condition where a STOP
+    /// condition has not terminated the previous transfer. Formally, it _should_
+    /// be no different from a "normal" write, but it is not clear from the datasheet
+    /// if the MCP2221 treats a repeated start in a special manner.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.6 for the underlying HID command.
+    RepeatedStart,
+    /// Write with a START condition but _without_ a STOP condition.
+    ///
+    /// This is a component of a write-read where a write is issued to a device, then
+    /// immediately afterwards a read (repeated-START), without releasing the bus.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.7 for the underlying HID command.
+    NoStop,
+}
+
+impl From<WriteType> for McpCommand {
+    fn from(value: WriteType) -> Self {
+        match value {
+            WriteType::Normal => McpCommand::I2cWriteData,
+            WriteType::RepeatedStart => McpCommand::I2cWriteDataRepeatedStart,
+            WriteType::NoStop => McpCommand::I2cWriteDataNoStop,
         }
     }
 }

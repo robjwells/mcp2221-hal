@@ -710,6 +710,11 @@ impl MCP2221 {
         )
     }
 
+    /// Perform an I2C read of the type specified.
+    ///
+    /// The I2C HID commands only differ in their command bytes (and their semantics),
+    /// so this is the underlying implementation for the two i2c_read_\* functions.
+    // TODO: Probably this should take a &mut slice rather than a length?
     fn _i2c_read(
         &self,
         seven_bit_address: u8,
@@ -820,6 +825,71 @@ impl MCP2221 {
     ///
     /// See section 3.1.5 for the underlying I2C Write Data HID command.
     pub fn i2c_write(&self, seven_bit_address: u8, data: &[u8]) -> Result<(), Error> {
+        self._i2c_write(seven_bit_address, data, i2c::WriteType::Normal)
+    }
+
+    /// Write data to an I2C target with a repeated START condition.
+    ///
+    /// <div class="warning">
+    ///
+    /// If this method is called as the first I2C read or write after the MCP2221 is
+    /// powered-up, it will put the I2C engine into an error state.
+    ///
+    /// </div>
+    ///
+    /// It is unclear from the datasheet how this differs from the standard I2C write
+    /// HID command or how it should be used. Formally, a repeated-START in I2C is just a
+    /// START condition when the previous transfer has not been terminated by a STOP
+    /// condition, so this _should_ be the same as issuing a normal write.
+    ///
+    /// This method is not actually used in the implementation of this library, and is
+    /// only exposed because the MCP2221 exposes it as a separate USB HID command. No
+    /// guarantees or suggestions are made about its usage. (But if you discover
+    /// something that might help others, please [file an issue].)
+    ///
+    /// [file an issue]: https://github.com/robjwells/mcp2221-hal/issues
+    ///
+    /// The restrictions from [`MCP2221::i2c_write`] also apply: the address provided
+    /// must be the 7-bit address, and zero-length transfers are not supported.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.6 for the underlying I2C Write Data Repeated-START HID command.
+    pub fn i2c_write_repeated_start(
+        &self,
+        seven_bit_address: u8,
+        data: &[u8],
+    ) -> Result<(), Error> {
+        self._i2c_write(seven_bit_address, data, i2c::WriteType::RepeatedStart)
+    }
+
+    /// Write data to an I2C target without a final STOP condition.
+    ///
+    /// In this library, this is used to implement I2C write-read (ST, address-w,
+    /// data-out, SR, address-r, data-in, SP) before a read with repeated-START.
+    /// It is exposed to the user for completeness with no guarantees or suggestions
+    /// about its usage outside of this scenario.
+    ///
+    /// The restrictions from [`MCP2221::i2c_write`] still apply: the address provided
+    /// must be the 7-bit address, and zero-length transfers are not supported.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.7 for the underlying I2C Write Data NO STOP HID command.
+    pub fn i2c_write_no_stop(&self, seven_bit_address: u8, data: &[u8]) -> Result<(), Error> {
+        self._i2c_write(seven_bit_address, data, i2c::WriteType::NoStop)
+    }
+
+    /// Perform an I2C write of the type specified.
+    ///
+    /// The I2C HID commands only differ in their command bytes (and their semantics),
+    /// so this is the underlying implementation for the two i2c_read_\* functions.
+    fn _i2c_write(
+        &self,
+        seven_bit_address: u8,
+        data: &[u8],
+        write_type: i2c::WriteType,
+    ) -> Result<(), Error> {
         let Ok([tx_len_low, tx_len_high]) = u16::try_from(data.len()).map(u16::to_le_bytes) else {
             return Err(Error::I2cWriteTooLong);
         };
@@ -828,7 +898,7 @@ impl MCP2221 {
         }
 
         use crate::i2c::I2cAddressing;
-        let mut command = UsbReport::new(McpCommand::I2cWriteData);
+        let mut command = UsbReport::new(write_type.into());
         command.set_data_byte(1, tx_len_low);
         command.set_data_byte(2, tx_len_high);
         command.set_data_byte(3, seven_bit_address.into_write_address());
@@ -864,6 +934,25 @@ impl MCP2221 {
         }
 
         Ok(())
+    }
+
+    /// Perform an I2C write-read to the given target address.
+    ///
+    /// First the provided data buffer is written to the target, without a final STOP
+    /// condition. Then a repeated-START is issued and `read_length` bytes are read
+    /// from the target and returned.
+    ///
+    /// # Datasheet
+    ///
+    /// See sections 3.1.7 and 3.1.9 for the underlying HID commands.
+    pub fn i2c_write_read(
+        &self,
+        seven_bit_address: u8,
+        data: &[u8],
+        read_length: u16,
+    ) -> Result<Vec<u8>, Error> {
+        self.i2c_write_no_stop(seven_bit_address, data)?;
+        self.i2c_read_repeated_start(seven_bit_address, read_length)
     }
 
     /// Check if an I2C target acknowledges the given address.
