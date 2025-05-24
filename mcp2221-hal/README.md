@@ -32,7 +32,7 @@ in fixing [a bug with UART registers][errata] and allowing faster UART baud rate
     + [x] Custom I2C bus speeds (47k–400k)
 - [ ] [embedded-hal] traits
     - [x] `embedded_hal::i2c::I2c`
-    - [ ] `embedded_hal_async::i2c::I2c`
+    - [x] `embedded_hal_async::i2c::I2c`
     - [ ] `embedded_hal::digital::*`
     - [ ] `embedded_hal_async::digital::*`
 - [ ] UART serial (for now, interact with the MCP2221 CDC device directly)
