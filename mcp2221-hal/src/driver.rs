@@ -713,10 +713,10 @@ impl MCP2221 {
         // read will lock up the bus if the peripheral pulls SDA low trying to transmit.
         // Note the MCP2221 will happily let you do that!
         if read_buffer.is_empty() {
-            return Err(Error::I2cZeroLengthRead);
+            return Err(Error::I2cTransferEmpty);
         }
         let Ok(tx_len): Result<u16, _> = read_buffer.len().try_into() else {
-            return Err(Error::I2cReadTooLong);
+            return Err(Error::I2cTransferTooLong);
         };
 
         use crate::i2c::I2cAddressing;
@@ -761,7 +761,7 @@ impl MCP2221 {
         const RETRY_DELAY: Duration = Duration::from_millis(2);
         // Sanity check that the driver never tries to read zero bytes.
         if read_buffer.is_empty() {
-            return Err(Error::I2cZeroLengthRead);
+            return Err(Error::I2cTransferEmpty);
         }
 
         let transfer_length = read_buffer.len();
@@ -886,10 +886,10 @@ impl MCP2221 {
     ) -> Result<(), Error> {
         let Ok([tx_len_low, tx_len_high]) = u16::try_from(write_buffer.len()).map(u16::to_le_bytes)
         else {
-            return Err(Error::I2cWriteTooLong);
+            return Err(Error::I2cTransferTooLong);
         };
         if write_buffer.is_empty() {
-            return Err(Error::I2cWriteEmpty);
+            return Err(Error::I2cTransferEmpty);
         }
 
         use crate::i2c::I2cAddressing;

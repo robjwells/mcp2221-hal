@@ -7,6 +7,7 @@ mod chip_settings;
 mod commands;
 pub mod common;
 mod driver;
+mod eh;
 mod error;
 pub mod gpio;
 pub mod i2c;
@@ -19,3 +20,8 @@ pub use driver::MCP2221;
 pub use error::Error;
 pub use security::ChipConfigurationSecurity;
 pub use sram::{ChangeSramSettings, SramSettings};
+
+mod constants {
+    pub(crate) const MAX_I2C_TRANSFER: usize = u16::MAX as usize;
+    pub(crate) const MAX_I2C_TRANSFER_PLUS_1: usize = MAX_I2C_TRANSFER + 1;
+}

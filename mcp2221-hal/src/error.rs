@@ -47,18 +47,31 @@ pub enum Error {
     I2cEngineBusy,
     /// I2C target data could not be read from the I2C engine.
     I2cEngineReadError,
-    /// The number of bytes to read from an I2C target was more than 65,535.
-    I2cReadTooLong,
-    /// The number of bytes to write to an I2C target was more than 65,535.
-    I2cWriteTooLong,
-    /// The number of bytes to write to an I2C target was 0.
-    I2cWriteEmpty,
+    /// The number of bytes to read from or write to an I2C target was more than 65,535.
+    I2cTransferTooLong,
+    /// The number of bytes to write to or read from an I2C target was 0.
+    I2cTransferEmpty,
     /// Exhausted retries for an I2C operation.
     I2cOperationFailed,
     /// I2C target address didn't acknowledge its address.
     I2cAddressNack,
-    /// Attempt to perform a zero-length I2C read.
-    I2cZeroLengthRead,
+    /// Attempt to perform an I2C transaction that is not possible via the MCP2221.
+    ///
+    /// Specifically, a read occurs before a write in the slice of operations passed
+    /// to this library's implementation of [`embedded_hal::i2c::I2c::transaction`].
+    ///
+    /// The embedded-hal I2C transaction contract cannot be fulfilled in its most
+    /// general form by the MCP2221, because it has no HID command to perform a read
+    /// without a final STOP condition.
+    ///
+    /// This library does not attempt to "fake" the transaction because it would mean
+    /// introducing STOP conditions that would violate the documented contract, and
+    /// could be interpreted in an unexpected way by an I2C target.
+    ///
+    /// If you need to perform a transaction where a read takes place before a write
+    /// without an STOP condition in between, you should use a device other than the
+    /// MCP2221.
+    I2cUnsupportedEmbeddedHalTransaction,
 }
 
 #[doc(hidden)]
@@ -103,23 +116,23 @@ impl std::fmt::Display for Error {
             Error::I2cEngineReadError => {
                 write!(f, "could not read I2C target data from the I2C engine")
             }
-            Error::I2cReadTooLong => {
-                write!(f, "attempt to read more than 65,535 bytes from I2C target")
-            },
-            Error::I2cWriteTooLong => {
-                write!(f, "attempt to write more than 65,535 bytes to I2C target")
+            Error::I2cTransferTooLong => {
+                write!(
+                    f,
+                    "attempt to transfer than 65,535 bytes to or from I2C target"
+                )
+            }
+            Error::I2cTransferEmpty => {
+                write!(f, "zero-length I2C transfers are not supported")
             }
             Error::I2cOperationFailed => {
                 write!(f, "all retries exhausted attempt to perform I2C operation")
             }
-            Error::I2cWriteEmpty => {
-                write!(f, "empty I2C write not supported")
-            }
             Error::I2cAddressNack => {
                 write!(f, "I2C target didn't acknowledge its address")
             }
-            Error::I2cZeroLengthRead => {
-                write!(f, "zero-length I2C reads are not supported")
+            Error::I2cUnsupportedEmbeddedHalTransaction => {
+                write!(f, "I2C transaction operations mixed in an unsupported way")
             }
         }
     }
