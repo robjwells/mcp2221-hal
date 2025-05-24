@@ -2,7 +2,7 @@ use bit_field::BitField;
 
 use crate::Error;
 
-use super::{GpioDirection, LogicLevel};
+use super::{GpioDirection, LogicLevel, PinNumber};
 
 /// The source of the GP settings determines their position in the read buffer.
 enum GpSettingsSource {
@@ -70,6 +70,27 @@ impl GpSettings {
                 buf[start_byte + 3].get_bits(0..=2).try_into()?,
             ),
         })
+    }
+
+    pub(crate) fn configure_as_gpio(&mut self, pin: PinNumber, direction: GpioDirection) {
+        match pin {
+            PinNumber::Gp0 => {
+                self.gp0.designation = Gp0Designation::GPIO;
+                self.gp0.direction = direction;
+            }
+            PinNumber::Gp1 => {
+                self.gp1.designation = Gp1Designation::GPIO;
+                self.gp1.direction = direction;
+            }
+            PinNumber::Gp2 => {
+                self.gp2.designation = Gp2Designation::GPIO;
+                self.gp2.direction = direction;
+            }
+            PinNumber::Gp3 => {
+                self.gp3.designation = Gp3Designation::GPIO;
+                self.gp3.direction = direction;
+            }
+        }
     }
 
     pub(crate) fn apply_to_flash_buffer(&self, buf: &mut [u8; 64]) {
@@ -397,7 +418,7 @@ pin_settings_new!(Gp1Settings, Gp1Designation);
 impl Gp1Settings {
     /// Returns `true` if GP1 is set as an analog input.
     #[must_use]
-    pub fn is_adc(&self) -> bool {
+    pub(crate) fn is_adc(&self) -> bool {
         matches!(self.designation, Gp1Designation::ADC1)
     }
 }
@@ -431,7 +452,7 @@ pin_settings_new!(Gp2Settings, Gp2Designation);
 impl Gp2Settings {
     /// Returns `true` if GP2 is set as an analog input.
     #[must_use]
-    pub fn is_adc(&self) -> bool {
+    pub(crate) fn is_adc(&self) -> bool {
         matches!(self.designation, Gp2Designation::ADC2)
     }
 }
@@ -465,7 +486,7 @@ pin_settings_new!(Gp3Settings, Gp3Designation);
 impl Gp3Settings {
     /// Returns `true` if GP3 is set as an analog input.
     #[must_use]
-    pub fn is_adc(&self) -> bool {
+    pub(crate) fn is_adc(&self) -> bool {
         matches!(self.designation, Gp3Designation::ADC3)
     }
 }

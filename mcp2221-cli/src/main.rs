@@ -1,7 +1,6 @@
 use analog::{AdcCommand, DacCommand};
 use cli::Commands;
 use i2c::I2cCommand;
-use mcp2221_hal::ChangeSramSettings;
 use pins::GpModes;
 use settings::{SettingsCommand, SettingsType, SettingsWriteCommand};
 use usb::UsbInfo;
@@ -148,13 +147,9 @@ fn main() -> McpResult<()> {
                 flash: false,
                 pin_configs,
             }) => {
-                let mut sram_settings = device.sram_read_settings()?;
-                pin_configs.merge_into_existing(&mut sram_settings.gp_settings);
-                device.sram_write_settings(ChangeSramSettings::new().with_gp_modes(
-                    sram_settings.gp_settings,
-                    Some(sram_settings.chip_settings.dac_reference),
-                    Some(sram_settings.chip_settings.adc_reference),
-                ))?;
+                let mut gp_settings = device.sram_read_settings()?.gp_settings;
+                pin_configs.merge_into_existing(&mut gp_settings);
+                device.sram_write_gp_settings(gp_settings)?;
             }
             pins::PinsCommand::Write(pin_values) => {
                 device.gpio_write(&pin_values.into())?;

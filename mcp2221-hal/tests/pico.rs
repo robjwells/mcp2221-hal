@@ -3,8 +3,12 @@
 //! Tests have to be run serially, because attempting to acquire the USB device in
 //! two threads at once will fail, and the underlying HidApi struct cannot be shared
 //! between threads.
-use mcp2221_hal::{Error, MCP2221};
+use mcp2221_hal::{
+    Error, MCP2221,
+    gpio::{Input, Output, Pins},
+};
 
+use embedded_hal::digital::{InputPin, OutputPin};
 use embedded_hal::i2c::{I2c, Operation};
 
 const ADDRESS: u8 = 0x26;
@@ -102,5 +106,29 @@ fn pico_eh_i2c_write_transaction() -> Result<(), Error> {
 fn pico_eh_i2c_check_address() -> Result<(), Error> {
     let device = MCP2221::open()?;
     assert!(device.i2c_check_address(ADDRESS)?);
+    Ok(())
+}
+
+/// Check that the two tied GP pins can see the other's output.
+#[test]
+fn pico_tied_gpio_pins() -> Result<(), Error> {
+    let device = MCP2221::open()?;
+    let Pins { gp1, gp2, .. } = device.take_pins().unwrap();
+
+    let mut gp1_in: Input = gp1.try_into()?;
+    let mut gp2_out: Output = gp2.try_into()?;
+    gp2_out.set_high()?;
+    assert!(gp1_in.is_high()?, "{:?}", device.gpio_read());
+    gp2_out.set_low()?;
+    assert!(gp1_in.is_low()?);
+
+    // Swap gp1 and gp2 directions.
+    let mut gp2_in = gp2_out.try_into_input()?;
+    let mut gp1_out = gp1_in.try_into_output()?;
+    gp1_out.set_high()?;
+    assert!(gp2_in.is_high()?);
+    gp1_out.set_low()?;
+    assert!(gp2_in.is_low()?);
+
     Ok(())
 }

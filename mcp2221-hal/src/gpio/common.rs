@@ -10,6 +10,24 @@ pub enum LogicLevel {
     Low,
 }
 
+impl LogicLevel {
+    /// Returns `true` if the logic level is [`High`].
+    ///
+    /// [`High`]: LogicLevel::High
+    #[must_use]
+    pub fn is_high(self) -> bool {
+        matches!(self, Self::High)
+    }
+
+    /// Returns `true` if the logic level is [`Low`].
+    ///
+    /// [`Low`]: LogicLevel::Low
+    #[must_use]
+    pub fn is_low(self) -> bool {
+        matches!(self, Self::Low)
+    }
+}
+
 #[doc(hidden)]
 impl From<bool> for LogicLevel {
     fn from(value: bool) -> Self {
@@ -47,6 +65,24 @@ pub enum GpioDirection {
     Output,
 }
 
+impl GpioDirection {
+    /// Returns `true` if the gpio direction is [`Input`].
+    ///
+    /// [`Input`]: GpioDirection::Input
+    #[must_use]
+    pub fn is_input(&self) -> bool {
+        matches!(self, Self::Input)
+    }
+
+    /// Returns `true` if the gpio direction is [`Output`].
+    ///
+    /// [`Output`]: GpioDirection::Output
+    #[must_use]
+    pub fn is_output(&self) -> bool {
+        matches!(self, Self::Output)
+    }
+}
+
 #[doc(hidden)]
 impl From<bool> for GpioDirection {
     fn from(value: bool) -> Self {
@@ -73,4 +109,13 @@ impl From<GpioDirection> for u8 {
             GpioDirection::Output => 0,
         }
     }
+}
+
+/// The specific GP pin number of a given Pin.
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum PinNumber {
+    Gp0,
+    Gp1,
+    Gp2,
+    Gp3,
 }

@@ -1,4 +1,4 @@
-use super::{GpioDirection, LogicLevel};
+use super::{GpioDirection, LogicLevel, PinNumber};
 
 /// Byte returned for a GP pin's logic level ("value") if the pin is not in GPIO mode.
 const NOT_GPIO_LEVEL: u8 = 0xEE;
@@ -31,10 +31,19 @@ impl GpioValues {
         let gp3 = PinValue::from_bytes(buf[8], buf[9]);
         Self { gp0, gp1, gp2, gp3 }
     }
+
+    pub(crate) fn for_pin_number(&self, pin_number: PinNumber) -> Option<PinValue> {
+        match pin_number {
+            PinNumber::Gp0 => self.gp0,
+            PinNumber::Gp1 => self.gp1,
+            PinNumber::Gp2 => self.gp2,
+            PinNumber::Gp3 => self.gp3,
+        }
+    }
 }
 
 /// Status of an individual GPIO pin.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct PinValue {
     /// Whether the pin is configured as an input or output.
     pub direction: GpioDirection,
@@ -93,6 +102,32 @@ impl ChangeGpioValues {
     /// Create a struct with no pending changes.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub(crate) fn with_level_for_pin_number(
+        &mut self,
+        pin: PinNumber,
+        level: LogicLevel,
+    ) -> &mut Self {
+        match pin {
+            PinNumber::Gp0 => self.with_gp0_level(level),
+            PinNumber::Gp1 => self.with_gp1_level(level),
+            PinNumber::Gp2 => self.with_gp2_level(level),
+            PinNumber::Gp3 => self.with_gp3_level(level),
+        }
+    }
+
+    pub(crate) fn with_direction_for_pin_number(
+        &mut self,
+        pin: PinNumber,
+        direction: GpioDirection,
+    ) -> &mut Self {
+        match pin {
+            PinNumber::Gp0 => self.with_gp0_direction(direction),
+            PinNumber::Gp1 => self.with_gp1_direction(direction),
+            PinNumber::Gp2 => self.with_gp2_direction(direction),
+            PinNumber::Gp3 => self.with_gp3_direction(direction),
+        }
     }
 
     /// Set the direction of GP0.

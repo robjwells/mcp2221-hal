@@ -30,26 +30,31 @@ in fixing [a bug with UART registers][errata] and allowing faster UART baud rate
     + [x] WriteRead
     + [x] Standard I2C bus speeds (100k/400k)
     + [x] Custom I2C bus speeds (47k–400k)
-- [ ] [embedded-hal] traits
+- [x] [embedded-hal] traits
     - [x] `embedded_hal::i2c::I2c`
     - [x] `embedded_hal_async::i2c::I2c`
-    - [ ] `embedded_hal::digital::*`
-    - [ ] `embedded_hal_async::digital::*`
+    - [x] `embedded_hal::digital::*`
 - [ ] UART serial (for now, interact with the MCP2221 CDC device directly)
 
 [embedded-hal]: https://github.com/rust-embedded/embedded-hal
 
 ## Unsupported features
 
-Currently there is no plan to support the following, though please [open an issue]
-if you are in need of them.
+Currently there is no plan to support the following features.
 
-- SMBus\*
-- Password protected settings
-- Permanently locked settings
+- `embedded_hal_async::digital::Wait`
+    + While the async I2C trait is faked (by just calling the blocking API), the async
+      GPIO trait would require busy-waiting, which is an unacceptable tradeoff.
+- SMBus (System Management Bus)
+    + In practice SMBus is supported as well as the MCP2221 hardware can, via its I2C
+      support. But no software support is present in this library for SMBUS-specific
+      transfer formats or packet error checking.
+- Password protected or permanently locked settings
+    + I don't need this feature, and other developers [have locked their MCP2221] by
+      accident, so it doesn't seem worthwhile. If you do need this feature, and have
+      a device you're willing to risk, [open an issue] and we can work on it.
 
-\* Note that the MCP2221 has no special support for SMBus other than its I2C support.
-Any particular support for SMBus must be done in software.
+[have locked their MCP2221]: https://forum.microchip.com/s/topic/a5C3l000000Mb3HEAS/t372487
 
 ## `embedded-hal` support
 

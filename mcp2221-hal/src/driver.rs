@@ -1,3 +1,4 @@
+use std::cell::Cell;
 use std::time::Duration;
 
 use hidapi::{HidApi, HidDevice};
@@ -7,7 +8,7 @@ use crate::chip_settings::ChipSettings;
 use crate::commands::{FlashDataSubCode, McpCommand, UsbReport};
 use crate::common::DeviceString;
 use crate::error::Error;
-use crate::gpio::{ChangeGpioValues, GpSettings, GpioValues};
+use crate::gpio::{ChangeGpioValues, GpSettings, GpioValues, Pins};
 use crate::i2c::{self, CancelI2cTransferResponse, I2cSpeed};
 use crate::sram::{ChangeSramSettings, SramSettings};
 use crate::status::Status;
@@ -16,8 +17,10 @@ const MICROCHIP_VENDOR_ID: u16 = 1240;
 const MCP2221A_PRODUCT_ID: u16 = 221;
 
 /// Driver for the MCP2221.
+#[derive(Debug)]
 pub struct MCP2221 {
     inner: HidDevice,
+    pins_taken: Cell<bool>,
 }
 
 /// # USB device functionality
@@ -44,7 +47,10 @@ impl MCP2221 {
     pub fn open_with_vid_and_pid(vendor_id: u16, product_id: u16) -> Result<Self, Error> {
         let hidapi = HidApi::new()?;
         let device = hidapi.open(vendor_id, product_id)?;
-        Ok(Self { inner: device })
+        Ok(Self {
+            inner: device,
+            pins_taken: Cell::new(false),
+        })
     }
 
     /// Get the USB HID device information from the host's USB interface.
@@ -460,6 +466,20 @@ impl MCP2221 {
         settings.apply_to_sram_buffer(&mut command.write_buffer);
         self.transfer(&command)?;
         Ok(())
+    }
+
+    /// Change the GP pin settings in SRAM while preserving the ADC and DAC references.
+    ///
+    /// This is a convenience wrapper around [`Self::sram_write_settings`] that does
+    /// the work of reading the current ADC & DAC voltage references and re-writing
+    /// them, to avoid the Vrm reset bug.
+    pub fn sram_write_gp_settings(&self, gp_settings: GpSettings) -> Result<(), Error> {
+        let current = self.sram_read_settings()?;
+        self.sram_write_settings(ChangeSramSettings::new().with_gp_modes(
+            gp_settings,
+            Some(current.chip_settings.dac_reference),
+            Some(current.chip_settings.adc_reference),
+        ))
     }
 
     /// Configure the DAC voltage reference in SRAM.
@@ -984,6 +1004,18 @@ impl MCP2221 {
         }
         // If we get here we ran out of retries without checking the address.
         Err(Error::I2cOperationFailed)
+    }
+
+    /// Take the four GP pin structs for individual GPIO operation.
+    ///
+    /// This can only be done once, and will return `None` afterwards.
+    pub fn take_pins(&self) -> Option<Pins> {
+        if self.pins_taken.get() {
+            None
+        } else {
+            self.pins_taken.set(true);
+            Some(Pins::new(self))
+        }
     }
 
     /// Write the given command to the MCP and read the 64-byte response.

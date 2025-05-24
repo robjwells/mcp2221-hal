@@ -72,6 +72,9 @@ pub enum Error {
     /// without an STOP condition in between, you should use a device other than the
     /// MCP2221.
     I2cUnsupportedEmbeddedHalTransaction,
+    /// A GP pin's mode was changed while a mode-specific wrapper type was in use,
+    /// rendering it unable to perform its mode-specific functions.
+    PinModeChanged,
 }
 
 #[doc(hidden)]
@@ -133,6 +136,12 @@ impl std::fmt::Display for Error {
             }
             Error::I2cUnsupportedEmbeddedHalTransaction => {
                 write!(f, "I2C transaction operations mixed in an unsupported way")
+            }
+            Error::PinModeChanged => {
+                write!(
+                    f,
+                    "pin mode was changed while a mode-specific wrapper was in use"
+                )
             }
         }
     }
