@@ -672,13 +672,6 @@ impl MCP2221 {
 
     /// Read data from an I2C target with a repeated START condition.
     ///
-    /// <div class="warning">
-    ///
-    /// If this method is called as the first I2C read or write after the MCP2221 is
-    /// powered-up, it will put the I2C engine into an error state.
-    ///
-    /// </div>
-    ///
     /// It is unclear from the datasheet how this differs from the standard I2C read HID
     /// command or how it should be used. Formally, a repeated-START in I2C is just a
     /// START condition when the previous transfer has not been terminated by a STOP
@@ -829,13 +822,6 @@ impl MCP2221 {
     }
 
     /// Write data to an I2C target with a repeated START condition.
-    ///
-    /// <div class="warning">
-    ///
-    /// If this method is called as the first I2C read or write after the MCP2221 is
-    /// powered-up, it will put the I2C engine into an error state.
-    ///
-    /// </div>
     ///
     /// It is unclear from the datasheet how this differs from the standard I2C write
     /// HID command or how it should be used. Formally, a repeated-START in I2C is just a

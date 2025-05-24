@@ -121,17 +121,19 @@ impl McpCommand {
     /// Check error code for command-specific errors.
     ///
     /// A handful of commands have their own error codes that are not shared.
+    ///
+    /// The I2cEngineBusy error codes are particular important as they signal
+    /// that we should attempt a command again.
     fn check_error_code(&self, code: u8) -> Result<(), Error> {
         match (code, self) {
             (0x01, Self::ReadFlashData(_)) => Err(Error::CommandNotSupported),
             (0x02, Self::WriteFlashData(_)) => Err(Error::CommandNotSupported),
             (0x03, Self::WriteFlashData(_)) => Err(Error::CommandNotAllowed),
-            // Not implemented yet, but took these from the datasheet:
             (0x01, Self::I2cWriteData) => Err(Error::I2cEngineBusy),
-            // (0x01, Self::I2cWriteDataRepeatedStart) => Err(Error::I2cEngineBusy),
-            // (0x01, Self::I2cWriteDataNoStop) => Err(Error::I2cEngineBusy),
+            (0x01, Self::I2cWriteDataRepeatedStart) => Err(Error::I2cEngineBusy),
+            (0x01, Self::I2cWriteDataNoStop) => Err(Error::I2cEngineBusy),
             (0x01, Self::I2cReadData) => Err(Error::I2cEngineBusy),
-            // (0x01, Self::I2cReadDataRepeatedStart) => Err(Error::I2cEngineBusy),
+            (0x01, Self::I2cReadDataRepeatedStart) => Err(Error::I2cEngineBusy),
             (0x41, Self::I2cGetData) => Err(Error::I2cEngineReadError),
             (_, _) => Ok(()),
         }
