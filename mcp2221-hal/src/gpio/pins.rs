@@ -1,8 +1,7 @@
 #![allow(dead_code)]
 
-use crate::{Error, MCP2221};
-
 use super::{ChangeGpioValues, GpioDirection, LogicLevel, PinNumber, PinValue};
+use crate::{Error, MCP2221};
 
 /// A GP pin that be configured for GPIO input or output.
 #[derive(Debug)]

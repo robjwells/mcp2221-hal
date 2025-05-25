@@ -1,8 +1,7 @@
 use bit_field::BitField;
 
-use crate::Error;
-
 use super::{GpioDirection, LogicLevel, PinNumber};
+use crate::Error;
 
 /// The source of the GP settings determines their position in the read buffer.
 enum GpSettingsSource {

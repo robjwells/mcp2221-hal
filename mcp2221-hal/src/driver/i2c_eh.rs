@@ -1,7 +1,8 @@
-use embedded_hal::i2c::{self, I2c, Operation};
+use embedded_hal::i2c::{self, I2c, Operation, SevenBitAddress};
 
+use super::MCP2221;
+use crate::Error;
 use crate::constants::MAX_I2C_TRANSFER_PLUS_1;
-use crate::{Error, MCP2221};
 
 impl i2c::Error for Error {
     fn kind(&self) -> embedded_hal::i2c::ErrorKind {
@@ -80,7 +81,7 @@ fn try_get_valid_operations<'a, 'b, 'c>(
     }
 }
 
-impl I2c<i2c::SevenBitAddress> for MCP2221 {
+impl I2c<SevenBitAddress> for MCP2221 {
     /// Execute the provided operations on the I2C bus.
     ///
     /// <div class="warning">
@@ -109,8 +110,8 @@ impl I2c<i2c::SevenBitAddress> for MCP2221 {
     /// preferred where possible.
     fn transaction(
         &mut self,
-        address: i2c::SevenBitAddress,
-        operations: &mut [i2c::Operation<'_>],
+        address: SevenBitAddress,
+        operations: &mut [Operation<'_>],
     ) -> Result<(), Self::Error> {
         // Because the MCP2221 needs to know transfer length up-front, and because it
         // doesn't support a read without a STOP condition, we need to coalesce the
@@ -172,20 +173,53 @@ impl I2c<i2c::SevenBitAddress> for MCP2221 {
         Ok(())
     }
 
-    fn read(&mut self, address: i2c::SevenBitAddress, read: &mut [u8]) -> Result<(), Self::Error> {
+    fn read(&mut self, address: SevenBitAddress, read: &mut [u8]) -> Result<(), Self::Error> {
         self.i2c_read(address, read)
     }
 
-    fn write(&mut self, address: i2c::SevenBitAddress, write: &[u8]) -> Result<(), Self::Error> {
+    fn write(&mut self, address: SevenBitAddress, write: &[u8]) -> Result<(), Self::Error> {
         self.i2c_write(address, write)
     }
 
     fn write_read(
         &mut self,
-        address: i2c::SevenBitAddress,
+        address: SevenBitAddress,
         write: &[u8],
         read: &mut [u8],
     ) -> Result<(), Self::Error> {
         self.i2c_write_read(address, write, read)
+    }
+}
+
+#[cfg(feature = "async")]
+mod eh_async {
+    use embedded_hal::i2c::{I2c as BlockingI2c, Operation};
+    use embedded_hal_async::i2c::I2c as AsyncI2c;
+
+    impl AsyncI2c for crate::MCP2221 {
+        async fn transaction(
+            &mut self,
+            address: u8,
+            operations: &mut [Operation<'_>],
+        ) -> Result<(), Self::Error> {
+            BlockingI2c::transaction(self, address, operations)
+        }
+
+        async fn read(&mut self, address: u8, read: &mut [u8]) -> Result<(), Self::Error> {
+            BlockingI2c::read(self, address, read)
+        }
+
+        async fn write(&mut self, address: u8, write: &[u8]) -> Result<(), Self::Error> {
+            BlockingI2c::write(self, address, write)
+        }
+
+        async fn write_read(
+            &mut self,
+            address: u8,
+            write: &[u8],
+            read: &mut [u8],
+        ) -> Result<(), Self::Error> {
+            BlockingI2c::write_read(self, address, write, read)
+        }
     }
 }
