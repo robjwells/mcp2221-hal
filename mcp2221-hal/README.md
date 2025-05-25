@@ -10,8 +10,6 @@ in fixing [a bug with UART registers][errata] and allowing faster UART baud rate
 
 ## Supported features
 
-(My todo list!)
-
 - [x] Read and write settings
     + [x] Power-up settings in flash memory
     + [x] Run-time settings in SRAM
@@ -34,7 +32,6 @@ in fixing [a bug with UART registers][errata] and allowing faster UART baud rate
     - [x] `embedded_hal::i2c::I2c`
     - [x] `embedded_hal_async::i2c::I2c`
     - [x] `embedded_hal::digital::*`
-- [ ] UART serial (for now, interact with the MCP2221 CDC device directly)
 
 [embedded-hal]: https://github.com/rust-embedded/embedded-hal
 
@@ -42,6 +39,16 @@ in fixing [a bug with UART registers][errata] and allowing faster UART baud rate
 
 Currently there is no plan to support the following features.
 
+- UART serial
+    + This library interacts with the MCP2221 via USB HID commands, opening the device
+      via vendor ID and product ID, but there does not appear to be a straightforward
+      way to find a serial port by its USB properties.
+
+      If you need programmatic access to the MCP2221 UART, for eg driver development, 
+      I'd recommend you use [`embedded-io`] with your preferred serial library since
+      it has blanket implementations for types that implement the `std::io` traits.
+      If you enable USB CDC serial number enumeration in the MCP2221 settings, you
+      should be able to find the MCP2221 serial port at a stable path.
 - `embedded_hal_async::digital::Wait`
     + While the async I2C trait is faked (by just calling the blocking API), the async
       GPIO trait would require busy-waiting, which is an unacceptable tradeoff.
