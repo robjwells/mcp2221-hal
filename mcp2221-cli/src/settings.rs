@@ -1,5 +1,5 @@
 use clap::{Parser, ValueEnum};
-use mcp2221_hal::common::DeviceString;
+use mcp2221_hal::settings::DeviceString;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub(crate) enum SettingsType {

@@ -1,6 +1,6 @@
 use crate::analog::VoltageReference;
-use crate::common::ClockSetting;
-use crate::security::ChipConfigurationSecurity;
+use crate::settings::common::ClockSetting;
+use crate::settings::security::ChipConfigurationSecurity;
 
 use bit_field::BitField;
 

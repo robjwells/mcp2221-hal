@@ -1,15 +1,9 @@
+//! Configuration of the GP pins in flash memory and SRAM.
+
 use bit_field::BitField;
 
-use super::{GpioDirection, LogicLevel, PinNumber};
 use crate::Error;
-
-/// The source of the GP settings determines their position in the read buffer.
-enum GpSettingsSource {
-    /// GP settings at bytes 4..=7
-    Flash,
-    /// GP settings at bytes 22..=25
-    Sram,
-}
+use crate::gpio::{GpioDirection, LogicLevel};
 
 /// General-purpose pins settings.
 ///
@@ -21,75 +15,52 @@ enum GpSettingsSource {
 #[derive(Debug)]
 pub struct GpSettings {
     /// GP pin 0.
-    pub gp0: Gp0Settings,
+    pub gp0: Gp0Config,
     /// GP pin 1.
-    pub gp1: Gp1Settings,
+    pub gp1: Gp1Config,
     /// GP pin 2.
-    pub gp2: Gp2Settings,
+    pub gp2: Gp2Config,
     /// GP pin 3.
-    pub gp3: Gp3Settings,
+    pub gp3: Gp3Config,
 }
+
+const FLASH_START_BYTE: usize = 4;
+const SRAM_START_BYTE: usize = 22;
 
 impl GpSettings {
     /// Parse GP pin settings read from flash memory.
     pub fn try_from_flash_buffer(buf: &[u8; 64]) -> Result<Self, Error> {
-        GpSettings::try_from_buffer(GpSettingsSource::Flash, buf)
+        GpSettings::try_from_buffer(FLASH_START_BYTE, buf)
     }
 
     /// Parse GP pin settings read from SRAM.
     pub fn try_from_sram_buffer(buf: &[u8; 64]) -> Result<Self, Error> {
-        GpSettings::try_from_buffer(GpSettingsSource::Sram, buf)
+        GpSettings::try_from_buffer(SRAM_START_BYTE, buf)
     }
 
-    fn try_from_buffer(source: GpSettingsSource, buf: &[u8; 64]) -> Result<Self, Error> {
-        let start_byte = match source {
-            GpSettingsSource::Flash => 4,
-            GpSettingsSource::Sram => 22,
-        };
-
+    fn try_from_buffer(start_byte: usize, buf: &[u8; 64]) -> Result<Self, Error> {
         Ok(Self {
-            gp0: Gp0Settings::new(
+            gp0: Gp0Config::new(
                 buf[start_byte].get_bit(4).into(),
                 buf[start_byte].get_bit(3).into(),
                 buf[start_byte].get_bits(0..=2).try_into()?,
             ),
-            gp1: Gp1Settings::new(
+            gp1: Gp1Config::new(
                 buf[start_byte + 1].get_bit(4).into(),
                 buf[start_byte + 1].get_bit(3).into(),
                 buf[start_byte + 1].get_bits(0..=2).try_into()?,
             ),
-            gp2: Gp2Settings::new(
+            gp2: Gp2Config::new(
                 buf[start_byte + 2].get_bit(4).into(),
                 buf[start_byte + 2].get_bit(3).into(),
                 buf[start_byte + 2].get_bits(0..=2).try_into()?,
             ),
-            gp3: Gp3Settings::new(
+            gp3: Gp3Config::new(
                 buf[start_byte + 3].get_bit(4).into(),
                 buf[start_byte + 3].get_bit(3).into(),
                 buf[start_byte + 3].get_bits(0..=2).try_into()?,
             ),
         })
-    }
-
-    pub(crate) fn configure_as_gpio(&mut self, pin: PinNumber, direction: GpioDirection) {
-        match pin {
-            PinNumber::Gp0 => {
-                self.gp0.designation = Gp0Designation::GPIO;
-                self.gp0.direction = direction;
-            }
-            PinNumber::Gp1 => {
-                self.gp1.designation = Gp1Designation::GPIO;
-                self.gp1.direction = direction;
-            }
-            PinNumber::Gp2 => {
-                self.gp2.designation = Gp2Designation::GPIO;
-                self.gp2.direction = direction;
-            }
-            PinNumber::Gp3 => {
-                self.gp3.designation = Gp3Designation::GPIO;
-                self.gp3.direction = direction;
-            }
-        }
     }
 
     pub(crate) fn apply_to_flash_buffer(&self, buf: &mut [u8; 64]) {
@@ -129,7 +100,7 @@ macro_rules! pin_mode_err {
 /// GP pin 0 operation mode.
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy)]
-pub enum Gp0Designation {
+pub enum Gp0Mode {
     /// Indicates UART traffic received by the MCP2221.
     ///
     /// This pin will pulse low for a few milliseconds to provide a visual indication
@@ -148,7 +119,7 @@ pub enum Gp0Designation {
 }
 
 #[doc(hidden)]
-impl TryFrom<u8> for Gp0Designation {
+impl TryFrom<u8> for Gp0Mode {
     type Error = Error;
 
     fn try_from(mode: u8) -> Result<Self, Error> {
@@ -163,12 +134,12 @@ impl TryFrom<u8> for Gp0Designation {
 }
 
 #[doc(hidden)]
-impl From<Gp0Designation> for u8 {
-    fn from(value: Gp0Designation) -> Self {
+impl From<Gp0Mode> for u8 {
+    fn from(value: Gp0Mode) -> Self {
         match value {
-            Gp0Designation::SSPND => 0b010,
-            Gp0Designation::LED_UART_RX => 0b001,
-            Gp0Designation::GPIO => 0b000,
+            Gp0Mode::SSPND => 0b010,
+            Gp0Mode::LED_UART_RX => 0b001,
+            Gp0Mode::GPIO => 0b000,
         }
     }
 }
@@ -176,7 +147,7 @@ impl From<Gp0Designation> for u8 {
 /// GP pin 1 operation mode.
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy)]
-pub enum Gp1Designation {
+pub enum Gp1Mode {
     /// Digital clock output.
     ///
     /// The nominal frequency is 12MHz (the MCP2221's internal clock speed), ±0.25%,
@@ -206,7 +177,7 @@ pub enum Gp1Designation {
 }
 
 #[doc(hidden)]
-impl TryFrom<u8> for Gp1Designation {
+impl TryFrom<u8> for Gp1Mode {
     type Error = Error;
     fn try_from(mode: u8) -> Result<Self, Error> {
         assert!(mode <= 0b111, "Incorrect use of the from constructor.");
@@ -223,14 +194,14 @@ impl TryFrom<u8> for Gp1Designation {
 }
 
 #[doc(hidden)]
-impl From<Gp1Designation> for u8 {
-    fn from(value: Gp1Designation) -> Self {
+impl From<Gp1Mode> for u8 {
+    fn from(value: Gp1Mode) -> Self {
         match value {
-            Gp1Designation::InterruptDetection => 0b100,
-            Gp1Designation::LED_UART_TX => 0b11,
-            Gp1Designation::ADC1 => 0b010,
-            Gp1Designation::ClockOutput => 0b001,
-            Gp1Designation::GPIO => 0b000,
+            Gp1Mode::InterruptDetection => 0b100,
+            Gp1Mode::LED_UART_TX => 0b11,
+            Gp1Mode::ADC1 => 0b010,
+            Gp1Mode::ClockOutput => 0b001,
+            Gp1Mode::GPIO => 0b000,
         }
     }
 }
@@ -238,7 +209,7 @@ impl From<Gp1Designation> for u8 {
 /// GP pin 2 operation mode.
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy)]
-pub enum Gp2Designation {
+pub enum Gp2Mode {
     /// Digital-to-analog.
     ///
     /// Sets GP2 to an analog output tied to the output of the 5-bit DAC. Note there
@@ -263,7 +234,7 @@ pub enum Gp2Designation {
 }
 
 #[doc(hidden)]
-impl TryFrom<u8> for Gp2Designation {
+impl TryFrom<u8> for Gp2Mode {
     type Error = Error;
 
     fn try_from(mode: u8) -> Result<Self, Error> {
@@ -279,15 +250,15 @@ impl TryFrom<u8> for Gp2Designation {
 }
 
 #[doc(hidden)]
-impl From<Gp2Designation> for u8 {
-    fn from(value: Gp2Designation) -> Self {
+impl From<Gp2Mode> for u8 {
+    fn from(value: Gp2Mode) -> Self {
         // The datasheet incorrectly lists "clock output" when writing the GP2 settings
         // but it should be USBCFG.
         match value {
-            Gp2Designation::DAC1 => 0b011,
-            Gp2Designation::ADC2 => 0b010,
-            Gp2Designation::USBCFG => 0b001,
-            Gp2Designation::GPIO => 0b000,
+            Gp2Mode::DAC1 => 0b011,
+            Gp2Mode::ADC2 => 0b010,
+            Gp2Mode::USBCFG => 0b001,
+            Gp2Mode::GPIO => 0b000,
         }
     }
 }
@@ -295,7 +266,7 @@ impl From<Gp2Designation> for u8 {
 /// GP pin 3 operation mode.
 #[allow(non_camel_case_types, clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Copy)]
-pub enum Gp3Designation {
+pub enum Gp3Mode {
     /// Digital-to-analog.
     ///
     /// Sets GP3 to an analog output tied to the output of the 5-bit DAC. Note there
@@ -319,7 +290,7 @@ pub enum Gp3Designation {
 }
 
 #[doc(hidden)]
-impl TryFrom<u8> for Gp3Designation {
+impl TryFrom<u8> for Gp3Mode {
     type Error = Error;
 
     fn try_from(mode: u8) -> Result<Self, Error> {
@@ -335,13 +306,13 @@ impl TryFrom<u8> for Gp3Designation {
 }
 
 #[doc(hidden)]
-impl From<Gp3Designation> for u8 {
-    fn from(value: Gp3Designation) -> Self {
+impl From<Gp3Mode> for u8 {
+    fn from(value: Gp3Mode) -> Self {
         match value {
-            Gp3Designation::DAC2 => 0b011,
-            Gp3Designation::ADC3 => 0b010,
-            Gp3Designation::LED_I2C => 0b001,
-            Gp3Designation::GPIO => 0b000,
+            Gp3Mode::DAC2 => 0b011,
+            Gp3Mode::ADC3 => 0b010,
+            Gp3Mode::LED_I2C => 0b001,
+            Gp3Mode::GPIO => 0b000,
         }
     }
 }
@@ -364,7 +335,7 @@ macro_rules! pin_settings_new {
 
 /// GP pin 0 configuration.
 #[derive(Debug)]
-pub struct Gp0Settings {
+pub struct Gp0Config {
     /// GP0 power-up output value.
     ///
     /// When GP0 is set as an output GPIO, this value will be present at
@@ -383,14 +354,14 @@ pub struct Gp0Settings {
     /// Setting of the pin's function.
     ///
     /// Byte 4 bits 0..=2.
-    pub designation: Gp0Designation,
+    pub designation: Gp0Mode,
 }
 
-pin_settings_new!(Gp0Settings, Gp0Designation);
+pin_settings_new!(Gp0Config, Gp0Mode);
 
 /// GP pin 1 configuration.
 #[derive(Debug)]
-pub struct Gp1Settings {
+pub struct Gp1Config {
     /// GP1 power-up output value.
     ///
     /// When GP1 is set as an output GPIO, this value will be present at
@@ -409,22 +380,22 @@ pub struct Gp1Settings {
     /// Setting of the pin's function.
     ///
     /// Byte 5 bits 0..=2.
-    pub designation: Gp1Designation,
+    pub designation: Gp1Mode,
 }
 
-pin_settings_new!(Gp1Settings, Gp1Designation);
+pin_settings_new!(Gp1Config, Gp1Mode);
 
-impl Gp1Settings {
+impl Gp1Config {
     /// Returns `true` if GP1 is set as an analog input.
     #[must_use]
     pub(crate) fn is_adc(&self) -> bool {
-        matches!(self.designation, Gp1Designation::ADC1)
+        matches!(self.designation, Gp1Mode::ADC1)
     }
 }
 
 /// GP pin 2 configuration.
 #[derive(Debug)]
-pub struct Gp2Settings {
+pub struct Gp2Config {
     /// GP2 power-up output value.
     ///
     /// When GP2 is set as an output GPIO, this value will be present at
@@ -443,22 +414,22 @@ pub struct Gp2Settings {
     /// Setting of the pin's function.
     ///
     /// Byte 6 bits 0..=2.
-    pub designation: Gp2Designation,
+    pub designation: Gp2Mode,
 }
 
-pin_settings_new!(Gp2Settings, Gp2Designation);
+pin_settings_new!(Gp2Config, Gp2Mode);
 
-impl Gp2Settings {
+impl Gp2Config {
     /// Returns `true` if GP2 is set as an analog input.
     #[must_use]
     pub(crate) fn is_adc(&self) -> bool {
-        matches!(self.designation, Gp2Designation::ADC2)
+        matches!(self.designation, Gp2Mode::ADC2)
     }
 }
 
 /// GP pin 3 configuration.
 #[derive(Debug)]
-pub struct Gp3Settings {
+pub struct Gp3Config {
     /// GP3 power-up output value.
     ///
     /// When GP3 is set as an output GPIO, this value will be present at
@@ -477,15 +448,15 @@ pub struct Gp3Settings {
     /// Setting of the pin's function.
     ///
     /// Byte 7 bits 0..=2.
-    pub designation: Gp3Designation,
+    pub designation: Gp3Mode,
 }
 
-pin_settings_new!(Gp3Settings, Gp3Designation);
+pin_settings_new!(Gp3Config, Gp3Mode);
 
-impl Gp3Settings {
+impl Gp3Config {
     /// Returns `true` if GP3 is set as an analog input.
     #[must_use]
     pub(crate) fn is_adc(&self) -> bool {
-        matches!(self.designation, Gp3Designation::ADC3)
+        matches!(self.designation, Gp3Mode::ADC3)
     }
 }

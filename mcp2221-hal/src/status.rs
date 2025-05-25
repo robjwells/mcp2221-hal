@@ -95,7 +95,7 @@ pub struct Status {
     ///
     /// See section 1.0 and 1.6.2.4 for general information about interrupt detection.
     ///
-    /// [`ChangeSramSettings`]: crate::ChangeSramSettings
+    /// [`ChangeSramSettings`]: crate::settings::ChangeSramSettings
     pub interrupt_detected: bool,
     /// MCP2221 hardware revision.
     pub hardware_revision: Revision,

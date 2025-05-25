@@ -1,6 +1,7 @@
 use super::MCP2221;
+use crate::Error;
 use crate::analog::{AdcReading, VoltageReference};
-use crate::{ChangeSramSettings, Error};
+use crate::settings::ChangeSramSettings;
 
 impl MCP2221 {
     /// Configure the DAC voltage reference in SRAM.

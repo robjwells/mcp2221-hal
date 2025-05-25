@@ -110,12 +110,3 @@ impl From<GpioDirection> for u8 {
         }
     }
 }
-
-/// The specific GP pin number of a given Pin.
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum PinNumber {
-    Gp0,
-    Gp1,
-    Gp2,
-    Gp3,
-}

@@ -32,7 +32,7 @@ impl GpioValues {
         Self { gp0, gp1, gp2, gp3 }
     }
 
-    pub(crate) fn for_pin_number(&self, pin_number: PinNumber) -> Option<PinValue> {
+    pub(super) fn for_pin_number(&self, pin_number: PinNumber) -> Option<PinValue> {
         match pin_number {
             PinNumber::Gp0 => self.gp0,
             PinNumber::Gp1 => self.gp1,
@@ -104,7 +104,7 @@ impl ChangeGpioValues {
         Self::default()
     }
 
-    pub(crate) fn with_level_for_pin_number(
+    pub(super) fn with_level_for_pin_number(
         &mut self,
         pin: PinNumber,
         level: LogicLevel,
@@ -117,7 +117,7 @@ impl ChangeGpioValues {
         }
     }
 
-    pub(crate) fn with_direction_for_pin_number(
+    pub(super) fn with_direction_for_pin_number(
         &mut self,
         pin: PinNumber,
         direction: GpioDirection,

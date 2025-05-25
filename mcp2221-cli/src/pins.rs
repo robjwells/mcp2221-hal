@@ -1,5 +1,7 @@
 use clap::{Parser, ValueEnum};
 use mcp2221_hal::gpio::{self, ChangeGpioValues, GpioDirection, LogicLevel};
+use mcp2221_hal::settings::GpSettings;
+use mcp2221_hal::settings::gpio::{self as hal_gpio_settings};
 
 #[derive(Debug, Parser)]
 #[command(flatten_help = true)]
@@ -81,7 +83,7 @@ pub(crate) struct PinModes {
 }
 
 impl PinModes {
-    pub(crate) fn merge_into_existing(&self, gp_settings: &mut gpio::GpSettings) {
+    pub(crate) fn merge_into_existing(&self, gp_settings: &mut GpSettings) {
         if let Some(gp0) = self.gp0 {
             gp0.merge_into_existing(&mut gp_settings.gp0);
         }
@@ -116,7 +118,7 @@ pub(crate) enum Gp0Mode {
     GpioInput,
 }
 
-impl From<&Gp0Mode> for gpio::Gp0Designation {
+impl From<&Gp0Mode> for hal_gpio_settings::Gp0Mode {
     fn from(value: &Gp0Mode) -> Self {
         match value {
             Gp0Mode::UartReceiveLed => Self::LED_UART_RX,
@@ -150,7 +152,7 @@ pub(crate) enum Gp1Mode {
     GpioInput,
 }
 
-impl From<&Gp1Mode> for gpio::Gp1Designation {
+impl From<&Gp1Mode> for hal_gpio_settings::Gp1Mode {
     fn from(value: &Gp1Mode) -> Self {
         match value {
             Gp1Mode::ClockOutput => Self::ClockOutput,
@@ -184,7 +186,7 @@ pub(crate) enum Gp2Mode {
     GpioInput,
 }
 
-impl From<&Gp2Mode> for gpio::Gp2Designation {
+impl From<&Gp2Mode> for hal_gpio_settings::Gp2Mode {
     fn from(value: &Gp2Mode) -> Self {
         match value {
             Gp2Mode::UsbDeviceConfigured => Self::USBCFG,
@@ -217,7 +219,7 @@ pub(crate) enum Gp3Mode {
     GpioInput,
 }
 
-impl From<&Gp3Mode> for gpio::Gp3Designation {
+impl From<&Gp3Mode> for hal_gpio_settings::Gp3Mode {
     fn from(value: &Gp3Mode) -> Self {
         match value {
             Gp3Mode::I2cLed => Self::LED_I2C,
@@ -257,10 +259,10 @@ macro_rules! merge_impl {
     };
 }
 
-merge_impl!(Gp0Mode, gpio::Gp0Settings);
-merge_impl!(Gp1Mode, gpio::Gp1Settings);
-merge_impl!(Gp2Mode, gpio::Gp2Settings);
-merge_impl!(Gp3Mode, gpio::Gp3Settings);
+merge_impl!(Gp0Mode, hal_gpio_settings::Gp0Config);
+merge_impl!(Gp1Mode, hal_gpio_settings::Gp1Config);
+merge_impl!(Gp2Mode, hal_gpio_settings::Gp2Config);
+merge_impl!(Gp3Mode, hal_gpio_settings::Gp3Config);
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum GpioSetting {

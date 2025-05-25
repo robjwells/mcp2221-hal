@@ -1,7 +1,7 @@
 use super::MCP2221;
+use crate::Error;
 use crate::commands::{McpCommand, UsbReport};
-use crate::gpio::GpSettings;
-use crate::{ChangeSramSettings, Error, SramSettings};
+use crate::settings::{ChangeSramSettings, GpSettings, SramSettings};
 
 impl MCP2221 {
     /// Retrieve the chip and GP pin settings stored in SRAM.
@@ -9,7 +9,7 @@ impl MCP2221 {
     /// The settings read from SRAM match the structure of the [`ChipSettings`] stored
     /// in flash, with the addition of the [`GpSettings`].
     ///
-    /// [`ChipSettings`]: crate::ChipSettings
+    /// [`ChipSettings`]: crate::settings::ChipSettings
     ///
     /// <div class="warning">
     ///

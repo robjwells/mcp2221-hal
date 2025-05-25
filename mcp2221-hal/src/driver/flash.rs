@@ -1,8 +1,7 @@
 use super::MCP2221;
+use crate::Error;
 use crate::commands::{FlashDataSubCode, McpCommand, UsbReport};
-use crate::common::DeviceString;
-use crate::gpio::GpSettings;
-use crate::{ChipSettings, Error};
+use crate::settings::{ChipSettings, DeviceString, GpSettings};
 
 impl MCP2221 {
     /// Read chip settings from flash memory.

@@ -1,7 +1,13 @@
 #![allow(dead_code)]
 
-use super::{ChangeGpioValues, GpioDirection, LogicLevel, PinNumber, PinValue};
-use crate::{Error, MCP2221};
+use super::{ChangeGpioValues, GpioDirection, LogicLevel, PinValue};
+use crate::{
+    Error, MCP2221,
+    settings::{
+        GpSettings,
+        gpio::{Gp0Mode, Gp1Mode, Gp2Mode, Gp3Mode},
+    },
+};
 
 /// A GP pin that be configured for GPIO input or output.
 #[derive(Debug)]
@@ -18,7 +24,8 @@ impl<'a> GpPin<'a> {
     pub fn configure_as_digital_input(self) -> Result<Input<'a>, Error> {
         let sram_settings = self.driver.sram_read_settings()?;
         let mut gp_settings = sram_settings.gp_settings;
-        gp_settings.configure_as_gpio(self.pin_number, GpioDirection::Input);
+        self.pin_number
+            .configure_as_gpio(&mut gp_settings, GpioDirection::Input);
         self.driver.sram_write_gp_settings(gp_settings)?;
         Ok(Input(self))
     }
@@ -29,7 +36,8 @@ impl<'a> GpPin<'a> {
     /// [`Output::destroy`].
     pub fn configure_as_digital_output(self) -> Result<Output<'a>, Error> {
         let mut gp_settings = self.driver.sram_read_settings()?.gp_settings;
-        gp_settings.configure_as_gpio(self.pin_number, GpioDirection::Output);
+        self.pin_number
+            .configure_as_gpio(&mut gp_settings, GpioDirection::Output);
         self.driver.sram_write_gp_settings(gp_settings)?;
         Ok(Output(self))
     }
@@ -233,6 +241,38 @@ impl<'a> Pins<'a> {
                 pin_number: PinNumber::Gp3,
                 driver,
             },
+        }
+    }
+}
+
+/// The specific GP pin number of a given Pin.
+#[derive(Debug, Clone, Copy)]
+pub(super) enum PinNumber {
+    Gp0,
+    Gp1,
+    Gp2,
+    Gp3,
+}
+
+impl PinNumber {
+    pub(crate) fn configure_as_gpio(&self, gp_settings: &mut GpSettings, direction: GpioDirection) {
+        match self {
+            PinNumber::Gp0 => {
+                gp_settings.gp0.designation = Gp0Mode::GPIO;
+                gp_settings.gp0.direction = direction;
+            }
+            PinNumber::Gp1 => {
+                gp_settings.gp1.designation = Gp1Mode::GPIO;
+                gp_settings.gp1.direction = direction;
+            }
+            PinNumber::Gp2 => {
+                gp_settings.gp2.designation = Gp2Mode::GPIO;
+                gp_settings.gp2.direction = direction;
+            }
+            PinNumber::Gp3 => {
+                gp_settings.gp3.designation = Gp3Mode::GPIO;
+                gp_settings.gp3.direction = direction;
+            }
         }
     }
 }
