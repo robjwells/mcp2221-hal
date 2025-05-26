@@ -1,5 +1,15 @@
-//! Status read from the MCP2221.
-// TODO: Improve the module-level documentation as it's publicly exposed.
+//! MCP2221 status output.
+//!
+//! [`Status`] is returned by [`MCP2221::status`] and contains information about the
+//! state of the I2C engine, interrupt detection, ADC readings, and hardware and
+//! firmware revision numbers.
+//!
+//! Generally this is only used to inspect the internal state of the MCP2221, and
+//! methods on the [`MCP2221`] driver will let you interact with that state in a
+//! more convenient way.
+//!
+//! [`MCP2221::status`]: crate::MCP2221::status
+//! [`MCP2221`]: crate::MCP2221
 
 use bit_field::BitField;
 
@@ -7,36 +17,51 @@ use crate::i2c::I2cStatus;
 
 /// Current status of the MCP2221.
 ///
-/// Bytes in documentation are numbered from 0 through 63 and correspond
-/// to table 3-1 in section 3.1.1 (Status/Set Parameters) of the datasheet.
+/// The fields of this struct represent the current internal state of the MCP2221 (at
+/// least as much is exposed).
+///
+/// ## Datasheet
+///
+/// See section 3.1.1 for the underlying Status/Set Parameters HID command. The field
+/// descriptions of the response structure are the source for the documentation of
+/// the fields here.
 #[derive(Debug)]
 pub struct Status {
     /// I2C engine status
     pub i2c: I2cStatus,
     /// Edge-detection interrupt state.
     ///
-    /// True if an interrupt has been detected. Use [`ChangeSramSettings`] to clear
-    /// the interrupt flag or alter the interrupt detection conditions.
+    /// True if an edge has been detected on GP1. Requires GP1 to be in interrupt
+    /// detection mode, and for the appropriate edge-detection settings to be
+    /// enabled (positive, negative, or both).
     ///
-    /// # Datasheet
+    /// Prefer to use [`MCP2221::interrupt_detected`] to read the flag. The flag can
+    /// be cleared with [`MCP2221::clear_interrupt_flag`].
     ///
-    /// See byte 24 in table 3-2 for the source of this field. It's listed as being
-    /// either 0 or 1, so we've made the assumption that 1 means an interrupt has
-    /// been detected.
+    /// [`MCP2221::interrupt_detected`]: crate::MCP2221::interrupt_detected
+    /// [`MCP2221::clear_interrupt_flag`]: crate::MCP2221::clear_interrupt_flag
     ///
-    /// See section 1.0 and 1.6.2.4 for general information about interrupt detection.
+    /// ## Datasheet
     ///
-    /// [`ChangeSramSettings`]: crate::settings::ChangeSramSettings
+    /// In the Status/Set Parameters response, byte 24 is listed as being 1 or 0
+    /// depending on the interrupt state. We've made the assumption that 1 means
+    /// that an interrupt has been detected.
+    // TODO: Actually test the interrupts.
     pub interrupt_detected: bool,
-    /// MCP2221 hardware revision.
+    /// Hardware revision.
     pub hardware_revision: Revision,
-    /// MCP2221 firmware revision.
+    /// Firmware revision.
     pub firmware_revision: Revision,
-    /// Readings from the 3 channels of the 10-bit ADC.
+    /// Readings from the three channels of the 10-bit ADC.
+    ///
+    /// There will always be three readings, no matter the configuration of the
+    /// corresponding GP pins. However, these readings are unspecified when the
+    /// pins are not configured as analog inputs.
     pub adc_values: RawAdcValues,
 }
 
 impl Status {
+    /// Parse the Status/Set Parameters response buffer.
     pub(crate) fn from_buffer(buf: &[u8; 64]) -> Self {
         Self {
             i2c: I2cStatus {
@@ -54,21 +79,26 @@ impl Status {
                 read_pending_value: buf[25],
             },
             interrupt_detected: buf[24] == 0x01,
-            hardware_revision: Revision::new(buf[46] as char, buf[47] as char),
-            firmware_revision: Revision::new(buf[48] as char, buf[49] as char),
-            adc_values: RawAdcValues::new(
-                u16::from_le_bytes([buf[50], buf[51]]),
-                u16::from_le_bytes([buf[52], buf[53]]),
-                u16::from_le_bytes([buf[54], buf[55]]),
-            ),
+            hardware_revision: Revision {
+                major: buf[46] as char,
+                minor: buf[47] as char,
+            },
+            firmware_revision: Revision {
+                major: buf[48] as char,
+                minor: buf[49] as char,
+            },
+            adc_values: RawAdcValues {
+                ch1: u16::from_le_bytes([buf[50], buf[51]]),
+                ch2: u16::from_le_bytes([buf[52], buf[53]]),
+                ch3: u16::from_le_bytes([buf[54], buf[55]]),
+            },
         }
     }
 }
 
 /// Two-part revision number.
 ///
-/// Used for the hardware and firmware revisions in the MCP2221 Status report.
-#[derive(Debug)]
+/// Used for the hardware and firmware revisions in the MCP2221 status report.
 pub struct Revision {
     /// Major component of the revision number. (x.0)
     pub major: char,
@@ -76,9 +106,9 @@ pub struct Revision {
     pub minor: char,
 }
 
-impl Revision {
-    fn new(major: char, minor: char) -> Self {
-        Self { major, minor }
+impl std::fmt::Debug for Revision {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Revision({}.{})", self.major, self.minor)
     }
 }
 
@@ -97,10 +127,10 @@ impl std::fmt::Display for Revision {
 /// [`MCP2221::analog_read`]: crate::MCP2221::analog_read
 /// [`AdcReading`]: crate::analog::AdcReading
 ///
-/// If the pin for a channel is not configured as an analog input, the value read
-/// for that channel is formally undefined.
+/// If the pin for a channel is not configured as an analog input, it is undefined
+/// what the reading will be.
 ///
-/// # Datasheet
+/// ## Datasheet
 ///
 /// See bytes `50..=55` in table 3-2 for the source of these values, table 1-1 and
 /// table 1-5 for the mapping of ADC channels to GP pins, and section 1.8 for general
@@ -113,10 +143,4 @@ pub struct RawAdcValues {
     pub ch2: u16,
     /// ADC reading of channel 3 (GP3).
     pub ch3: u16,
-}
-
-impl RawAdcValues {
-    fn new(ch1: u16, ch2: u16, ch3: u16) -> Self {
-        Self { ch1, ch2, ch3 }
-    }
 }
