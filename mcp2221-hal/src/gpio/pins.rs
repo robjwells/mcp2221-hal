@@ -266,7 +266,7 @@ impl PinNumber {
                 gp_settings.gp2_direction = direction;
             }
             PinNumber::Gp3 => {
-                gp_settings.gp3_mode = Gp3Mode::GPIO;
+                gp_settings.gp3_mode = Gp3Mode::Gpio;
                 gp_settings.gp3_direction = direction;
             }
         }

@@ -13,7 +13,9 @@
 //! The voltage reference at the time of reading is included in that struct so that
 //! you may convert the raw reading into a voltage with the formula:
 //!
-//!     voltage_read = adc_reading / 1023 * voltage_reference
+//! ```plain
+//! voltage_read = adc_reading / 1023 * voltage_reference
+//! ```
 //!
 //! [`MCP2221::analog_read`]: crate::MCP2221::analog_read
 //!
@@ -53,7 +55,9 @@
 //!
 //! <div class="warning">
 //!
-//! ### Vrm problems
+//! ### Vrm bugs
+//!
+//! There appear to be two bugs with the Vrm voltage reference source.
 //!
 //! #### Vrm set to "off" causes 0V DAC output
 //!

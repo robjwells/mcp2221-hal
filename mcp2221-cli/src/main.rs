@@ -43,7 +43,7 @@ fn main() -> McpResult<()> {
         Commands::Dac(dac_command) => match dac_command {
             DacCommand::Write { flash: true, value } => {
                 let mut cs = device.flash_read_chip_settings()?;
-                cs.dac_power_up_value = value;
+                cs.dac_value = value;
                 device.flash_write_chip_settings(cs)?;
             }
             DacCommand::Write {

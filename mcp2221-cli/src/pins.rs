@@ -260,9 +260,9 @@ impl Gp3Mode {
     fn components(&self) -> (hal::Gp3Mode, Option<LogicLevel>, Option<GpioDirection>) {
         use hal::Gp3Mode::*;
         match self {
-            Gp3Mode::GpioOutputHigh => (GPIO, Some(LogicLevel::High), Some(GpioDirection::Output)),
-            Gp3Mode::GpioOutputLow => (GPIO, Some(LogicLevel::Low), Some(GpioDirection::Output)),
-            Gp3Mode::GpioInput => (GPIO, None, Some(GpioDirection::Input)),
+            Gp3Mode::GpioOutputHigh => (Gpio, Some(LogicLevel::High), Some(GpioDirection::Output)),
+            Gp3Mode::GpioOutputLow => (Gpio, Some(LogicLevel::Low), Some(GpioDirection::Output)),
+            Gp3Mode::GpioInput => (Gpio, None, Some(GpioDirection::Input)),
             Gp3Mode::I2cLed => (I2cActivityIndicator, None, None),
             Gp3Mode::AnalogInput => (AnalogInput, None, None),
             Gp3Mode::AnalogOutput => (AnalogOutput, None, None),

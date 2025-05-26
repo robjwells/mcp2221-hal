@@ -5,11 +5,23 @@ use bit_field::BitField;
 use crate::analog::VoltageReference;
 use crate::settings::{ClockOutputSetting, GpSettings};
 
-/// Changes to make to the interrupt settings.
+/// Changes to be applied to interrupt settings in SRAM.
 ///
-/// Interrupt detection (aka "IOC") is an alternative function on GP1.
+/// GP1 can be configured to detect positive or negative edges and set an interrupt
+/// flag when one occurs (see [`Gp1Mode::InterruptDetection`]).
+///
+/// [`Gp1Mode::InterruptDetection`]: crate::settings::Gp1Mode::InterruptDetection
+///
+/// This struct offers a builder-like interface to adjust the interrupt settings, to
+/// be given as an argument to [`SramSettingsChanges::with_interrupt_settings`]. The
+/// only required setting is whether to clear the interrupt flag or not, so the
+/// constructor is [`Self::clear_flag`].
+///
+/// If you only want to clear the interrupt flag, prefer [`MCP2221::clear_interrupt_flag`].
+///
+/// [`MCP2221::clear_interrupt_flag`]: crate::MCP2221::clear_interrupt_flag
 #[derive(Debug)]
-pub struct ChangeInterruptSettings {
+pub struct InterruptSettingsChanges {
     /// Clear the interrupt flag if true.
     clear_interrupt_flag: bool,
     /// If `Some`, set whether interrupts should trigger on a positive edge.
@@ -18,7 +30,7 @@ pub struct ChangeInterruptSettings {
     interrupt_on_negative_edge: Option<bool>,
 }
 
-impl ChangeInterruptSettings {
+impl InterruptSettingsChanges {
     /// Create a new struct set to clear (or not) the interrupt flag.
     ///
     /// The "clear flag" argument is the only thing required when changing the
@@ -45,29 +57,32 @@ impl ChangeInterruptSettings {
 }
 
 /// Changes to be applied to the settings in SRAM.
+///
+/// Only a subset of the full chip settings can be changed in SRAM. The rest can be
+/// changed in flash memory, to take effect after the device is reset.
 #[derive(Debug, Default)]
-pub struct ChangeSramSettings {
+pub struct SramSettingsChanges {
     /// Clock output settings.
     clock_output: Option<ClockOutputSetting>,
     /// DAC voltage reference.
     dac_reference: Option<VoltageReference>,
-    /// DAC output value `(0..=31)`
+    /// DAC output value `(0..=31)`.
     dac_value: Option<u8>,
-    /// ADC voltage reference
+    /// ADC voltage reference.
     adc_reference: Option<VoltageReference>,
-    /// Interrupt settings
-    interrupt_settings: Option<ChangeInterruptSettings>,
-    /// GP pin settings
+    /// Interrupt settings.
+    interrupt_settings: Option<InterruptSettingsChanges>,
+    /// GP pin settings.
     gp_settings: Option<GpSettings>,
 }
 
-impl ChangeSramSettings {
+impl SramSettingsChanges {
     /// Create an empty set of changes to SRAM.
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// Change the clock output (CLKR) duty cycle and frequency.
+    /// Change the clock output (CLK_OUT or CLKR) duty cycle and frequency.
     pub fn with_clock_output(&mut self, clock: ClockOutputSetting) -> &mut Self {
         self.clock_output = Some(clock);
         self
@@ -94,10 +109,10 @@ impl ChangeSramSettings {
         self
     }
 
-    /// Change the interrupt settings or clear the interrupt status.
+    /// Change the interrupt settings or clear the interrupt flag.
     pub fn with_interrupt_settings(
         &mut self,
-        interrupt_settings: ChangeInterruptSettings,
+        interrupt_settings: InterruptSettingsChanges,
     ) -> &mut Self {
         self.interrupt_settings = Some(interrupt_settings);
         self
@@ -109,18 +124,24 @@ impl ChangeSramSettings {
     /// [`MCP2221::gpio_write`](crate::MCP2221::gpio_write).
     ///
     /// <div class="warning">
-    /// This function takes voltage references for the DAC and ADC because changing
-    /// the GP pin settings causes “the reference voltage for Vrm” to be “reinitialized
-    /// to the default value (Vdd) if not explicitly set” (section 1.8.11 in the
+    ///
+    /// This function takes voltage references for the DAC and ADC because changing the
+    /// GP pin settings causes “the reference voltage for Vrm” to be “reinitialized to
+    /// the default value (Vdd) if not explicitly set” (section 1.8.11 in the
     /// datasheet). In practice, this sets the Vrm level to “off”, however this is not
-    /// visible when reading the SRAM settings, only by reading the voltage output
-    /// from the DAC.
+    /// visible when reading the SRAM settings, only by reading the voltage output from
+    /// the DAC. See the [`analog`] module documentation for more information about the
+    /// effect of setting the Vrm to "off" (it is almost certainly not what you want).
+    ///
     /// </div>
     ///
-    /// Calling this method with a `None` value for either after using
-    /// [`with_dac_reference()`](Self::with_dac_reference) or
-    /// [`with_adc_reference()`](Self::with_adc_reference)
-    /// **will not** overwrite the previous to-be-set value.
+    /// Calling this method with a `None` value for either will not overwrite
+    /// an ADC or DAC voltage reference (as appropriate) set previously via
+    /// [`with_dac_reference`] or [`with_adc_reference`].
+    ///
+    /// [`analog`]: crate::analog
+    /// [`with_dac_reference`]: Self::with_dac_reference
+    /// [`with_adc_reference`]: Self::with_adc_reference
     pub fn with_gp_modes(
         &mut self,
         gp_settings: GpSettings,

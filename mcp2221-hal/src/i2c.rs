@@ -170,7 +170,9 @@ pub enum I2cCancelTransferResponse {
 ///
 /// The formula for computing the divider is given in a note under table 3-1:
 ///
-///     Divider = (12 MHz / I2C clock rate) - 2
+/// ```plain
+/// Divider = (12 MHz / I2C clock rate) - 2
+/// ```
 ///
 /// Note that Microchips’s own drivers (which predate the inclusion of the above
 /// formula in the datasheet) instead subtract 3. It is unclear why they differ.

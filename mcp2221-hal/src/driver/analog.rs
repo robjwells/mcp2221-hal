@@ -1,7 +1,7 @@
 use super::MCP2221;
 use crate::Error;
 use crate::analog::{AdcReading, VoltageReference};
-use crate::settings::ChangeSramSettings;
+use crate::settings::SramSettingsChanges;
 
 impl MCP2221 {
     /// Configure the DAC voltage reference in SRAM.
@@ -24,7 +24,7 @@ impl MCP2221 {
     /// details about Vrm (with the caveat listed above), and section 3.1.13 for
     /// the underlying Set SRAM Settings HID command.
     pub fn dac_set_reference(&self, source: VoltageReference) -> Result<(), Error> {
-        self.sram_write_settings(ChangeSramSettings::new().with_dac_reference(source))?;
+        self.sram_write_settings(SramSettingsChanges::new().with_dac_reference(source))?;
         Ok(())
     }
 
@@ -51,7 +51,7 @@ impl MCP2221 {
     /// the underlying Set SRAM Settings HID command.
     pub fn analog_write(&self, value: u8) -> Result<(), Error> {
         // with_dac_value limits the value to 31.
-        self.sram_write_settings(ChangeSramSettings::new().with_dac_value(value))?;
+        self.sram_write_settings(SramSettingsChanges::new().with_dac_value(value))?;
         Ok(())
     }
 
@@ -103,7 +103,7 @@ impl MCP2221 {
     /// details about Vrm, and section 3.1.13 for the underlying Set SRAM Settings
     /// HID command.
     pub fn adc_set_reference(&self, source: VoltageReference) -> Result<(), Error> {
-        self.sram_write_settings(ChangeSramSettings::new().with_adc_reference(source))?;
+        self.sram_write_settings(SramSettingsChanges::new().with_adc_reference(source))?;
         Ok(())
     }
 }

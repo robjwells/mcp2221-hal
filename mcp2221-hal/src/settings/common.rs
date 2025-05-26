@@ -4,10 +4,40 @@ use bit_field::BitField;
 
 use crate::Error;
 
-/// String with at most 30 UTF-16 code points.
+/// String limited to 30 UTF-16 code units.
 ///
 /// The strings stored in the MCP2221 flash memory (used during USB enumeration)
 /// are limited to at most 60 bytes of UTF-16-encoded text.
+///
+/// Create a `DeviceString` by calling [`str::parse`] on a string slice, or
+/// [`DeviceString::try_from`] with an owned `String`.
+///
+/// ```rust
+/// # use mcp2221_hal::settings::DeviceString;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let manufacturer: DeviceString = "Acme Widgets Company (UK) Ltd".parse()?;
+///
+/// let product = String::from("Internet of Widgets Hub v3.0");
+/// let product: DeviceString = product.try_into()?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Note that some characters require two UTF-16 code units to express (4 bytes).
+///
+/// ```rust
+/// # use mcp2221_hal::settings::DeviceString;
+/// let serial = "4 bytes each: 🫐🫑🫒🫓🫔🫕🫖🫗🫘🫙";
+/// let result: Result<DeviceString, _> = serial.parse();
+/// assert!(result.is_err(), "More than 60 bytes when UTF-16 encoded.");
+/// ```
+///
+/// ## Datasheet
+///
+/// See table 3-7 and table 3-14 for details of how the device strings are read from
+/// and written to the MCP2221, including the length limitation. (Those tables are
+/// for the manufacturer string, but the following tables are identical except for
+/// the subcommand code.)
 #[derive(Debug, Clone)]
 pub struct DeviceString(String);
 
@@ -15,6 +45,7 @@ impl TryFrom<String> for DeviceString {
     type Error = &'static str;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
+        // Check the number of u16s (two bytes) is within the limit.
         if value.encode_utf16().count() <= 30 {
             Ok(Self(value))
         } else {
@@ -84,6 +115,11 @@ impl std::fmt::Display for DeviceString {
 /// Clock output duty cycle.
 ///
 /// Each case is the percentage of one clock period that is a high logic level.
+///
+/// ## Datasheet
+///
+/// See register 1-2 (ChipSettings1) in the datasheet for the details of the duty cycle
+/// options and bit pattern.
 #[derive(Debug, Default, Clone, Copy)]
 pub enum ClockDutyCycle {
     /// 75% duty cycle.
@@ -126,23 +162,31 @@ impl From<ClockDutyCycle> for u8 {
 #[allow(non_camel_case_types)]
 #[derive(Debug, Default, Clone, Copy)]
 /// Clock output frequency.
-// I am not wild about the names!
+///
+/// The frequency options and their 3-bit representation suggests this is a shift value
+/// for an internal 48 MHz clock, but note that there is no 48 MHz clock output option
+/// and the bit pattern that for that (`0b000`) is marked "reserved".
+///
+/// ## Datasheet
+///
+/// See register 1-2 (ChipSettings1) in the datasheet for the details of the frequency
+/// options and bit pattern.
 pub enum ClockFrequency {
     /// 375 kHz clock output.
-    kHz375,
+    _375_kHz,
     /// 750 kHz clock output.
-    kHz750,
+    _750_kHz,
     /// 1.5 MHz clock output.
-    MHz1_5,
+    _1_5_MHz,
     /// 3 MHz clock output.
-    MHz3,
+    _3_MHz,
     /// 6 MHz clock output.
-    MHz6,
+    _6_MHz,
     /// 12 MHz clock output (factory default).
     #[default]
-    MHz12,
+    _12_MHz,
     /// 24 MHz clock output.
-    MHz24,
+    _24_MHz,
 }
 
 #[doc(hidden)]
@@ -159,13 +203,13 @@ impl From<u8> for ClockFrequency {
         assert!(value <= 0b111, "Invalid bit pattern for clock speed.");
         assert_ne!(value, 0, "Use of Reserved clock speed bit pattern.");
         match value {
-            0b111 => Self::kHz375,
-            0b110 => Self::kHz750,
-            0b101 => Self::MHz1_5,
-            0b100 => Self::MHz3,
-            0b011 => Self::MHz6,
-            0b010 => Self::MHz12,
-            0b001 => Self::MHz24,
+            0b111 => Self::_375_kHz,
+            0b110 => Self::_750_kHz,
+            0b101 => Self::_1_5_MHz,
+            0b100 => Self::_3_MHz,
+            0b011 => Self::_6_MHz,
+            0b010 => Self::_12_MHz,
+            0b001 => Self::_24_MHz,
             _ => unreachable!("Precondition asserts cover 0 and > 7."),
         }
     }
@@ -175,24 +219,36 @@ impl From<u8> for ClockFrequency {
 impl From<ClockFrequency> for u8 {
     fn from(value: ClockFrequency) -> Self {
         match value {
-            ClockFrequency::kHz375 => 0b111,
-            ClockFrequency::kHz750 => 0b110,
-            ClockFrequency::MHz1_5 => 0b101,
-            ClockFrequency::MHz3 => 0b100,
-            ClockFrequency::MHz6 => 0b011,
-            ClockFrequency::MHz12 => 0b010,
-            ClockFrequency::MHz24 => 0b001,
+            ClockFrequency::_375_kHz => 0b111,
+            ClockFrequency::_750_kHz => 0b110,
+            ClockFrequency::_1_5_MHz => 0b101,
+            ClockFrequency::_3_MHz => 0b100,
+            ClockFrequency::_6_MHz => 0b011,
+            ClockFrequency::_12_MHz => 0b010,
+            ClockFrequency::_24_MHz => 0b001,
         }
     }
 }
 
 /// Clock output duty cycle and frequency.
 ///
-/// See datasheet register 1-2 for details. In the USB command section the datasheet
-/// is worded as if this is just a 5-bit divider, but really it is a 2-bit duty cycle
-/// selection, and a 3-bit frequency selection.
+/// If GP1 is configured for clock output (see [`Gp1Mode::ClockOutput`]), this
+/// setting determines the characteristics of the clock signal.
+///
+/// [`Gp1Mode::ClockOutput`]: crate::settings::Gp1Mode::ClockOutput
+///
+/// ## Datasheet
+///
+/// See register 1-2 for details. In the USB command section the datasheet is worded as
+/// if this is just a 5-bit divider, but really it is a 2-bit duty cycle selection, and
+/// a 3-bit frequency selection.
 #[derive(Debug, Default, Clone, Copy)]
-pub struct ClockOutputSetting(pub ClockDutyCycle, pub ClockFrequency);
+pub struct ClockOutputSetting(
+    /// The duty cycle (period high) of the clock output signal.
+    pub ClockDutyCycle,
+    /// The frequency of the clock output signal.
+    pub ClockFrequency
+);
 
 #[doc(hidden)]
 impl From<u8> for ClockOutputSetting {

@@ -6,7 +6,7 @@ use bit_field::BitField;
 #[derive(Debug)]
 /// Various chip configuration settings.
 ///
-/// The chip settings gathers together several important but unrelated settings.
+/// This struct gathers together several important but somewhat unrelated settings.
 /// Consult the documentation for each field and table 3-12 of the datasheet for
 /// information on each option.
 ///
@@ -22,11 +22,11 @@ use bit_field::BitField;
 /// is noted in section 1.8.1.1 of the datasheet.
 ///
 /// In this driver, this only applies when changing the GP pin settings via
-/// [`MCP2221::sram_write_settings`], which is why [`ChangeSramSettings::with_gp_modes`]
+/// [`MCP2221::sram_write_settings`], which is why [`SramSettingsChanges::with_gp_modes`]
 /// takes an option DAC and ADC voltage reference.
 ///
 /// [`MCP2221::sram_write_settings`]: crate::MCP2221::sram_write_settings
-/// [`ChangeSramSettings::with_gp_modes`]: crate::settings::ChangeSramSettings::with_gp_modes
+/// [`SramSettingsChanges::with_gp_modes`]: crate::settings::SramSettingsChanges::with_gp_modes
 ///
 /// </div>
 ///
@@ -35,93 +35,79 @@ use bit_field::BitField;
 /// See table 3-5 in section 3.1.2 (Read Flash Data) or table 3-39 in section 3.1.14
 /// (Get SRAM Settings) for the datasheet's listing of each returned value.
 pub struct ChipSettings {
-    /// Whether a serial number descriptor will be presented during the
-    /// USB enumeration of the CDC interface.
+    /// Whether the USB serial number string will be presented during USB enumeration.
     ///
-    /// Byte 4 bit 7.
+    /// This can be used to provide a stable name to the MCP2221 serial port on the
+    /// USB host.
     pub cdc_serial_number_enumeration_enabled: bool,
-    /// Clock Output settings.
+    /// Clock Output setting.
     ///
-    /// If GP1 is set to clock output, this value determines its duty cycle
-    /// and frequency. See register 1-2 in the datasheet for the meaning of
-    /// this value.
+    /// If GP1 is set to clock output (aka CLK_OUT or CLKR), this value determines its
+    /// duty cycle and frequency.
     ///
-    /// Note that the datasheet's description of this setting in the USB HID
-    /// command section appears to be incorrect. The internal clock is 12 MHz
-    /// (not 48), and the "divider" value is better thought of selecting a duty
-    /// cycle and a frequency.
+    /// ## Datasheet
     ///
-    /// Datasheet description for reference (table 3-5):
-    ///
-    /// > If the GP pin (exposing the clock output) is enabled for clock
-    /// > output operation, the divider value will be used on the 48 MHz USB
-    /// > internal clock and its divided output will be sent to this pin.
-    ///
-    /// Bits 3 & 4 are the duty cycle, bits 0..=2 are the frequency.
-    ///
-    /// Byte 5 bits 4..=0.
+    /// See register 1-2 for the specification of this value. Elsewhere in the datasheet
+    /// it is described simply as a "divider", which is not quite accurate as the bit
+    /// pattern selects both a duty cycle and frequency.
     pub clock_output: ClockOutputSetting,
-    /// DAC reference source (Vrm or Vdd) and Vrm setting
+    /// DAC reference source (Vrm or Vdd) and Vrm setting.
     ///
-    /// Note that setting this to Vrm will cause the MCP2221, on boot, to behave as if
-    /// the DAC was configured for Vrm with its reference level set to "Off", regardless
-    /// of what you have set the DAC Vrm voltage to (eg 1.024V or 2.048V). This persists
-    /// until you reconfigure the DAC settings in SRAM.
+    /// <div class="warning">
     ///
-    /// If set to Vdd, the DAC will behave as expected upon boot.
+    /// If set in flash memory to Vrm (at any voltage level), the DAC will behave
+    /// strangely on power-up. See the [`analog`] and [`settings`] module documentation
+    /// for more details
     ///
-    /// Vrm setting at byte 6 bits 6 & 7; Vrm/Vdd selection at bit 5 (1 = Vrm).
+    /// </div>
+    ///
+    /// [`analog`]: crate::analog
+    /// [`settings`]: crate::settings
     pub dac_reference: VoltageReference,
-    /// Power-up DAC value.
+    /// DAC output value.
     ///
-    /// Byte 6 bits 4..=0. Value in range 0..=31.
-    pub dac_power_up_value: u8,
-    /// Interrupt detection for negative edge.
+    /// The 5-bit value that determines the voltage output of the DAC. The upper three
+    /// bits are ignored.
+    pub dac_value: u8,
+    /// Set the interrupt flag when a negative edge is detected on GP1.
     ///
-    /// Byte 7 bit 6.
+    /// Note GP1 must be configured for interrupt detection for this to have an effect.
+    /// See [`Gp1Mode::InterruptDetection`].
+    ///
+    /// [`Gp1Mode::InterruptDetection`]: crate::settings::Gp1Mode
     pub interrupt_on_negative_edge: bool,
-    /// Interrupt detection for positive edge.
+    /// Set the interrupt flag when a positive edge is detected on GP1.
     ///
-    /// Byte 7 bit 5.
+    /// Note GP1 must be configured for interrupt detection for this to have an effect.
+    /// See [`Gp1Mode::InterruptDetection`].
+    ///
+    /// [`Gp1Mode::InterruptDetection`]: crate::settings::Gp1Mode
     pub interrupt_on_positive_edge: bool,
-    /// ADC reference source (Vrm or Vdd) and Vrm setting
-    ///
-    /// Note the datasheet "effect" column says this is the DAC reference,
-    /// but it appears to be a typo. The DAC and ADC have their own
-    /// voltage references (see section 1.8.1.1 of the datasheet).
-    ///
-    /// Vrm setting at bits 3 & 4; Vrm/Vdd selection at bit 2.
+    /// ADC reference source (Vrm or Vdd) and Vrm setting.
     pub adc_reference: VoltageReference,
-    /// USB Vendor ID (VID)
-    ///
-    /// Byte 8 and 9.
+    /// USB Vendor ID (VID).
     pub usb_vendor_id: u16,
-    /// USB Product ID (PID)
-    ///
-    /// Byte 10 and 11.
+    /// USB Product ID (PID).
     pub usb_product_id: u16,
     /// USB power attributes.
     ///
-    /// This value will be used by the MCP2221's USB Configuration
-    /// Descriptor (power attributes alue) during the USB enumeration.
+    /// ## Datasheet
     ///
-    /// Please consult the USB 2.0 specification on the correct values
-    /// for power and attributes.
+    /// This is not explained in the datasheet beyond the following description
+    /// in table 3-12:
     ///
-    /// Byte 12.
+    /// > This value will be used by the MCP2221A's USB Configuration Descriptor (power
+    /// > attributes value) during USB enumeration.
+    ///
+    /// And this note under table 3-5:
+    ///
+    /// > Please consult the USB 2.0 specification for details on the correct values for
+    /// > power and attributes.
     pub usb_power_attributes: u8,
-    /// USB requested number of mA.
+    /// Current requested during USB enumeration in milliamps.
     ///
-    /// The requested mA value during the USB enumeration. Please consult the USB 2.0
-    /// specification on the correct values for power and attributes.
-    ///
-    /// Note the datasheet says the actual value is the byte value multiplied by 2.
-    /// The value in this struct has already been multiplied by 2 for convenience.
-    ///
-    /// As the halved value is stored as a single byte by the MCP2221, the maximum
-    /// possible value is 510 mA (stored as `255u8` on the chip);
-    ///
-    /// Byte 13.
+    /// Note that this is stored as halved value in a single byte, so the maximum
+    /// current request is 510mA.
     pub usb_requested_number_of_ma: u16,
 }
 
@@ -130,7 +116,7 @@ impl ChipSettings {
     ///
     /// The flash and SRAM chip settings response buffers use the same layout.
     ///
-    /// # Datasheet
+    /// ## Datasheet
     ///
     /// See table 3-5 for the flash response layout and table 3-39 for the SRAM response.
     pub(crate) fn from_buffer(buf: &[u8; 64]) -> Self {
@@ -139,7 +125,7 @@ impl ChipSettings {
             cdc_serial_number_enumeration_enabled: buf[4].get_bit(7),
             clock_output: buf[5].get_bits(0..=4).into(),
             dac_reference: (buf[6].get_bit(5), buf[6].get_bits(6..=7)).into(),
-            dac_power_up_value: buf[6].get_bits(0..=4),
+            dac_value: buf[6].get_bits(0..=4),
             interrupt_on_negative_edge: buf[7].get_bit(6),
             interrupt_on_positive_edge: buf[7].get_bit(5),
             adc_reference: (buf[7].get_bit(2), buf[7].get_bits(3..=4)).into(),
@@ -150,6 +136,15 @@ impl ChipSettings {
         }
     }
 
+    /// Apply the settings to the flash output buffer for writing to the MCP2221.
+    ///
+    /// Note there is no corresponding method for the SRAM settings, as they must
+    /// be set in a different manner.
+    ///
+    /// ## Datasheet
+    ///
+    /// See table 3-12 in section 3.1.3 (Write Flash Data) for the layout of the
+    /// settings to be written.
     pub(crate) fn apply_to_flash_buffer(&self, buf: &mut [u8; 64]) {
         // Note the bytes positions when writing are -2 from the position when reading.
         buf[2].set_bit(7, self.cdc_serial_number_enumeration_enabled);
@@ -163,7 +158,7 @@ impl ChipSettings {
         buf[4].set_bit(5, dac_vrm_vdd);
         // Limit the DAC value to a maximum of 31 to avoid panicking.
         // Because we don't use setters for ChipSettings, this has to be done here.
-        buf[4].set_bits(0..=4, self.dac_power_up_value & 31);
+        buf[4].set_bits(0..=4, self.dac_value & 31);
 
         // Byte 5 (write) / byte 6 (read) -- Interrupts and ADC
         buf[5].set_bit(6, self.interrupt_on_negative_edge);
@@ -191,6 +186,7 @@ impl ChipSettings {
         buf[10] = self.usb_power_attributes;
         // Note that the stored value is _half_ the actual requested mA.
         // When reading we double the value to be less confusing to users.
+        // (Though perhaps not those who have spent too long reading the datasheet!)
         buf[11] = (self.usb_requested_number_of_ma / 2) as u8;
     }
 }

@@ -162,6 +162,8 @@ macro_rules! pin_mode_err {
 ///
 /// The short pin function names used in the datasheet are indicated in parentheses.
 ///
+/// ## Datasheet
+///
 /// See section 1.7 and table 1-5 of the datasheet for information on the pin modes,
 /// and which modes can be used by each pin.
 #[derive(Debug, Clone, Copy)]
@@ -212,6 +214,8 @@ impl From<Gp0Mode> for u8 {
 /// GP1 pin function mode.
 ///
 /// The short pin function names used in the datasheet are indicated in parentheses.
+///
+/// ## Datasheet
 ///
 /// See section 1.7 and table 1-5 of the datasheet for information on the pin modes,
 /// and which modes can be used by each pin.
@@ -286,6 +290,8 @@ impl From<Gp1Mode> for u8 {
 ///
 /// The short pin function names used in the datasheet are indicated in parentheses.
 ///
+/// ## Datasheet
+///
 /// See section 1.7 and table 1-5 of the datasheet for information on the pin modes,
 /// and which modes can be used by each pin.
 #[derive(Debug, Clone, Copy)]
@@ -354,6 +360,8 @@ impl From<Gp2Mode> for u8 {
 ///
 /// The short pin function names used in the datasheet are indicated in parentheses.
 ///
+/// ## Datasheet
+///
 /// See section 1.7 and table 1-5 of the datasheet for information on the pin modes,
 /// and which modes can be used by each pin.
 #[derive(Debug, Clone, Copy)]
@@ -377,7 +385,7 @@ pub enum Gp3Mode {
     /// GPIO pin function.
     ///
     /// The pin operates as a digital input or output.
-    GPIO,
+    Gpio,
 }
 
 impl Gp3Mode {
@@ -397,7 +405,7 @@ impl TryFrom<u8> for Gp3Mode {
             0b011 => Self::AnalogOutput,
             0b010 => Self::AnalogInput,
             0b001 => Self::I2cActivityIndicator,
-            0b000 => Self::GPIO,
+            0b000 => Self::Gpio,
             _ => pin_mode_err!("GP3", mode),
         })
     }
@@ -410,7 +418,7 @@ impl From<Gp3Mode> for u8 {
             Gp3Mode::AnalogOutput => 0b011,
             Gp3Mode::AnalogInput => 0b010,
             Gp3Mode::I2cActivityIndicator => 0b001,
-            Gp3Mode::GPIO => 0b000,
+            Gp3Mode::Gpio => 0b000,
         }
     }
 }

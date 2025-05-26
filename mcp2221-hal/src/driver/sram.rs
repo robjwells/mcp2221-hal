@@ -1,7 +1,7 @@
 use super::MCP2221;
 use crate::Error;
 use crate::commands::{McpCommand, UsbReport};
-use crate::settings::{ChangeSramSettings, ChipSettings, GpSettings};
+use crate::settings::{SramSettingsChanges, ChipSettings, GpSettings};
 
 impl MCP2221 {
     /// Retrieve the chip and GP pin settings stored in SRAM.
@@ -18,7 +18,7 @@ impl MCP2221 {
     ///   SRAM Settings HID command (implemented by [`MCP2221::sram_write_settings`])
     ///   _without_ also explicitly setting the Vrm level. See the note in section
     ///   1.8.1.1 of the datasheet, as well as the documentation for
-    ///   [`ChangeSramSettings::with_gp_modes`].
+    ///   [`SramSettingsChanges::with_gp_modes`].
     ///
     /// </div>
     ///
@@ -59,7 +59,7 @@ impl MCP2221 {
     ///
     /// See section 3.1.13 of the datasheet for details about the underlying Set SRAM
     /// Settings HID command.
-    pub fn sram_write_settings(&self, settings: &ChangeSramSettings) -> Result<(), Error> {
+    pub fn sram_write_settings(&self, settings: &SramSettingsChanges) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::SetSRAMSettings);
         settings.apply_to_sram_buffer(&mut command.write_buffer);
         self.transfer(&command)?;
@@ -73,7 +73,7 @@ impl MCP2221 {
     /// them, to avoid the Vrm reset bug.
     pub fn sram_write_gp_settings(&self, gp_settings: GpSettings) -> Result<(), Error> {
         let (chip_settings, _) = self.sram_read_settings()?;
-        self.sram_write_settings(ChangeSramSettings::new().with_gp_modes(
+        self.sram_write_settings(SramSettingsChanges::new().with_gp_modes(
             gp_settings,
             Some(chip_settings.dac_reference),
             Some(chip_settings.adc_reference),
