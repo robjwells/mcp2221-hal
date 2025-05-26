@@ -4,7 +4,7 @@ use bit_field::BitField;
 
 use crate::Error;
 use crate::analog::VoltageReference;
-use crate::settings::{ChipSettings, ClockSetting, GpSettings};
+use crate::settings::{ChipSettings, ClockOutputSetting, GpSettings};
 
 /// Chip and GP pin settings read from the MCP2221’s SRAM.
 ///
@@ -50,7 +50,7 @@ impl SramSettings {
 ///
 /// Interrupt detection (aka "IOC") is an alternative function on GP1.
 #[derive(Debug)]
-pub struct InterruptSettings {
+pub struct ChangeInterruptSettings {
     /// Clear the interrupt flag if true.
     clear_interrupt_flag: bool,
     /// If `Some`, set whether interrupts should trigger on a positive edge.
@@ -59,7 +59,7 @@ pub struct InterruptSettings {
     interrupt_on_negative_edge: Option<bool>,
 }
 
-impl InterruptSettings {
+impl ChangeInterruptSettings {
     /// Create a new struct set to clear (or not) the interrupt flag.
     ///
     /// The "clear flag" argument is the only thing required when changing the
@@ -89,7 +89,7 @@ impl InterruptSettings {
 #[derive(Debug, Default)]
 pub struct ChangeSramSettings {
     /// Clock output settings.
-    clock_output: Option<ClockSetting>,
+    clock_output: Option<ClockOutputSetting>,
     /// DAC voltage reference.
     dac_reference: Option<VoltageReference>,
     /// DAC output value `(0..=31)`
@@ -97,7 +97,7 @@ pub struct ChangeSramSettings {
     /// ADC voltage reference
     adc_reference: Option<VoltageReference>,
     /// Interrupt settings
-    interrupt_settings: Option<InterruptSettings>,
+    interrupt_settings: Option<ChangeInterruptSettings>,
     /// GP pin settings
     gp_settings: Option<GpSettings>,
 }
@@ -109,7 +109,7 @@ impl ChangeSramSettings {
     }
 
     /// Change the clock output (CLKR) duty cycle and frequency.
-    pub fn with_clock_output(&mut self, clock: ClockSetting) -> &mut Self {
+    pub fn with_clock_output(&mut self, clock: ClockOutputSetting) -> &mut Self {
         self.clock_output = Some(clock);
         self
     }
@@ -136,7 +136,7 @@ impl ChangeSramSettings {
     }
 
     /// Change the interrupt settings or clear the interrupt status.
-    pub fn with_interrupt_settings(&mut self, interrupt_settings: InterruptSettings) -> &mut Self {
+    pub fn with_interrupt_settings(&mut self, interrupt_settings: ChangeInterruptSettings) -> &mut Self {
         self.interrupt_settings = Some(interrupt_settings);
         self
     }

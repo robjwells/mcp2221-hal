@@ -5,7 +5,7 @@ use hidapi::HidDevice;
 use crate::commands::{McpCommand, UsbReport};
 use crate::constants::COMMAND_SUCCESS;
 use crate::error::Error;
-use crate::settings::{ChangeSramSettings, InterruptSettings};
+use crate::settings::{ChangeSramSettings, ChangeInterruptSettings};
 use crate::status::Status;
 
 mod analog;
@@ -93,7 +93,7 @@ impl MCP2221 {
     /// 1.10 for a very brief general overview.
     pub fn clear_interrupt_flag(&self) -> Result<(), Error> {
         self.sram_write_settings(
-            ChangeSramSettings::new().with_interrupt_settings(InterruptSettings::clear_flag(true)),
+            ChangeSramSettings::new().with_interrupt_settings(ChangeInterruptSettings::clear_flag(true)),
         )
     }
 

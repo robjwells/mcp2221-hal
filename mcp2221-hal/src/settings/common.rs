@@ -85,7 +85,7 @@ impl std::fmt::Display for DeviceString {
 ///
 /// Each case is the percentage of one clock period that is a high logic level.
 #[derive(Debug, Default, Clone, Copy)]
-pub enum DutyCycle {
+pub enum ClockDutyCycle {
     /// 75% duty cycle.
     P75,
     /// 50% duty cycle (factory default).
@@ -98,7 +98,7 @@ pub enum DutyCycle {
 }
 
 #[doc(hidden)]
-impl From<u8> for DutyCycle {
+impl From<u8> for ClockDutyCycle {
     fn from(value: u8) -> Self {
         assert!(value <= 0b11, "Invalid bit pattern for duty cycle");
         match value {
@@ -112,13 +112,13 @@ impl From<u8> for DutyCycle {
 }
 
 #[doc(hidden)]
-impl From<DutyCycle> for u8 {
-    fn from(value: DutyCycle) -> u8 {
+impl From<ClockDutyCycle> for u8 {
+    fn from(value: ClockDutyCycle) -> u8 {
         match value {
-            DutyCycle::P75 => 0b11,
-            DutyCycle::P50 => 0b10,
-            DutyCycle::P25 => 0b01,
-            DutyCycle::P0 => 0b00,
+            ClockDutyCycle::P75 => 0b11,
+            ClockDutyCycle::P50 => 0b10,
+            ClockDutyCycle::P25 => 0b01,
+            ClockDutyCycle::P0 => 0b00,
         }
     }
 }
@@ -192,10 +192,10 @@ impl From<ClockFrequency> for u8 {
 /// is worded as if this is just a 5-bit divider, but really it is a 2-bit duty cycle
 /// selection, and a 3-bit frequency selection.
 #[derive(Debug, Default, Clone, Copy)]
-pub struct ClockSetting(pub DutyCycle, pub ClockFrequency);
+pub struct ClockOutputSetting(pub ClockDutyCycle, pub ClockFrequency);
 
 #[doc(hidden)]
-impl From<u8> for ClockSetting {
+impl From<u8> for ClockOutputSetting {
     /// Create a `ClockSetting` from the 5-bit "divider" read from the MCP2221.
     ///
     /// # Panics
@@ -208,16 +208,16 @@ impl From<u8> for ClockSetting {
             "Raw clock 'divider' must be in the low 5 bits."
         );
         Self(
-            DutyCycle::from(value.get_bits(3..=4)),
+            ClockDutyCycle::from(value.get_bits(3..=4)),
             ClockFrequency::from(value.get_bits(0..=2)),
         )
     }
 }
 
 #[doc(hidden)]
-impl From<ClockSetting> for u8 {
-    fn from(value: ClockSetting) -> Self {
-        let ClockSetting(duty_cycle, frequency) = value;
+impl From<ClockOutputSetting> for u8 {
+    fn from(value: ClockOutputSetting) -> Self {
+        let ClockOutputSetting(duty_cycle, frequency) = value;
         let mut byte = 0u8;
         // Set duty cycle.
         byte.set_bits(3..=4, duty_cycle.into());

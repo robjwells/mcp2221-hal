@@ -1,5 +1,5 @@
 use crate::analog::VoltageReference;
-use crate::settings::common::ClockSetting;
+use crate::settings::common::ClockOutputSetting;
 
 use bit_field::BitField;
 
@@ -53,7 +53,7 @@ pub struct ChipSettings {
     /// Bits 3 & 4 are the duty cycle, bits 0..=2 are the frequency.
     ///
     /// Byte 5 bits 4..=0.
-    pub clock_output: ClockSetting,
+    pub clock_output: ClockOutputSetting,
     /// DAC reference source (Vrm or Vdd) and Vrm setting
     ///
     /// Note that setting this to Vrm will cause the MCP2221, on boot, to behave as if
