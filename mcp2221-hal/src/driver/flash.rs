@@ -53,15 +53,6 @@ impl MCP2221 {
     /// Settings stored in the flash memory of the MCP2221 take effect when the device
     /// is powered-up.
     ///
-    /// <div class="warning">
-    ///
-    /// The chip security setting is not written to the device, to avoid inadvertently
-    /// locking the device. This method will attempt to set the device to unprotected
-    /// mode. If you have previously restricted the MCP2221 via other means, you will
-    /// likely encounter an error.
-    ///
-    /// </div>
-    ///
     /// # Datasheet
     ///
     /// See section 1.4 for information on the configuration process. See section

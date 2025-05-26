@@ -1,6 +1,5 @@
 use crate::analog::VoltageReference;
 use crate::settings::common::ClockSetting;
-use crate::settings::security::ChipConfigurationSecurity;
 
 use bit_field::BitField;
 
@@ -34,10 +33,6 @@ pub struct ChipSettings {
     ///
     /// Byte 4 bit 7.
     pub cdc_serial_number_enumeration_enabled: bool,
-    /// Chip configuration security option.
-    ///
-    /// Byte 4 bits 1 and 0.
-    pub chip_configuration_security: ChipConfigurationSecurity,
     /// Clock Output settings.
     ///
     /// If GP1 is set to clock output, this value determines its duty cycle
@@ -135,7 +130,6 @@ impl ChipSettings {
         use bit_field::BitField;
         Self {
             cdc_serial_number_enumeration_enabled: buf[4].get_bit(7),
-            chip_configuration_security: buf[4].get_bits(0..=1).into(),
             clock_output: buf[5].get_bits(0..=4).into(),
             dac_reference: (buf[6].get_bit(5), buf[6].get_bits(6..=7)).into(),
             dac_power_up_value: buf[6].get_bits(0..=4),
@@ -152,8 +146,6 @@ impl ChipSettings {
     pub(crate) fn apply_to_flash_buffer(&self, buf: &mut [u8; 64]) {
         // Note the bytes positions when writing are -2 from the position when reading.
         buf[2].set_bit(7, self.cdc_serial_number_enumeration_enabled);
-        // Chip protection is not supported, so always set to unsecured.
-        buf[2].set_bits(0..=1, ChipConfigurationSecurity::Unsecured.into());
 
         // Byte 3 (write) / byte 5 (read)
         buf[3].set_bits(0..=4, self.clock_output.into());
@@ -193,7 +185,5 @@ impl ChipSettings {
         // Note that the stored value is _half_ the actual requested mA.
         // When reading we double the value to be less confusing to users.
         buf[11] = (self.usb_requested_number_of_ma / 2) as u8;
-
-        // Password bytes follow. The default is zero, so we leave it at zero.
     }
 }
