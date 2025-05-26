@@ -78,11 +78,9 @@ impl MCP2221 {
     /// the underlying Status/Set Parameters HID command.
     pub fn analog_read(&self) -> Result<AdcReading, Error> {
         let raw = self.status()?.adc_values;
-        let sram_settings = self.sram_read_settings()?;
-        let vref = sram_settings.chip_settings.adc_reference;
-        let gp = sram_settings.gp_settings;
+        let (chip_settings, gp) = self.sram_read_settings()?;
         let reading = AdcReading {
-            vref,
+            vref: chip_settings.adc_reference,
             gp1: gp.gp1_mode.is_analog_input().then_some(raw.ch1),
             gp2: gp.gp2_mode.is_analog_input().then_some(raw.ch2),
             gp3: gp.gp3_mode.is_analog_input().then_some(raw.ch3),

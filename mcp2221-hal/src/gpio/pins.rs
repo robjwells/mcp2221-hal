@@ -19,8 +19,7 @@ impl<'a> GpPin<'a> {
     /// You can retrieve the pin (for reconfiguration as an output) by calling
     /// [`Input::destroy`].
     pub fn configure_as_digital_input(self) -> Result<Input<'a>, Error> {
-        let sram_settings = self.driver.sram_read_settings()?;
-        let mut gp_settings = sram_settings.gp_settings;
+        let (_, mut gp_settings) = self.driver.sram_read_settings()?;
         self.pin_number
             .configure_as_gpio(&mut gp_settings, GpioDirection::Input);
         self.driver.sram_write_gp_settings(gp_settings)?;
@@ -32,7 +31,7 @@ impl<'a> GpPin<'a> {
     /// You can retrieve the pin (for reconfiguration as an input) by calling
     /// [`Output::destroy`].
     pub fn configure_as_digital_output(self) -> Result<Output<'a>, Error> {
-        let mut gp_settings = self.driver.sram_read_settings()?.gp_settings;
+        let (_, mut gp_settings) = self.driver.sram_read_settings()?;
         self.pin_number
             .configure_as_gpio(&mut gp_settings, GpioDirection::Output);
         self.driver.sram_write_gp_settings(gp_settings)?;

@@ -2,49 +2,8 @@
 
 use bit_field::BitField;
 
-use crate::Error;
 use crate::analog::VoltageReference;
-use crate::settings::{ChipSettings, ClockOutputSetting, GpSettings};
-
-/// Chip and GP pin settings read from the MCP2221’s SRAM.
-///
-/// These settings determine the run-time behaviour of the chip. When the device is
-/// powered-up, the corresponding settings stored in flash memory are copied into SRAM.
-/// See section 1.4 of the datasheet for details about this process.
-///
-/// <div class="warning">
-///
-/// Do not rely on the read SRAM settings accurately reflecting the current state of
-/// the MCP2221. Certain commands can alter the behaviour of the device without being
-/// show in these settings, notably setting GPIO direction and output levels via the
-/// `Set GPIO Output Values` HID command (implemented in
-/// [`MCP2221::gpio_write`](crate::MCP2221::gpio_write)), or writing the
-/// GP pin settings in SRAM without also writing the ADC and DAC voltage references
-/// (which resets the Vrm level to "off").
-///
-/// </div>
-#[derive(Debug)]
-pub struct SramSettings {
-    /// Various settings stored in SRAM.
-    ///
-    /// Consult [`ChipSettings`] for details about each setting.
-    pub chip_settings: ChipSettings,
-    /// GP pin settings stored in SRAM.
-    ///
-    /// Note that this may not reflect the actual current state of GP pins that are
-    /// configured for GPIO operation.
-    pub gp_settings: GpSettings,
-}
-
-impl SramSettings {
-    /// Create [`SramSettings`] from a 64-byte report read from the MCP2221.
-    pub(crate) fn try_from_buffer(buf: &[u8; 64]) -> Result<Self, Error> {
-        Ok(Self {
-            chip_settings: ChipSettings::from_buffer(buf),
-            gp_settings: GpSettings::try_from_sram_buffer(buf)?,
-        })
-    }
-}
+use crate::settings::{ClockOutputSetting, GpSettings};
 
 /// Changes to make to the interrupt settings.
 ///
@@ -136,7 +95,10 @@ impl ChangeSramSettings {
     }
 
     /// Change the interrupt settings or clear the interrupt status.
-    pub fn with_interrupt_settings(&mut self, interrupt_settings: ChangeInterruptSettings) -> &mut Self {
+    pub fn with_interrupt_settings(
+        &mut self,
+        interrupt_settings: ChangeInterruptSettings,
+    ) -> &mut Self {
         self.interrupt_settings = Some(interrupt_settings);
         self
     }

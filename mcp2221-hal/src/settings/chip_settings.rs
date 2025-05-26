@@ -21,9 +21,16 @@ use bit_field::BitField;
 /// setting (a Vrm level of "off"). This appears to be an MCP2221 firmware bug and
 /// is noted in section 1.8.1.1 of the datasheet.
 ///
+/// In this driver, this only applies when changing the GP pin settings via
+/// [`MCP2221::sram_write_settings`], which is why [`ChangeSramSettings::with_gp_modes`]
+/// takes an option DAC and ADC voltage reference.
+///
+/// [`MCP2221::sram_write_settings`]: crate::MCP2221::sram_write_settings
+/// [`ChangeSramSettings::with_gp_modes`]: crate::settings::ChangeSramSettings::with_gp_modes
+///
 /// </div>
 ///
-/// # Datasheet
+/// ## Datasheet
 ///
 /// See table 3-5 in section 3.1.2 (Read Flash Data) or table 3-39 in section 3.1.14
 /// (Get SRAM Settings) for the datasheet's listing of each returned value.

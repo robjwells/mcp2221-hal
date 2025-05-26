@@ -14,6 +14,16 @@ use bit_field::BitField;
 /// only used in GPIO mode, and value is only used in GPIO output mode. Likewise, these
 /// can be changed but only have an effect in the appropriate GPIO mode.
 ///
+/// <div class="warning">
+///
+/// If GP pin GPIO direction or output value are changed via [`MCP2221::gpio_write`],
+/// then the GP settings read from SRAM may not reflect the current configuration of
+/// the GP pins. This appears to be a bug in the MCP2221 firmware.
+///
+/// [`MCP2221::gpio_write`]: crate::MCP2221::gpio_write
+///
+/// </div>
+///
 /// ## Datasheet
 ///
 /// See table 1-5 of the datasheet for an overview of the pin modes available for each

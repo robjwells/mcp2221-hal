@@ -1,19 +1,14 @@
 use super::MCP2221;
 use crate::Error;
 use crate::commands::{McpCommand, UsbReport};
-use crate::settings::{ChangeSramSettings, GpSettings, SramSettings};
+use crate::settings::{ChangeSramSettings, ChipSettings, GpSettings};
 
 impl MCP2221 {
     /// Retrieve the chip and GP pin settings stored in SRAM.
     ///
-    /// The settings read from SRAM match the structure of the [`ChipSettings`] stored
-    /// in flash, with the addition of the [`GpSettings`].
-    ///
-    /// [`ChipSettings`]: crate::settings::ChipSettings
-    ///
     /// <div class="warning">
     ///
-    /// Do not rely on the returned [`SramSettings`] accurately reflecting the current
+    /// Do not rely on the returned settings accurately reflecting the current
     /// state of the MCP2221. Some commands will (in practice) change these settings
     /// without those changes being shown when subsequently reading the SRAM.
     ///
@@ -27,17 +22,20 @@ impl MCP2221 {
     ///
     /// </div>
     ///
-    /// # Datasheet
+    /// ## Datasheet
     ///
     /// See section 3.1.14 of the datasheet for details about the underlying Get SRAM
     /// Settings HID command, and section 1.4 for information about the configuration
     /// process at power-up.
-    pub fn sram_read_settings(&self) -> Result<SramSettings, Error> {
+    pub fn sram_read_settings(&self) -> Result<(ChipSettings, GpSettings), Error> {
         let command = UsbReport::new(McpCommand::GetSRAMSettings);
         let buf = self
             .transfer(&command)?
             .expect("Always has response buffer.");
-        SramSettings::try_from_buffer(&buf)
+        Ok((
+            ChipSettings::from_buffer(&buf),
+            GpSettings::try_from_sram_buffer(&buf)?,
+        ))
     }
 
     /// Change run-time chip and GP pin settings.
@@ -74,11 +72,11 @@ impl MCP2221 {
     /// the work of reading the current ADC & DAC voltage references and re-writing
     /// them, to avoid the Vrm reset bug.
     pub fn sram_write_gp_settings(&self, gp_settings: GpSettings) -> Result<(), Error> {
-        let current = self.sram_read_settings()?;
+        let (chip_settings, _) = self.sram_read_settings()?;
         self.sram_write_settings(ChangeSramSettings::new().with_gp_modes(
             gp_settings,
-            Some(current.chip_settings.dac_reference),
-            Some(current.chip_settings.adc_reference),
+            Some(chip_settings.dac_reference),
+            Some(chip_settings.adc_reference),
         ))
     }
 }

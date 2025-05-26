@@ -147,7 +147,7 @@ fn main() -> McpResult<()> {
                 flash: false,
                 pin_configs,
             }) => {
-                let mut gp_settings = device.sram_read_settings()?.gp_settings;
+                let (_, mut gp_settings) = device.sram_read_settings()?;
                 pin_configs.merge_into_existing(&mut gp_settings);
                 device.sram_write_gp_settings(gp_settings)?;
             }
