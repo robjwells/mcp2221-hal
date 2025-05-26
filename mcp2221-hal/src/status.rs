@@ -3,76 +3,7 @@
 
 use bit_field::BitField;
 
-use crate::i2c::I2cSpeed;
-
-/// I2C engine status
-///
-/// This struct bundles together the I2C-related fields of the Status command response.
-///
-/// # Datasheet
-///
-/// See the return value of the Status/Set Parameters HID command in table 3-2 of
-/// section 3.1.1 for the definition of the fields.
-///
-/// Note that byte 8 of the Status response, "I2C communication state", is not included
-/// because it's unclear how it should be interpreted.
-#[derive(Debug)]
-pub struct I2cStatus {
-    /// I2C engine communication state.
-    ///
-    /// Records whether the I2C engine is idle or a timeout has occurred.
-    pub communication_state: I2cCommunicationState,
-    /// The current requested I2C transfer length.
-    pub transfer_requested_length: u16,
-    /// Number of bytes already transferred in the current transfer.
-    pub transfer_completed_length: u16,
-    /// Internal I2C data buffer counter.
-    ///
-    /// This field is not explained in the datasheet.
-    pub internal_data_buffer_counter: u8,
-    /// I2C bus speed.
-    ///
-    /// Note that the MCP2221 I2C engine is limited to a bus speed between 46,692 bps
-    /// and 400,000 bps.
-    pub bus_speed: I2cSpeed,
-    /// I2C engine timeout value.
-    ///
-    /// It is not explained in the datasheet how this value should be interpreted.
-    /// It does not seem to be a length of time after which timeout occurs, perhaps
-    /// it is some internal enum value.
-    pub timeout_value: u8,
-    /// I2C address being used.
-    ///
-    /// It is presumed that this is the address of the I2C target currently being
-    /// communicated with, but it is not explained in the datasheet.
-    ///
-    /// Additionally, it appears from the Java driver that the target address used
-    /// to be set via the status command, so perhaps this is a remnant of that?
-    pub address_being_used: u16,
-    /// I2C target acknowledged its address.
-    ///
-    /// This is not further explained in the datasheet, but is described in the Java
-    /// driver as being the ACK to the I2C slave address.
-    pub ack_received: bool,
-    /// I2C clock line is high.
-    ///
-    /// I2C is an idle-high bus, so perhaps this could be used to detect a device on
-    /// the bus holding the SCL line low? It is not explained in the datasheet.
-    pub scl_line_high: bool,
-    /// I2C data line is high.
-    ///
-    /// I2C is an idle-high bus, so perhaps this could be used to detect a device on
-    /// the bus holding the SDA line low? It is not explained in the datasheet.
-    pub sda_line_high: bool,
-    /// I2C Read pending value.
-    ///
-    /// The datasheet describes this as being "used by the USB host to know if the
-    /// MCP2221 still has to read from a slave device", with possible values of 0, 1
-    /// or 2. The meaning of those values is not explained in the datasheet.
-    ///
-    /// See byte 25 in table 3-2.
-    pub read_pending_value: u8,
-}
+use crate::i2c::I2cStatus;
 
 /// Current status of the MCP2221.
 ///
@@ -115,9 +46,9 @@ impl Status {
                 internal_data_buffer_counter: buf[13],
                 bus_speed: buf[14].into(),
                 timeout_value: buf[15],
-                address_being_used: u16::from_le_bytes([buf[16], buf[17]]),
+                target_address: u16::from_le_bytes([buf[16], buf[17]]),
                 // Note that this is being inverted: 0 means ACK received.
-                ack_received: !buf[20].get_bit(6),
+                target_acknowledged_address: !buf[20].get_bit(6),
                 scl_line_high: buf[22] == 0x01,
                 sda_line_high: buf[23] == 0x01,
                 read_pending_value: buf[25],
@@ -187,70 +118,5 @@ pub struct RawAdcValues {
 impl RawAdcValues {
     fn new(ch1: u16, ch2: u16, ch3: u16) -> Self {
         Self { ch1, ch2, ch3 }
-    }
-}
-
-/// State of the I2C engine.
-///
-/// Most of the cases are guesswork from constant names in the Microchip C and Android
-/// Java drivers, and their meaning is not documented. The datasheet only says that a
-/// state other than 0 is a timeout.
-#[derive(Debug)]
-pub enum I2cCommunicationState {
-    /// Engine is idle.
-    Idle,
-    /// I2CM_SM_START_TOUT.
-    StartTimeout,
-    /// I2CM_SM_REPSTART_TOUT.
-    RepeatedStartTimeout,
-    /// I2CM_SM_WRADDL_WAITSEND.
-    WriteAddressWaitSend,
-    /// Target address timeout.
-    ///
-    /// - RESP_I2C_WRADDRL_TOUT in C.
-    /// - I2CM_SM_WRADDRL_TOUT in Java.
-    AddressTimeout,
-    /// Target did not acknowledge its address.
-    ///
-    /// - RESP_ADDR_NACK in C.
-    /// - I2CM_SM_WRADDL_NACK_STOP in Java.
-    AddressNack,
-    /// I2CM_SM_WRITEDATA_TOUT.
-    WriteDataTimeout,
-    /// Engine has finished sending data from an I2C Write Data No Stop command.
-    ///
-    /// I2CM_SM_WRITEDATA_END_NOSTOP.
-    WriteDataEndNoStop,
-    /// I2CM_SM_READDATA_TOUT.
-    ReadDataTimeout,
-    /// I2CM_SM_STOP_TOUT.
-    StopTimeout,
-    /// I2C engine is in some other state.
-    Other(u8),
-}
-
-impl I2cCommunicationState {
-    /// I2C engine is idle.
-    pub fn is_idle(&self) -> bool {
-        matches!(self, Self::Idle)
-    }
-}
-
-impl From<u8> for I2cCommunicationState {
-    fn from(value: u8) -> Self {
-        // Hex values taken from the Java driver.
-        match value {
-            0x00 => Self::Idle,
-            0x12 => Self::StartTimeout,
-            0x17 => Self::RepeatedStartTimeout,
-            0x21 => Self::WriteAddressWaitSend,
-            0x23 => Self::AddressTimeout,
-            0x25 => Self::AddressNack,
-            0x44 => Self::WriteDataTimeout,
-            0x45 => Self::WriteDataEndNoStop,
-            0x52 => Self::ReadDataTimeout,
-            0x62 => Self::StopTimeout,
-            n => Self::Other(n),
-        }
     }
 }

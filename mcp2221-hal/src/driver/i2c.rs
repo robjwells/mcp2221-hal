@@ -4,7 +4,7 @@ use std::time::Duration;
 use super::MCP2221;
 use crate::Error;
 use crate::commands::{McpCommand, UsbReport};
-use crate::i2c::{CancelI2cTransferResponse, I2cSpeed, ReadType, WriteType};
+use crate::i2c::{I2cCancelTransferResponse, I2cSpeed, ReadType, WriteType};
 
 /// I2C-related commands.
 impl MCP2221 {
@@ -28,11 +28,11 @@ impl MCP2221 {
     ///
     /// See section 3.11 of the datasheet for the underlying Status/Set Parameters
     /// HID command.
-    pub fn i2c_cancel_transfer(&self) -> Result<CancelI2cTransferResponse, Error> {
+    pub fn i2c_cancel_transfer(&self) -> Result<I2cCancelTransferResponse, Error> {
         // Only issue the cancellation command if the I2Cengine is busy to avoid it
         // _becoming_ busy by issuing the cancellation.
         if self.status()?.i2c.communication_state.is_idle() {
-            return Ok(CancelI2cTransferResponse::NoTransfer);
+            return Ok(I2cCancelTransferResponse::NoTransfer);
         }
 
         let mut uc = UsbReport::new(McpCommand::StatusSetParameters);
@@ -40,9 +40,9 @@ impl MCP2221 {
         let read_buffer = self.transfer(&uc)?.expect("Always has response buffer.");
 
         match read_buffer[2] {
-            0x10 => Ok(CancelI2cTransferResponse::MarkedForCancellation),
-            0x11 => Ok(CancelI2cTransferResponse::NoTransfer),
-            0x00 => Ok(CancelI2cTransferResponse::Done),
+            0x10 => Ok(I2cCancelTransferResponse::MarkedForCancellation),
+            0x11 => Ok(I2cCancelTransferResponse::NoTransfer),
+            0x00 => Ok(I2cCancelTransferResponse::Done),
             code => unreachable!("Unknown code received from I2C cancel attempt {code}"),
         }
     }
@@ -161,7 +161,7 @@ impl MCP2221 {
 
     /// Cancel the I2C transfer if the target device did not acknowledge its address.
     fn i2c_bail_for_nack(&self) -> Result<(), Error> {
-        match self.status()?.i2c.ack_received {
+        match self.status()?.i2c.target_acknowledged_address {
             true => Ok(()),
             false => {
                 self.i2c_cancel_transfer()?;
@@ -390,7 +390,7 @@ impl MCP2221 {
             match self.transfer(&command) {
                 Ok(_) => {
                     // The write was submitted, doesn't mean the target is there.
-                    let address_ack = self.status()?.i2c.ack_received;
+                    let address_ack = self.status()?.i2c.target_acknowledged_address;
                     // Clean up any incomplete transfer.
                     self.i2c_cancel_transfer()?;
                     return Ok(address_ack);
