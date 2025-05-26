@@ -5,6 +5,7 @@ use hidapi::HidDevice;
 use crate::commands::{McpCommand, UsbReport};
 use crate::constants::COMMAND_SUCCESS;
 use crate::error::Error;
+use crate::settings::{ChangeSramSettings, InterruptSettings};
 use crate::status::Status;
 
 mod analog;
@@ -63,6 +64,37 @@ impl MCP2221 {
 
         self.transfer(&command)?;
         Ok(())
+    }
+
+    /// Read the edge-triggered interrupt flag.
+    ///
+    /// GP1 can be configured to detect external interrupts on rising or falling edges.
+    /// If so, the interrupt flag will be set when an edge is detected.
+    ///
+    /// ## Datasheet
+    ///
+    /// There is very little about interrupt detection in the MCP2221 datasheet. See
+    /// byte 6 in table 3-36 for descriptions of the related settings. See section
+    /// 1.10 for a very brief general overview.
+    pub fn interrupt_detected(&self) -> Result<bool, Error> {
+        self.status().map(|s| s.interrupt_detected)
+    }
+
+    /// Clear the edge-triggered interrupt flag.
+    ///
+    /// Clears the flag indicating that an edge has been detected on GP1, when GP1
+    /// is in interrupt-detection mode. The interrupt detection conditions (positive
+    /// edge, negative edge, or both) are not changed.
+    ///
+    /// ## Datasheet
+    ///
+    /// There is very little about interrupt detection in the MCP2221 datasheet. See
+    /// byte 6 in table 3-36 for descriptions of the related settings. See section
+    /// 1.10 for a very brief general overview.
+    pub fn clear_interrupt_flag(&self) -> Result<(), Error> {
+        self.sram_write_settings(
+            ChangeSramSettings::new().with_interrupt_settings(InterruptSettings::clear_flag(true)),
+        )
     }
 
     /// Write the given command to the MCP and read the 64-byte response.
