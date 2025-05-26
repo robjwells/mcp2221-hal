@@ -85,6 +85,15 @@ impl GpioDirection {
 
 #[doc(hidden)]
 impl From<bool> for GpioDirection {
+    /// Helper for use with [`bit_field::BitField::get_bit`], which returns a 1
+    /// bit as `true` and 0 as false.
+    ///
+    /// For the MCP2221, 1 means GPIO input and 0 means GPIO output.
+    ///
+    /// ## Datasheet
+    ///
+    /// See, for example, table 3-13 (Write Flash Data: Write GP Settings),
+    /// or table 3-35 (Get GPIO Values).
     fn from(value: bool) -> Self {
         if value { Self::Input } else { Self::Output }
     }
@@ -92,6 +101,15 @@ impl From<bool> for GpioDirection {
 
 #[doc(hidden)]
 impl From<GpioDirection> for bool {
+    /// Helper for use with [`bit_field::BitField::get_bit`], which takes `true`
+    /// to set a bit to 1.
+    ///
+    /// For the MCP2221, 1 means GPIO input and 0 means GPIO output.
+    ///
+    /// ## Datasheet
+    ///
+    /// See, for example, table 3-13 (Write Flash Data: Write GP Settings),
+    /// or table 3-35 (Get GPIO Values).
     fn from(value: GpioDirection) -> Self {
         match value {
             GpioDirection::Input => true,
@@ -103,6 +121,16 @@ impl From<GpioDirection> for bool {
 #[doc(hidden)]
 impl From<GpioDirection> for u8 {
     /// Convert a [`GpioDirection`] to 1 (if input) or 0 (if output).
+    ///
+    /// Note that the inverse conversion (`u8` to `GpioDirection`) is not
+    /// implemented as a sentinel value is used to mean that the pin is not
+    /// set for GPIO operation.
+    ///
+    /// ## Datasheet
+    ///
+    /// See table 3-32 (Set GPIO Output Values) for the use of 0x01 to mean
+    /// input and 0x00 to mean output. This is the only case where we need
+    /// a full byte to represent the direction.
     fn from(value: GpioDirection) -> Self {
         match value {
             GpioDirection::Input => 1,

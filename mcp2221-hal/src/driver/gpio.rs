@@ -1,7 +1,7 @@
 use super::MCP2221;
 use crate::Error;
 use crate::commands::{McpCommand, UsbReport};
-use crate::gpio::{ChangeGpioValues, GpioValues, Pins};
+use crate::gpio::{GpioChanges, GpioValues, Pins};
 
 impl MCP2221 {
     /// Take the four GP pin structs for individual GPIO operation.
@@ -72,7 +72,7 @@ impl MCP2221 {
     ///
     /// See section 3.1.11 of the datasheet for the underlying Set GPIO Output Values
     /// HID command.
-    pub fn gpio_write(&self, changes: &ChangeGpioValues) -> Result<(), Error> {
+    pub fn gpio_write(&self, changes: &GpioChanges) -> Result<(), Error> {
         let mut command = UsbReport::new(McpCommand::SetGpioOutputValues);
         changes.apply_to_buffer(&mut command.write_buffer);
         self.transfer(&command)?;

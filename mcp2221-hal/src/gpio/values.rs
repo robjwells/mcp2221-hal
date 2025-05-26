@@ -1,93 +1,124 @@
-use super::{GpioDirection, LogicLevel, PinNumber};
+use super::{GpioDirection, LogicLevel};
 
-/// Byte returned for a GP pin's logic level ("value") if the pin is not in GPIO mode.
-const NOT_GPIO_LEVEL: u8 = 0xEE;
-/// Byte returned for a GP pin's direction if the pin is not in GPIO mode.
-const NOT_GPIO_DIRECTION: u8 = 0xEF;
-
-/// GPIO status read from the device.
+/// Status of the GPIO pins.
 ///
-/// Each field is `None` if the corresponding pin is not configured for GPIO operation.
+/// A field is `None` if the corresponding pin is not configured for GPIO operation.
+///
+/// If a pin is set as an input, the logic level is the value read on that pin. If
+/// it is set as an output, it is the current output value of that pin.
+///
+/// Pins can be configured for GPIO operation in SRAM via [`MCP2221::sram_write_settings`].
+///
+/// [`MCP2221::sram_write_settings`]: crate::MCP2221::sram_write_settings
+///
+/// ## Datasheet
+///
+/// See section 3.1.12 for the underlying Get GPIO Values HID command.
 #[derive(Debug)]
 pub struct GpioValues {
-    /// GPIO settings for GP0.
-    pub gp0: Option<PinValue>,
-    /// GPIO settings for GP1.
-    pub gp1: Option<PinValue>,
-    /// GPIO settings for GP2.
-    pub gp2: Option<PinValue>,
-    /// GPIO settings for GP3.
-    pub gp3: Option<PinValue>,
+    /// GP0 GPIO values.
+    pub gp0: Option<(GpioDirection, LogicLevel)>,
+    /// GP1 GPIO values.
+    pub gp1: Option<(GpioDirection, LogicLevel)>,
+    /// GP2 GPIO values.
+    pub gp2: Option<(GpioDirection, LogicLevel)>,
+    /// GP3 GPIO values.
+    pub gp3: Option<(GpioDirection, LogicLevel)>,
 }
 
 impl GpioValues {
     /// Parse the response from the Get GPIO Values command.
     ///
-    /// See datasheet section 3.1.12.1.
+    /// ## Datasheet
+    ///
+    /// See table 3-35 for the Get GPIO Values response layout.
     pub(crate) fn from_buffer(buf: &[u8; 64]) -> Self {
-        let gp0 = PinValue::from_bytes(buf[2], buf[3]);
-        let gp1 = PinValue::from_bytes(buf[4], buf[5]);
-        let gp2 = PinValue::from_bytes(buf[6], buf[7]);
-        let gp3 = PinValue::from_bytes(buf[8], buf[9]);
-        Self { gp0, gp1, gp2, gp3 }
-    }
-
-    pub(super) fn for_pin_number(&self, pin_number: PinNumber) -> Option<PinValue> {
-        match pin_number {
-            PinNumber::Gp0 => self.gp0,
-            PinNumber::Gp1 => self.gp1,
-            PinNumber::Gp2 => self.gp2,
-            PinNumber::Gp3 => self.gp3,
+        Self {
+            gp0: parse_bytes(buf[2], buf[3]),
+            gp1: parse_bytes(buf[4], buf[5]),
+            gp2: parse_bytes(buf[6], buf[7]),
+            gp3: parse_bytes(buf[8], buf[9]),
         }
     }
 }
 
-/// Status of an individual GPIO pin.
-#[derive(Debug, Clone, Copy)]
-pub struct PinValue {
-    /// Whether the pin is configured as an input or output.
-    pub direction: GpioDirection,
-    /// The logic level read on the pin (if input) or output on the pin.
-    pub level: LogicLevel,
-}
-
-impl PinValue {
-    fn from_bytes(level: u8, direction: u8) -> Option<Self> {
-        let level = logic_level_from_byte(level);
-        let direction = direction_from_byte(direction);
-        if let (Some(direction), Some(level)) = (direction, level) {
-            Some(Self { direction, level })
-        } else {
-            None
-        }
+/// Parse received bytes into a direction and level pair.
+///
+/// In the Get GPIO Values response, the bytes come in the same order as this function's
+/// arguments: level first, then direction. We reverse this order in the returned tuple
+/// since the level is only meaningful once you know the direction, so direction first
+/// seems more fitting with how it will be used.
+///
+/// Returned value is optional because a sentinel value is received for each when the
+/// pin in question is not configured for GPIO operation.
+///
+/// ## Datasheet
+///
+/// See table 3-35 for the Get GPIO Values response layout and byte definitions.
+fn parse_bytes(level_byte: u8, direction_byte: u8) -> Option<(GpioDirection, LogicLevel)> {
+    let level = logic_level_from_byte(level_byte);
+    let direction = direction_from_byte(direction_byte);
+    if let (Some(direction), Some(level)) = (direction, level) {
+        Some((direction, level))
+    } else {
+        None
     }
 }
 
+/// Parse a byte from Get GPIO Values into a logic level.
+///
+/// The returned value is optional if the pin in question is not configured for GPIO
+/// operation.
 fn logic_level_from_byte(byte: u8) -> Option<LogicLevel> {
+    /// Byte returned for a GP pin's logic level ("value") if the pin is not in GPIO mode.
+    /// Note that this is different to the sentinel value for pin direction.
+    const NOT_GPIO: u8 = 0xEE;
+
     match byte {
-        NOT_GPIO_LEVEL => None,
+        NOT_GPIO => None,
         0x00 => Some(LogicLevel::Low),
         0x01 => Some(LogicLevel::High),
         _ => unreachable!("Invalid byte '{byte:X}' for GPIO logic level"),
     }
 }
 
+/// Parse a byte from Get GPIO Values into a GPIO pin direction.
+///
+/// The returned value is optional if the pin in question is not configured for GPIO
+/// operation.
 fn direction_from_byte(byte: u8) -> Option<GpioDirection> {
+    /// Byte returned for a GP pin's direction if the pin is not in GPIO mode.
+    /// Note that this is different to the sentinel value for pin logic level.
+    const NOT_GPIO: u8 = 0xEF;
+
     match byte {
-        NOT_GPIO_DIRECTION => None,
+        NOT_GPIO => None,
         0x00 => Some(GpioDirection::Output),
         0x01 => Some(GpioDirection::Input),
         _ => unreachable!("Invalid byte '{byte:X}' for GPIO pin direction"),
     }
 }
 
-/// Changes to make to GPIO pin direction and logic level.
+/// Changes to make to GPIO pin settings.
 ///
-/// Note that you can "set" the logic level for an input pin. This reflects the MCP2221
-/// interface (in `Set GPIO Output Values`, section 3.1.11) but it naturally does not
-/// take effect unless and until the pin is set to be an output.
+/// This offers a builder-like interface where values that are not set are left
+/// unchanged in the device settings.
+///
+/// You can "set" the logic level for an input pin. This reflects the MCP2221 interface
+/// but such a change naturally does not take effect unless and until the pin is set to
+/// be an output. There is no advantage to doing this over setting the value at the same
+/// time you set the pin as an output.
+///
+/// Note that these changes will not put a pin set to another mode into GPIO mode.
+/// The mode must be changed separately via [`MCP2221::sram_write_settings`].
+///
+/// [`MCP2221::sram_write_settings`]: crate::MCP2221::sram_write_settings
+///
+/// ## Datasheet
+///
+/// See section 3.1.11 for the underlying Set GPIO Output Values HID command.
 #[derive(Default, Debug)]
-pub struct ChangeGpioValues {
+pub struct GpioChanges {
     gp0_direction: Option<GpioDirection>,
     gp0_level: Option<LogicLevel>,
     gp1_direction: Option<GpioDirection>,
@@ -98,36 +129,10 @@ pub struct ChangeGpioValues {
     gp3_level: Option<LogicLevel>,
 }
 
-impl ChangeGpioValues {
+impl GpioChanges {
     /// Create a struct with no pending changes.
     pub fn new() -> Self {
         Self::default()
-    }
-
-    pub(super) fn with_level_for_pin_number(
-        &mut self,
-        pin: PinNumber,
-        level: LogicLevel,
-    ) -> &mut Self {
-        match pin {
-            PinNumber::Gp0 => self.with_gp0_level(level),
-            PinNumber::Gp1 => self.with_gp1_level(level),
-            PinNumber::Gp2 => self.with_gp2_level(level),
-            PinNumber::Gp3 => self.with_gp3_level(level),
-        }
-    }
-
-    pub(super) fn with_direction_for_pin_number(
-        &mut self,
-        pin: PinNumber,
-        direction: GpioDirection,
-    ) -> &mut Self {
-        match pin {
-            PinNumber::Gp0 => self.with_gp0_direction(direction),
-            PinNumber::Gp1 => self.with_gp1_direction(direction),
-            PinNumber::Gp2 => self.with_gp2_direction(direction),
-            PinNumber::Gp3 => self.with_gp3_direction(direction),
-        }
     }
 
     /// Set the direction of GP0.
@@ -137,8 +142,6 @@ impl ChangeGpioValues {
     }
 
     /// Set the logic level of GP0.
-    ///
-    /// Not this will only take effect if GP0 is set to be a GPIO output pin.
     pub fn with_gp0_level(&mut self, level: LogicLevel) -> &mut Self {
         self.gp0_level = Some(level);
         self
@@ -151,8 +154,6 @@ impl ChangeGpioValues {
     }
 
     /// Set the logic level of GP1.
-    ///
-    /// Not this will only take effect if GP0 is set to be a GPIO output pin.
     pub fn with_gp1_level(&mut self, level: LogicLevel) -> &mut Self {
         self.gp1_level = Some(level);
         self
@@ -165,8 +166,6 @@ impl ChangeGpioValues {
     }
 
     /// Set the logic level of GP2.
-    ///
-    /// Not this will only take effect if GP0 is set to be a GPIO output pin.
     pub fn with_gp2_level(&mut self, level: LogicLevel) -> &mut Self {
         self.gp2_level = Some(level);
         self
@@ -179,61 +178,62 @@ impl ChangeGpioValues {
     }
 
     /// Set the logic level of GP3.
-    ///
-    /// Not this will only take effect if GP0 is set to be a GPIO output pin.
     pub fn with_gp3_level(&mut self, level: LogicLevel) -> &mut Self {
         self.gp3_level = Some(level);
         self
     }
 
-    /// Encode self in the format expected by Set GPIO Output Values.
+    /// Write changes into a buffer for Set GPIO Output Values.
     ///
-    /// See section 3.1.11 of the datasheet.
+    /// ## Datasheet
+    ///
+    /// See section 3.1.11 of the datasheet for the layout of the command buffer.
     pub(crate) fn apply_to_buffer(&self, buf: &mut [u8; 64]) {
         // Each logic level setting and direction setting has a preceding byte
         // that determines if a new value is to be loaded. If that "enable" byte
-        // is non-zero, the following byte is the loaded.
+        // is non-zero, the following byte is the setting loaded.
         //
         // The command write buffer is initially zeroed, which means that we only
         // need to change the write buffer where we intend to change a setting.
+        const ENABLE_SETTING: u8 = 0x01;
 
         // GP0
         if let Some(level) = self.gp0_level {
-            buf[2] = 0x01;
+            buf[2] = ENABLE_SETTING;
             buf[3] = level.into();
         }
         if let Some(direction) = self.gp0_direction {
-            buf[4] = 0x01;
+            buf[4] = ENABLE_SETTING;
             buf[5] = direction.into();
         }
 
         // GP1
         if let Some(level) = self.gp1_level {
-            buf[6] = 0x01;
+            buf[6] = ENABLE_SETTING;
             buf[7] = level.into();
         }
         if let Some(direction) = self.gp1_direction {
-            buf[8] = 0x01;
+            buf[8] = ENABLE_SETTING;
             buf[9] = direction.into();
         }
 
         // GP2
         if let Some(level) = self.gp2_level {
-            buf[10] = 0x01;
+            buf[10] = ENABLE_SETTING;
             buf[11] = level.into();
         }
         if let Some(direction) = self.gp2_direction {
-            buf[12] = 0x01;
+            buf[12] = ENABLE_SETTING;
             buf[13] = direction.into();
         }
 
         // GP3
         if let Some(level) = self.gp3_level {
-            buf[14] = 0x01;
+            buf[14] = ENABLE_SETTING;
             buf[15] = level.into();
         }
         if let Some(direction) = self.gp3_direction {
-            buf[16] = 0x01;
+            buf[16] = ENABLE_SETTING;
             buf[17] = direction.into();
         }
     }

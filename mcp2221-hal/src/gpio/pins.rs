@@ -1,23 +1,22 @@
-#![allow(dead_code)]
-
-use super::{ChangeGpioValues, GpioDirection, LogicLevel, PinValue};
-use crate::{
-    Error, MCP2221,
-    settings::{Gp0Mode, Gp1Mode, Gp2Mode, Gp3Mode, GpSettings},
-};
+use super::{GpioChanges, GpioDirection, GpioValues, LogicLevel};
+use crate::settings::{Gp0Mode, Gp1Mode, Gp2Mode, Gp3Mode, GpSettings};
+use crate::{Error, MCP2221};
 
 /// A GP pin that be configured for GPIO input or output.
+///
+/// This struct is intended for use with the [`embedded_hal`] GPIO traits. If you
+/// wish to configure a pin for a mode other than GPIO, use the driver method
+/// [`MCP2221::sram_write_gp_settings`].
 #[derive(Debug)]
 pub struct GpPin<'a> {
+    /// Driver can be a shared reference because its methods take &self.
     driver: &'a MCP2221,
+    /// The underlying pin.
     pin_number: PinNumber,
 }
 
 impl<'a> GpPin<'a> {
-    /// Set up the GP pin as a GPIO digital input.
-    ///
-    /// You can retrieve the pin (for reconfiguration as an output) by calling
-    /// [`Input::destroy`].
+    /// Set the pin as a GPIO digital input.
     pub fn configure_as_digital_input(self) -> Result<Input<'a>, Error> {
         let (_, mut gp_settings) = self.driver.sram_read_settings()?;
         self.pin_number
@@ -26,10 +25,7 @@ impl<'a> GpPin<'a> {
         Ok(Input(self))
     }
 
-    /// Set up the GP pin as a GPIO digital output.
-    ///
-    /// You can retrieve the pin (for reconfiguration as an input) by calling
-    /// [`Output::destroy`].
+    /// Set the pin as a GPIO digital output.
     pub fn configure_as_digital_output(self) -> Result<Output<'a>, Error> {
         let (_, mut gp_settings) = self.driver.sram_read_settings()?;
         self.pin_number
@@ -66,22 +62,36 @@ impl<'a> From<Output<'a>> for GpPin<'a> {
 }
 
 /// A GP pin in GPIO input mode.
+///
+/// This struct is intended for use with the [`embedded_hal::digital::InputPin`] trait.
 pub struct Input<'a>(GpPin<'a>);
 
 impl<'a> Input<'a> {
-    /// Get the input level of this pin.
-    pub fn get_level(&self) -> Result<LogicLevel, Error> {
+    /// Get the current settings for the GPIO pin.
+    ///
+    /// Returns an error if the pin is no longer a GPIO input or not in GPIO mode.
+    /// (That indicates a driver method has been called to reconfigure the pins
+    /// while this `Input` was held.)
+    fn pin_settings(&self) -> Result<(GpioDirection, LogicLevel), Error> {
+        let gpio_values = self.0.driver.gpio_read()?;
         self.0
-            .driver
-            .gpio_read()?
-            .for_pin_number(self.0.pin_number)
+            .pin_number
+            .get_value(&gpio_values)
+            .filter(|(dir, _)| dir.is_input())
             .ok_or(Error::PinModeChanged)
-            .map(|v| v.level)
     }
 
-    /// Return the underlying Pin object, so that it can be reconfigured.
+    /// Get the input level of this pin.
+    pub fn get_level(&self) -> Result<LogicLevel, Error> {
+        self.pin_settings().map(|(_, level)| level)
+    }
+
+    /// Extract the underlying [`GpPin`].
     ///
     /// This method does not change any MCP2221 settings.
+    ///
+    /// If you only wish to change the GPIO direction of the pin, use
+    /// [`Input::try_into_output`].
     pub fn destroy(self) -> GpPin<'a> {
         self.0
     }
@@ -89,10 +99,12 @@ impl<'a> Input<'a> {
     /// Switch the pin mode from input to output.
     pub fn try_into_output(self) -> Result<Output<'a>, Error> {
         // Ensure still set for GPIO operation.
-        self.get_level()?;
+        self.pin_settings()?;
         // Change the direction.
-        let mut changes = ChangeGpioValues::new();
-        changes.with_direction_for_pin_number(self.0.pin_number, GpioDirection::Output);
+        let mut changes = GpioChanges::new();
+        self.0
+            .pin_number
+            .change_direction(&mut changes, GpioDirection::Output);
         self.0.driver.gpio_write(&changes)?;
         // Return the new wrapper type now the direction change is done.
         Ok(Output(self.0))
@@ -121,15 +133,23 @@ impl embedded_hal::digital::InputPin for Input<'_> {
 }
 
 /// A GP pin in GPIO output mode.
+///
+/// This struct is intended for use with the [`embedded_hal::digital::OutputPin`] and
+/// [`embedded_hal::digital::StatefulOutputPin`] traits.
 pub struct Output<'a>(GpPin<'a>);
 
 impl<'a> Output<'a> {
-    fn pin_settings(&self) -> Result<PinValue, Error> {
+    /// Get the current settings for the GPIO pin.
+    ///
+    /// Returns an error if the pin is no longer a GPIO output or not in GPIO mode.
+    /// (That indicates a driver method has been called to reconfigure the pins
+    /// while this `Output` was held.)
+    fn pin_settings(&self) -> Result<(GpioDirection, LogicLevel), Error> {
+        let gpio_values = self.0.driver.gpio_read()?;
         self.0
-            .driver
-            .gpio_read()?
-            .for_pin_number(self.0.pin_number)
-            .filter(|v| v.direction.is_output())
+            .pin_number
+            .get_value(&gpio_values)
+            .filter(|(dir, _)| dir.is_output())
             .ok_or(Error::PinModeChanged)
     }
 
@@ -137,17 +157,22 @@ impl<'a> Output<'a> {
     pub fn set_level(&self, level: LogicLevel) -> Result<(), Error> {
         // Ensure the pin is still set as an output.
         self.pin_settings()?;
-        let mut changes = ChangeGpioValues::new();
-        changes.with_level_for_pin_number(self.0.pin_number, level);
+        let mut changes = GpioChanges::new();
+        self.0.pin_number.change_level(&mut changes, level);
         self.0.driver.gpio_write(&changes)
     }
 
-    /// Get the currently set output level of this pin.
+    /// Get the current output level of this pin.
     pub fn get_output_level(&self) -> Result<LogicLevel, Error> {
-        self.pin_settings().map(|v| v.level)
+        self.pin_settings().map(|(_, level)| level)
     }
 
-    /// Return the underlying Pin object, so that it can be reconfigured.
+    /// Extract the underlying [`GpPin`].
+    ///
+    /// This method does not change any MCP2221 settings.
+    ///
+    /// If you only wish to change the GPIO direction of the pin, use
+    /// [`Output::try_into_input`].
     pub fn destroy(self) -> GpPin<'a> {
         self.0
     }
@@ -157,8 +182,10 @@ impl<'a> Output<'a> {
         // Ensure still set for GPIO operation.
         self.pin_settings()?;
         // Change the direction.
-        let mut changes = ChangeGpioValues::new();
-        changes.with_direction_for_pin_number(self.0.pin_number, GpioDirection::Input);
+        let mut changes = GpioChanges::new();
+        self.0
+            .pin_number
+            .change_direction(&mut changes, GpioDirection::Input);
         self.0.driver.gpio_write(&changes)?;
         // Return the new wrapper type now the direction change is done.
         Ok(Input(self.0))
@@ -205,7 +232,10 @@ impl<'a> TryFrom<Input<'a>> for Output<'a> {
     }
 }
 
-/// The four MCP2221 GP pins.
+/// Wrapper for the four GP pins.
+///
+/// This is returned from [`MCP2221::take_pins`], so each pin can be used as an
+/// [`Input`] or [`Output`], for use with the [`embedded_hal::digital`] traits.
 #[derive(Debug)]
 pub struct Pins<'a> {
     /// Pin GP0
@@ -241,9 +271,12 @@ impl<'a> Pins<'a> {
     }
 }
 
-/// The specific GP pin number of a given Pin.
+/// The specific GP pin number of a given GpPin.
+///
+/// This enum is used only in this module, to allow for a [`GpPin`] struct that
+/// can be used without, say, pin-specific generics.
 #[derive(Debug, Clone, Copy)]
-pub(super) enum PinNumber {
+enum PinNumber {
     Gp0,
     Gp1,
     Gp2,
@@ -251,7 +284,8 @@ pub(super) enum PinNumber {
 }
 
 impl PinNumber {
-    pub(crate) fn configure_as_gpio(&self, gp_settings: &mut GpSettings, direction: GpioDirection) {
+    /// Change `GpSettings` to put a particular GP pin into GPIO mode with the given direction.
+    fn configure_as_gpio(&self, gp_settings: &mut GpSettings, direction: GpioDirection) {
         match self {
             PinNumber::Gp0 => {
                 gp_settings.gp0_mode = Gp0Mode::Gpio;
@@ -270,5 +304,40 @@ impl PinNumber {
                 gp_settings.gp3_direction = direction;
             }
         }
+    }
+
+    /// Extract the values for the particular pin from the Get GPIO Values result.
+    ///
+    /// This is defined on `PinNumber` so that no other module needs to concern itself
+    /// with the definition of `PinNumber`. It makes it very slightly more awkward to
+    /// fetch the level from the `GpioValues` struct, but that only happens in two
+    /// places in this module since this is not exposed anywhere else.
+    fn get_value(&self, gpio_values: &GpioValues) -> Option<(GpioDirection, LogicLevel)> {
+        match self {
+            PinNumber::Gp0 => gpio_values.gp0,
+            PinNumber::Gp1 => gpio_values.gp1,
+            PinNumber::Gp2 => gpio_values.gp2,
+            PinNumber::Gp3 => gpio_values.gp3,
+        }
+    }
+
+    /// Update `GpioChanges` to set the GPIO output level for a particular GP pin.
+    fn change_level(&self, changes: &mut GpioChanges, level: LogicLevel) {
+        match self {
+            PinNumber::Gp0 => changes.with_gp0_level(level),
+            PinNumber::Gp1 => changes.with_gp1_level(level),
+            PinNumber::Gp2 => changes.with_gp2_level(level),
+            PinNumber::Gp3 => changes.with_gp3_level(level),
+        };
+    }
+
+    /// Update `GpioChanges` to set the GPIO direction for a particular GP pin.
+    fn change_direction(&self, changes: &mut GpioChanges, direction: GpioDirection) {
+        match self {
+            PinNumber::Gp0 => changes.with_gp0_direction(direction),
+            PinNumber::Gp1 => changes.with_gp1_direction(direction),
+            PinNumber::Gp2 => changes.with_gp2_direction(direction),
+            PinNumber::Gp3 => changes.with_gp3_direction(direction),
+        };
     }
 }

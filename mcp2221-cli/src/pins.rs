@@ -1,5 +1,5 @@
 use clap::{Parser, ValueEnum};
-use mcp2221_hal::gpio::{ChangeGpioValues, GpioDirection, LogicLevel};
+use mcp2221_hal::gpio::{GpioChanges, GpioDirection, LogicLevel};
 use mcp2221_hal::settings::GpSettings;
 use mcp2221_hal::settings::{self as hal};
 
@@ -315,7 +315,7 @@ pub(crate) struct PinValues {
     gp3: Option<GpioSetting>,
 }
 
-impl From<PinValues> for ChangeGpioValues {
+impl From<PinValues> for GpioChanges {
     fn from(value: PinValues) -> Self {
         let mut s = Self::new();
         if let Some(gp) = value.gp0 {
