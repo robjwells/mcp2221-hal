@@ -3,10 +3,7 @@
 use super::{ChangeGpioValues, GpioDirection, LogicLevel, PinValue};
 use crate::{
     Error, MCP2221,
-    settings::{
-        GpSettings,
-        gpio::{Gp0Mode, Gp1Mode, Gp2Mode, Gp3Mode},
-    },
+    settings::{Gp0Mode, Gp1Mode, Gp2Mode, Gp3Mode, GpSettings},
 };
 
 /// A GP pin that be configured for GPIO input or output.
@@ -258,20 +255,20 @@ impl PinNumber {
     pub(crate) fn configure_as_gpio(&self, gp_settings: &mut GpSettings, direction: GpioDirection) {
         match self {
             PinNumber::Gp0 => {
-                gp_settings.gp0.designation = Gp0Mode::GPIO;
-                gp_settings.gp0.direction = direction;
+                gp_settings.gp0_mode = Gp0Mode::Gpio;
+                gp_settings.gp0_direction = direction;
             }
             PinNumber::Gp1 => {
-                gp_settings.gp1.designation = Gp1Mode::GPIO;
-                gp_settings.gp1.direction = direction;
+                gp_settings.gp1_mode = Gp1Mode::Gpio;
+                gp_settings.gp1_direction = direction;
             }
             PinNumber::Gp2 => {
-                gp_settings.gp2.designation = Gp2Mode::GPIO;
-                gp_settings.gp2.direction = direction;
+                gp_settings.gp2_mode = Gp2Mode::Gpio;
+                gp_settings.gp2_direction = direction;
             }
             PinNumber::Gp3 => {
-                gp_settings.gp3.designation = Gp3Mode::GPIO;
-                gp_settings.gp3.direction = direction;
+                gp_settings.gp3_mode = Gp3Mode::GPIO;
+                gp_settings.gp3_direction = direction;
             }
         }
     }

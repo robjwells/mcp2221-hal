@@ -83,9 +83,9 @@ impl MCP2221 {
         let gp = sram_settings.gp_settings;
         let reading = AdcReading {
             vref,
-            gp1: gp.gp1.is_adc().then_some(raw.ch1),
-            gp2: gp.gp2.is_adc().then_some(raw.ch2),
-            gp3: gp.gp3.is_adc().then_some(raw.ch3),
+            gp1: gp.gp1_mode.is_analog_input().then_some(raw.ch1),
+            gp2: gp.gp2_mode.is_analog_input().then_some(raw.ch2),
+            gp3: gp.gp3_mode.is_analog_input().then_some(raw.ch3),
         };
         Ok(reading)
     }

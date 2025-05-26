@@ -228,24 +228,24 @@ impl ChangeSramSettings {
             buf[7].set_bit(7, true);
 
             // GP0 settings
-            buf[8].set_bit(4, gp_settings.gp0.value.into());
-            buf[8].set_bit(3, gp_settings.gp0.direction.into());
-            buf[8].set_bits(0..=2, gp_settings.gp0.designation.into());
+            buf[8].set_bit(4, gp_settings.gp0_value.into());
+            buf[8].set_bit(3, gp_settings.gp0_direction.into());
+            buf[8].set_bits(0..=2, gp_settings.gp0_mode.into());
 
             // GP1 settings
-            buf[9].set_bit(4, gp_settings.gp1.value.into());
-            buf[9].set_bit(3, gp_settings.gp1.direction.into());
-            buf[9].set_bits(0..=2, gp_settings.gp1.designation.into());
+            buf[9].set_bit(4, gp_settings.gp1_value.into());
+            buf[9].set_bit(3, gp_settings.gp1_direction.into());
+            buf[9].set_bits(0..=2, gp_settings.gp1_mode.into());
 
             // GP2 settings
-            buf[10].set_bit(4, gp_settings.gp2.value.into());
-            buf[10].set_bit(3, gp_settings.gp2.direction.into());
-            buf[10].set_bits(0..=2, gp_settings.gp2.designation.into());
+            buf[10].set_bit(4, gp_settings.gp2_value.into());
+            buf[10].set_bit(3, gp_settings.gp2_direction.into());
+            buf[10].set_bits(0..=2, gp_settings.gp2_mode.into());
 
             // GP3 settings
-            buf[11].set_bit(4, gp_settings.gp3.value.into());
-            buf[11].set_bit(3, gp_settings.gp3.direction.into());
-            buf[11].set_bits(0..=2, gp_settings.gp3.designation.into());
+            buf[11].set_bit(4, gp_settings.gp3_value.into());
+            buf[11].set_bit(3, gp_settings.gp3_direction.into());
+            buf[11].set_bits(0..=2, gp_settings.gp3_mode.into());
         }
     }
 }

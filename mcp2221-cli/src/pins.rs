@@ -1,7 +1,7 @@
 use clap::{Parser, ValueEnum};
-use mcp2221_hal::gpio::{self, ChangeGpioValues, GpioDirection, LogicLevel};
+use mcp2221_hal::gpio::{ChangeGpioValues, GpioDirection, LogicLevel};
 use mcp2221_hal::settings::GpSettings;
-use mcp2221_hal::settings::gpio::{self as hal_gpio_settings};
+use mcp2221_hal::settings::{self as hal};
 
 #[derive(Debug, Parser)]
 #[command(flatten_help = true)]
@@ -83,18 +83,46 @@ pub(crate) struct PinModes {
 }
 
 impl PinModes {
-    pub(crate) fn merge_into_existing(&self, gp_settings: &mut GpSettings) {
+    pub(crate) fn merge_into_existing(&self, settings: &mut GpSettings) {
         if let Some(gp0) = self.gp0 {
-            gp0.merge_into_existing(&mut gp_settings.gp0);
+            let (mode, level, direction) = gp0.components();
+            settings.gp0_mode = mode;
+            if let Some(level) = level {
+                settings.gp0_value = level;
+            }
+            if let Some(direction) = direction {
+                settings.gp0_direction = direction;
+            }
         }
         if let Some(gp1) = self.gp1 {
-            gp1.merge_into_existing(&mut gp_settings.gp1);
+            let (mode, level, direction) = gp1.components();
+            settings.gp1_mode = mode;
+            if let Some(level) = level {
+                settings.gp1_value = level;
+            }
+            if let Some(direction) = direction {
+                settings.gp1_direction = direction;
+            }
         }
         if let Some(gp2) = self.gp2 {
-            gp2.merge_into_existing(&mut gp_settings.gp2);
+            let (mode, level, direction) = gp2.components();
+            settings.gp2_mode = mode;
+            if let Some(level) = level {
+                settings.gp2_value = level;
+            }
+            if let Some(direction) = direction {
+                settings.gp2_direction = direction;
+            }
         }
         if let Some(gp3) = self.gp3 {
-            gp3.merge_into_existing(&mut gp_settings.gp3);
+            let (mode, level, direction) = gp3.components();
+            settings.gp3_mode = mode;
+            if let Some(level) = level {
+                settings.gp3_value = level;
+            }
+            if let Some(direction) = direction {
+                settings.gp3_direction = direction;
+            }
         }
     }
 }
@@ -118,12 +146,15 @@ pub(crate) enum Gp0Mode {
     GpioInput,
 }
 
-impl From<&Gp0Mode> for hal_gpio_settings::Gp0Mode {
-    fn from(value: &Gp0Mode) -> Self {
-        match value {
-            Gp0Mode::UartReceiveLed => Self::LED_UART_RX,
-            Gp0Mode::UsbSuspendState => Self::SSPND,
-            Gp0Mode::GpioOutputHigh | Gp0Mode::GpioOutputLow | Gp0Mode::GpioInput => Self::GPIO,
+impl Gp0Mode {
+    fn components(&self) -> (hal::Gp0Mode, Option<LogicLevel>, Option<GpioDirection>) {
+        use hal::Gp0Mode::*;
+        match self {
+            Gp0Mode::UartReceiveLed => (UartReceiveIndicator, None, None),
+            Gp0Mode::UsbSuspendState => (UsbSuspendState, None, None),
+            Gp0Mode::GpioOutputHigh => (Gpio, Some(LogicLevel::High), Some(GpioDirection::Output)),
+            Gp0Mode::GpioOutputLow => (Gpio, Some(LogicLevel::Low), Some(GpioDirection::Output)),
+            Gp0Mode::GpioInput => (Gpio, None, Some(GpioDirection::Input)),
         }
     }
 }
@@ -152,14 +183,17 @@ pub(crate) enum Gp1Mode {
     GpioInput,
 }
 
-impl From<&Gp1Mode> for hal_gpio_settings::Gp1Mode {
-    fn from(value: &Gp1Mode) -> Self {
-        match value {
-            Gp1Mode::ClockOutput => Self::ClockOutput,
-            Gp1Mode::AnalogInput => Self::ADC1,
-            Gp1Mode::UartTransmitLed => Self::LED_UART_TX,
-            Gp1Mode::Interrupt => Self::InterruptDetection,
-            Gp1Mode::GpioOutputHigh | Gp1Mode::GpioOutputLow | Gp1Mode::GpioInput => Self::GPIO,
+impl Gp1Mode {
+    fn components(&self) -> (hal::Gp1Mode, Option<LogicLevel>, Option<GpioDirection>) {
+        use hal::Gp1Mode::*;
+        match self {
+            Gp1Mode::ClockOutput => (ClockOutput, None, None),
+            Gp1Mode::AnalogInput => (AnalogInput, None, None),
+            Gp1Mode::UartTransmitLed => (UartTransmitIndicator, None, None),
+            Gp1Mode::Interrupt => (InterruptDetection, None, None),
+            Gp1Mode::GpioOutputHigh => (Gpio, Some(LogicLevel::High), Some(GpioDirection::Output)),
+            Gp1Mode::GpioOutputLow => (Gpio, Some(LogicLevel::Low), Some(GpioDirection::Output)),
+            Gp1Mode::GpioInput => (Gpio, None, Some(GpioDirection::Input)),
         }
     }
 }
@@ -186,13 +220,16 @@ pub(crate) enum Gp2Mode {
     GpioInput,
 }
 
-impl From<&Gp2Mode> for hal_gpio_settings::Gp2Mode {
-    fn from(value: &Gp2Mode) -> Self {
-        match value {
-            Gp2Mode::UsbDeviceConfigured => Self::USBCFG,
-            Gp2Mode::AnalogInput => Self::ADC2,
-            Gp2Mode::AnalogOutput => Self::DAC1,
-            Gp2Mode::GpioOutputHigh | Gp2Mode::GpioOutputLow | Gp2Mode::GpioInput => Self::GPIO,
+impl Gp2Mode {
+    fn components(&self) -> (hal::Gp2Mode, Option<LogicLevel>, Option<GpioDirection>) {
+        use hal::Gp2Mode::*;
+        match self {
+            Gp2Mode::GpioOutputHigh => (Gpio, Some(LogicLevel::High), Some(GpioDirection::Output)),
+            Gp2Mode::GpioOutputLow => (Gpio, Some(LogicLevel::Low), Some(GpioDirection::Output)),
+            Gp2Mode::GpioInput => (Gpio, None, Some(GpioDirection::Input)),
+            Gp2Mode::UsbDeviceConfigured => (UsbDeviceConfiguredStatus, None, None),
+            Gp2Mode::AnalogInput => (AnalogInput, None, None),
+            Gp2Mode::AnalogOutput => (AnalogOutput, None, None),
         }
     }
 }
@@ -219,50 +256,19 @@ pub(crate) enum Gp3Mode {
     GpioInput,
 }
 
-impl From<&Gp3Mode> for hal_gpio_settings::Gp3Mode {
-    fn from(value: &Gp3Mode) -> Self {
-        match value {
-            Gp3Mode::I2cLed => Self::LED_I2C,
-            Gp3Mode::AnalogInput => Self::ADC3,
-            Gp3Mode::AnalogOutput => Self::DAC2,
-            Gp3Mode::GpioOutputHigh | Gp3Mode::GpioOutputLow | Gp3Mode::GpioInput => Self::GPIO,
+impl Gp3Mode {
+    fn components(&self) -> (hal::Gp3Mode, Option<LogicLevel>, Option<GpioDirection>) {
+        use hal::Gp3Mode::*;
+        match self {
+            Gp3Mode::GpioOutputHigh => (GPIO, Some(LogicLevel::High), Some(GpioDirection::Output)),
+            Gp3Mode::GpioOutputLow => (GPIO, Some(LogicLevel::Low), Some(GpioDirection::Output)),
+            Gp3Mode::GpioInput => (GPIO, None, Some(GpioDirection::Input)),
+            Gp3Mode::I2cLed => (I2cActivityIndicator, None, None),
+            Gp3Mode::AnalogInput => (AnalogInput, None, None),
+            Gp3Mode::AnalogOutput => (AnalogOutput, None, None),
         }
     }
 }
-
-/// Update a &mut GP settings type from the HAL with the settings from the compact
-/// GP pin settings structs used in the CLI.
-macro_rules! merge_impl {
-    ($cli_type:ty, $hal_type:ty) => {
-        impl $cli_type {
-            pub(crate) fn merge_into_existing(&self, settings: &mut $hal_type) {
-                // Update the GP pin mode (function).
-                settings.designation = self.into();
-                // If the pin is set to GPIO operation, also update the direction
-                // and, if an output, the value.
-                match self {
-                    <$cli_type>::GpioOutputHigh => {
-                        settings.direction = gpio::GpioDirection::Output;
-                        settings.value = gpio::LogicLevel::High;
-                    }
-                    <$cli_type>::GpioOutputLow => {
-                        settings.direction = gpio::GpioDirection::Output;
-                        settings.value = gpio::LogicLevel::Low;
-                    }
-                    <$cli_type>::GpioInput => {
-                        settings.direction = gpio::GpioDirection::Input;
-                    }
-                    _ => {}
-                };
-            }
-        }
-    };
-}
-
-merge_impl!(Gp0Mode, hal_gpio_settings::Gp0Config);
-merge_impl!(Gp1Mode, hal_gpio_settings::Gp1Config);
-merge_impl!(Gp2Mode, hal_gpio_settings::Gp2Config);
-merge_impl!(Gp3Mode, hal_gpio_settings::Gp3Config);
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum GpioSetting {
