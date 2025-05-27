@@ -14,7 +14,7 @@
 //! # use mcp2221_hal::{MCP2221, gpio::{Input, Output, Pins}};
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use embedded_hal::digital::{InputPin, OutputPin};
-//! let device = MCP2221::open()?;
+//! let device = MCP2221::connect()?;
 //! let Pins { gp0, gp1, .. } = device.take_pins().expect("Can only take once.");
 //! let mut gp0: Input = gp0.try_into()?;
 //! let mut gp1: Output = gp1.try_into()?;
@@ -45,7 +45,7 @@
 //! # use mcp2221_hal::{MCP2221, gpio::{Input, Output}};
 //! # use embedded_hal::digital::{InputPin, OutputPin};
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! # let device = MCP2221::open()?;
+//! # let device = MCP2221::connect()?;
 //! let mut gp2: Output = device.take_pins().expect("take once").gp2.try_into()?;
 //! gp2.set_high()?;
 //! let mut gp2: Input = gp2.try_into()?;
@@ -64,7 +64,7 @@
 //! ```no_run
 //! # use mcp2221_hal::{MCP2221, gpio::{GpioChanges, GpioDirection, LogicLevel, Output}};
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! # let device = MCP2221::open()?;
+//! # let device = MCP2221::connect()?;
 //! let gp3: Output = device.take_pins().expect("take once").gp3.try_into()?;
 //! device.gpio_write(
 //!     GpioChanges::new()

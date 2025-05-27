@@ -36,10 +36,10 @@ pub struct Status {
     /// enabled (positive, negative, or both).
     ///
     /// Prefer to use [`MCP2221::interrupt_detected`] to read the flag. The flag can
-    /// be cleared with [`MCP2221::clear_interrupt_flag`].
+    /// be cleared with [`MCP2221::interrupt_clear`].
     ///
     /// [`MCP2221::interrupt_detected`]: crate::MCP2221::interrupt_detected
-    /// [`MCP2221::clear_interrupt_flag`]: crate::MCP2221::clear_interrupt_flag
+    /// [`MCP2221::interrupt_clear`]: crate::MCP2221::interrupt_clear
     ///
     /// ## Datasheet
     ///

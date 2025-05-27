@@ -1,3 +1,4 @@
+//! embedded_hal I2C trait implementations for MCP2221.
 use embedded_hal::i2c::{self, I2c, Operation, SevenBitAddress};
 
 use super::MCP2221;

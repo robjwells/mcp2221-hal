@@ -17,9 +17,9 @@ use crate::settings::{ClockOutputSetting, GpSettings};
 /// only required setting is whether to clear the interrupt flag or not, so the
 /// constructor is [`Self::clear_flag`].
 ///
-/// If you only want to clear the interrupt flag, prefer [`MCP2221::clear_interrupt_flag`].
+/// If you only want to clear the interrupt flag, prefer [`MCP2221::interrupt_clear`].
 ///
-/// [`MCP2221::clear_interrupt_flag`]: crate::MCP2221::clear_interrupt_flag
+/// [`MCP2221::interrupt_clear`]: crate::MCP2221::interrupt_clear
 #[derive(Debug)]
 pub struct InterruptSettingsChanges {
     /// Clear the interrupt flag if true.

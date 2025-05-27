@@ -22,7 +22,7 @@ pub enum Error {
     /// The I2C bus speed could not be changed because a transfer was in progress.
     ///
     /// This can only occur when attempting to change the I2C bus speed.
-    I2cTransferPreventedSpeedChange,
+    I2cCouldNotChangeSpeed,
     /// The command code echoed by the MCP2221 was not the command code written to it.
     ///
     /// In practice this should not occur(!). Please report any occurrences.
@@ -99,7 +99,7 @@ impl std::fmt::Display for Error {
                 f,
                 "command rejected by the MCP2221 because it is not allowed"
             ),
-            Error::I2cTransferPreventedSpeedChange => write!(
+            Error::I2cCouldNotChangeSpeed => write!(
                 f,
                 "I2C bus speed could not be changed because a transfer is in progress",
             ),
