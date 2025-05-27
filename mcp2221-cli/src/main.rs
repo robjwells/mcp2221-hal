@@ -68,7 +68,7 @@ fn main() -> McpResult<()> {
                 reference,
                 vrm_level,
             } => {
-                device.dac_set_reference(reference.into_mcp_vref(vrm_level))?;
+                device.analog_set_output_reference(reference.into_mcp_vref(vrm_level))?;
             }
         },
         Commands::Adc(adc_command) => match adc_command {
@@ -77,7 +77,7 @@ fn main() -> McpResult<()> {
                 flash: false,
                 reference,
                 vrm_level,
-            } => device.adc_set_reference(reference.into_mcp_vref(vrm_level))?,
+            } => device.analog_set_input_reference(reference.into_mcp_vref(vrm_level))?,
             AdcCommand::Configure {
                 flash: true,
                 reference,
