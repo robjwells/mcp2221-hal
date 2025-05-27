@@ -234,7 +234,7 @@ impl<'a> TryFrom<Input<'a>> for Output<'a> {
 
 /// Wrapper for the four GP pins.
 ///
-/// This is returned from [`MCP2221::take_pins`], so each pin can be used as an
+/// This is returned from [`MCP2221::gpio_take_pins`], so each pin can be used as an
 /// [`Input`] or [`Output`], for use with the [`embedded_hal::digital`] traits.
 #[derive(Debug)]
 pub struct Pins<'a> {

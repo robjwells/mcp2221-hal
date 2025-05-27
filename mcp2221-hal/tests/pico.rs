@@ -113,7 +113,7 @@ fn pico_eh_i2c_check_address() -> Result<(), Error> {
 #[test]
 fn pico_tied_gpio_pins() -> Result<(), Error> {
     let device = MCP2221::connect()?;
-    let Pins { gp1, gp2, .. } = device.take_pins().unwrap();
+    let Pins { gp1, gp2, .. } = device.gpio_take_pins().unwrap();
 
     let mut gp1_in: Input = gp1.try_into()?;
     let mut gp2_out: Output = gp2.try_into()?;

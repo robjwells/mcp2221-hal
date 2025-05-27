@@ -6,7 +6,7 @@
 //! a GP pin configured for GPIO operation, and implement the appropriate traits from
 //! [`embedded_hal::digital`].
 //!
-//! To use them, call [`MCP2221::take_pins`], and convert the returned [`GpPin`] objects
+//! To use them, call [`MCP2221::gpio_take_pins`], and convert the returned [`GpPin`] objects
 //! as needed into the appropriate type of GPIO pin. Pins can be taken only once from
 //! the driver, subsequent calls will return `None`.
 //!
@@ -15,7 +15,7 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use embedded_hal::digital::{InputPin, OutputPin};
 //! let device = MCP2221::connect()?;
-//! let Pins { gp0, gp1, .. } = device.take_pins().expect("Can only take once.");
+//! let Pins { gp0, gp1, .. } = device.gpio_take_pins().expect("Can only take once.");
 //! let mut gp0: Input = gp0.try_into()?;
 //! let mut gp1: Output = gp1.try_into()?;
 //! if gp0.is_high()? {
@@ -46,7 +46,7 @@
 //! # use embedded_hal::digital::{InputPin, OutputPin};
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let device = MCP2221::connect()?;
-//! let mut gp2: Output = device.take_pins().expect("take once").gp2.try_into()?;
+//! let mut gp2: Output = device.gpio_take_pins().expect("take once").gp2.try_into()?;
 //! gp2.set_high()?;
 //! let mut gp2: Input = gp2.try_into()?;
 //! println!("Reading low? {}", gp2.is_low()?);
@@ -65,7 +65,7 @@
 //! # use mcp2221_hal::{MCP2221, gpio::{GpioChanges, GpioDirection, LogicLevel, Output}};
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let device = MCP2221::connect()?;
-//! let gp3: Output = device.take_pins().expect("take once").gp3.try_into()?;
+//! let gp3: Output = device.gpio_take_pins().expect("take once").gp3.try_into()?;
 //! device.gpio_write(
 //!     GpioChanges::new()
 //!         .with_gp3_direction(GpioDirection::Input)
@@ -78,7 +78,7 @@
 //! # }
 //! ```
 //!
-//! [`MCP2221::take_pins`]: crate::MCP2221::take_pins
+//! [`MCP2221::gpio_take_pins`]: crate::MCP2221::gpio_take_pins
 //! [`MCP2221::gpio_write`]: crate::MCP2221::gpio_write
 //! [`MCP2221::gpio_read`]: crate::MCP2221::gpio_read
 //! [`MCP2221::sram_write_settings`]: crate::MCP2221::sram_write_settings
