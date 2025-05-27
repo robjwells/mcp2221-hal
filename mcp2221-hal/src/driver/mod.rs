@@ -1,9 +1,9 @@
 use std::cell::Cell;
 
-use hidapi::HidDevice;
+use hidapi::{HidApi, HidDevice};
 
 use crate::commands::{McpCommand, UsbReport};
-use crate::constants::COMMAND_SUCCESS;
+use crate::constants::{COMMAND_SUCCESS, MCP2221_PID, MICROCHIP_VID};
 use crate::error::Error;
 use crate::settings::{InterruptSettingsChanges, SramSettingsChanges};
 use crate::status::Status;
@@ -14,20 +14,67 @@ mod gpio;
 mod i2c;
 mod i2c_eh;
 mod sram;
-mod usb;
 
 /// Driver for the MCP2221.
+///
+/// # Overview
+///
+/// <!-- TODO -->.
+///
+/// # Creation
+///
+/// Create the driver struct with [`MCP2221::connect()`], which will use the first
+/// device found with the default vendor ID (VID) and product ID (PID) numbers.
+/// If you have changed either of them, use [`MCP2221::connect_with_vid_and_pid`].
 #[derive(Debug)]
 pub struct MCP2221 {
+    /// Underlying [`hidapi`] device.
+    ///
+    /// The C hidapi library is not thread safe (`cargo test` will trigger a crash)
+    /// and the `hidapi` types are appropriately `!Sync`.
     inner: HidDevice,
+    /// Marker for whether the pin structs have been taken from the driver.
+    ///
+    /// This is used to fake "moving" the pins out of the driver, but really everything
+    /// has a shared reference to the driver under the covers. The `Cell` is used to
+    /// maintain requirement of only a shared reference. It is safe since the driver is
+    /// `!Sync` anyway. See [`Self::take_pins`] for the only place it is used.
     pins_taken: Cell<bool>,
 }
 
-/// # HID Commands
-///
-/// Unless specifically noted, all methods that return a `Result` return an error
-/// if there is a problem communicating with the MCP2221.
 impl MCP2221 {
+    ////////////////////////////////////////////////////////////////////////////////
+    // Constructors - USB methods
+    ////////////////////////////////////////////////////////////////////////////////
+
+    /// Connect to the first USB device found with the default vendor and product ID.
+    ///
+    /// The default VID is 1240 (0x4D8) and PID 221 (0xDD) for both the original
+    /// MCP2221 and the (more common) MCP2221A.
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if the USB device cannot be opened.
+    pub fn connect() -> Result<Self, Error> {
+        MCP2221::connect_with_vid_and_pid(MICROCHIP_VID, MCP2221_PID)
+    }
+
+    /// Connect to the first USB device found with the given vendor and product ID.
+    ///
+    /// Use this constructor if you have changed the USB VID or PID of your MCP2221.
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if the USB device cannot be opened.
+    pub fn connect_with_vid_and_pid(vendor_id: u16, product_id: u16) -> Result<Self, Error> {
+        let hidapi = HidApi::new()?;
+        let device = hidapi.open(vendor_id, product_id)?;
+        Ok(Self {
+            inner: device,
+            pins_taken: Cell::new(false),
+        })
+    }
+
     /// Read the status of the MCP2221.
     ///
     /// The returned structure includes the current status of the I2C engine, the
@@ -137,5 +184,21 @@ impl MCP2221 {
                 .check_error_code(status_code)
                 .and(Err(Error::CommandFailed(status_code)))
         }
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // USB - miscellaneous
+    ////////////////////////////////////////////////////////////////////////////////
+
+    /// Get the USB HID device information from the host's USB interface.
+    ///
+    /// This is a thin wrapper around [`HidDevice::get_device_info`].
+    ///
+    /// # Errors
+    ///
+    /// An error will be returned if the device information cannot be obtained from the
+    /// underlying USB interface.
+    pub fn usb_device_info(&self) -> Result<hidapi::DeviceInfo, Error> {
+        self.inner.get_device_info().map_err(Error::from)
     }
 }

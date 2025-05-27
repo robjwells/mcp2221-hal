@@ -16,7 +16,7 @@ const ADDRESS: u8 = 0x26;
 /// Reads 10 sequential bytes from the Pico.
 #[test]
 fn pico_eh_i2c_read() -> Result<(), Error> {
-    let mut device = MCP2221::open()?;
+    let mut device = MCP2221::connect()?;
     let mut buf = [0u8; 10];
     device.read(ADDRESS, &mut buf)?;
     assert_eq!(buf, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
@@ -26,7 +26,7 @@ fn pico_eh_i2c_read() -> Result<(), Error> {
 /// Reads 10 sequential bytes from the Pico into 2 buffers.
 #[test]
 fn pico_eh_i2c_read_transaction() -> Result<(), Error> {
-    let mut device = MCP2221::open()?;
+    let mut device = MCP2221::connect()?;
     let mut buf_1 = [0u8; 5];
     let mut buf_2 = [0u8; 5];
     device.transaction(
@@ -41,7 +41,7 @@ fn pico_eh_i2c_read_transaction() -> Result<(), Error> {
 /// Writes [0x20, 0x0A] to the Pico, reads 10 sequential bytes starting at 0x20.
 #[test]
 fn pico_eh_i2c_writeread() -> Result<(), Error> {
-    let mut device = MCP2221::open()?;
+    let mut device = MCP2221::connect()?;
     let mut buf = [0u8; 10];
     device.write_read(ADDRESS, &[0x20, 10], &mut buf)?;
     assert_eq!(
@@ -55,7 +55,7 @@ fn pico_eh_i2c_writeread() -> Result<(), Error> {
 /// starting at 0x20 into two buffers.
 #[test]
 fn pico_eh_i2c_writeread_transaction() -> Result<(), Error> {
-    let mut device = MCP2221::open()?;
+    let mut device = MCP2221::connect()?;
     let mut buf_1 = [0u8; 5];
     let mut buf_2 = [0u8; 5];
     device.transaction(
@@ -78,7 +78,7 @@ fn pico_eh_i2c_writeread_transaction() -> Result<(), Error> {
 /// checked in the Pico RTT output.
 #[test]
 fn pico_eh_i2c_write() -> Result<(), Error> {
-    let mut device = MCP2221::open()?;
+    let mut device = MCP2221::connect()?;
     device.write(ADDRESS, &[0, 1, 2, 3, 4])?;
     Ok(())
 }
@@ -89,7 +89,7 @@ fn pico_eh_i2c_write() -> Result<(), Error> {
 /// checked in the Pico RTT output.
 #[test]
 fn pico_eh_i2c_write_transaction() -> Result<(), Error> {
-    let mut device = MCP2221::open()?;
+    let mut device = MCP2221::connect()?;
     device.transaction(
         ADDRESS,
         &mut [
@@ -104,7 +104,7 @@ fn pico_eh_i2c_write_transaction() -> Result<(), Error> {
 /// Check the Pico responds to its address.
 #[test]
 fn pico_eh_i2c_check_address() -> Result<(), Error> {
-    let device = MCP2221::open()?;
+    let device = MCP2221::connect()?;
     assert!(device.i2c_check_address(ADDRESS)?);
     Ok(())
 }
@@ -112,7 +112,7 @@ fn pico_eh_i2c_check_address() -> Result<(), Error> {
 /// Check that the two tied GP pins can see the other's output.
 #[test]
 fn pico_tied_gpio_pins() -> Result<(), Error> {
-    let device = MCP2221::open()?;
+    let device = MCP2221::connect()?;
     let Pins { gp1, gp2, .. } = device.take_pins().unwrap();
 
     let mut gp1_in: Input = gp1.try_into()?;

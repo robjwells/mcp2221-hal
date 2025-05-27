@@ -22,7 +22,7 @@ type McpResult<T> = Result<T, mcp2221_hal::Error>;
 
 fn main() -> McpResult<()> {
     let cli = cli::Cli::parse();
-    let device = MCP2221::open_with_vid_and_pid(cli.vid, cli.pid)?;
+    let device = MCP2221::connect_with_vid_and_pid(cli.vid, cli.pid)?;
     match cli.command {
         Commands::Status => println!("{:#?}", device.status()?),
         Commands::Settings(settings_command) => match settings_command {
