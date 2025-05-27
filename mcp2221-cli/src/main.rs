@@ -32,9 +32,9 @@ fn main() -> McpResult<()> {
             },
             SettingsCommand::Write(write_command) => match write_command {
                 SettingsWriteCommand::Manufacturer { string } => {
-                    device.change_usb_manufacturer(&string)?
+                    device.usb_change_manufacturer(&string)?
                 }
-                SettingsWriteCommand::Product { string } => device.change_usb_product(&string)?,
+                SettingsWriteCommand::Product { string } => device.usb_change_product(&string)?,
             },
         },
         Commands::Usb => {
@@ -165,16 +165,16 @@ fn print_all_flash_data(device: &mcp2221_hal::MCP2221) -> McpResult<()> {
     println!("{:#?}", device.flash_read_gp_settings()?);
     println!(
         r#"USB Manufacturer:  "{}""#,
-        device.read_usb_manufacturer()?
+        device.usb_manufacturer()?
     );
-    println!(r#"USB Product:       "{}""#, device.read_usb_product()?);
+    println!(r#"USB Product:       "{}""#, device.usb_product()?);
     println!(
         r#"USB Serial Number: "{}""#,
-        device.read_usb_serial_number()?
+        device.usb_serial_number()?
     );
     println!(
         r#"Factory serial:    "{}""#,
-        device.read_factory_serial_number()?
+        device.factory_serial_number()?
     );
     Ok(())
 }

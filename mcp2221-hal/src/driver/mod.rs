@@ -3,18 +3,18 @@ use std::time::Duration;
 
 use hidapi::{HidApi, HidDevice};
 
+use crate::Error;
 use crate::analog::{AdcReading, VoltageReference};
-use crate::commands::{McpCommand, UsbReport};
+use crate::commands::{FlashDataSubCode, McpCommand, UsbReport};
 use crate::constants::{COMMAND_SUCCESS, MCP2221_PID, MICROCHIP_VID};
-use crate::error::Error;
 use crate::gpio::{GpioChanges, GpioValues, Pins};
 use crate::i2c::{I2cCancelTransferResponse, I2cSpeed, ReadType, WriteType};
-use crate::settings::{InterruptSettingsChanges, SramSettingsChanges};
+use crate::settings::{
+    ChipSettings, DeviceString, GpSettings, InterruptSettingsChanges, SramSettingsChanges,
+};
 use crate::status::Status;
 
-mod flash;
 mod i2c_eh;
-mod sram;
 
 /// Driver for the MCP2221.
 ///
@@ -838,6 +838,323 @@ impl MCP2221 {
             SramSettingsChanges::new()
                 .with_interrupt_settings(InterruptSettingsChanges::clear_flag(true)),
         )
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // SRAM settings
+    ////////////////////////////////////////////////////////////////////////////////
+
+    /// Retrieve the chip and GP pin settings stored in SRAM.
+    ///
+    /// <div class="warning">
+    ///
+    /// Do not rely on the returned settings accurately reflecting the current
+    /// state of the MCP2221. Some commands will (in practice) change these settings
+    /// without those changes being shown when subsequently reading the SRAM.
+    ///
+    /// - GPIO pin direction and level after using the Set GPIO Output Values HID
+    ///   command (implemented by [`MCP2221::gpio_write`]).
+    /// - Vrm reference level set to "off" after setting GP pin settings via the Set
+    ///   SRAM Settings HID command (implemented by [`MCP2221::sram_write_settings`])
+    ///   _without_ also explicitly setting the Vrm level. See the note in section
+    ///   1.8.1.1 of the datasheet, as well as the documentation for
+    ///   [`SramSettingsChanges::with_gp_modes`].
+    ///
+    /// </div>
+    ///
+    /// ## Datasheet
+    ///
+    /// See section 3.1.14 of the datasheet for details about the underlying Get SRAM
+    /// Settings HID command, and section 1.4 for information about the configuration
+    /// process at power-up.
+    pub fn sram_read_settings(&self) -> Result<(ChipSettings, GpSettings), Error> {
+        let command = UsbReport::new(McpCommand::GetSRAMSettings);
+        let buf = self
+            .transfer(&command)?
+            .expect("Always has response buffer.");
+        Ok((
+            ChipSettings::from_buffer(&buf),
+            GpSettings::try_from_sram_buffer(&buf)?,
+        ))
+    }
+
+    /// Change run-time chip and GP pin settings.
+    ///
+    /// This will alter the current behaviour of the MCP2221 but will not persist
+    /// across device reset. Note that only a subset of the settings read from SRAM
+    /// can be changed.
+    ///
+    /// If you only need to change GPIO pin direction or output level, you should
+    /// prefer to use [`MCP2221::gpio_write`].
+    ///
+    /// <div class="warning">
+    ///
+    /// Changing the GP pin settings without also setting Vrm levels for the ADC and
+    /// DAC will result in the Vrm level for each being reset to "off". This appears
+    /// to be a MCP2221 firmware bug and is noted in section 1.8.1.1 of the datasheet.
+    ///
+    /// </div>
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.13 of the datasheet for details about the underlying Set SRAM
+    /// Settings HID command.
+    pub fn sram_write_settings(&self, settings: &SramSettingsChanges) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::SetSRAMSettings);
+        settings.apply_to_sram_buffer(&mut command.write_buffer);
+        self.transfer(&command)?;
+        Ok(())
+    }
+
+    /// Change the GP pin settings in SRAM while preserving the ADC and DAC references.
+    ///
+    /// This is a convenience wrapper around [`Self::sram_write_settings`] that does
+    /// the work of reading the current ADC & DAC voltage references and re-writing
+    /// them, to avoid the Vrm reset bug.
+    pub fn sram_write_gp_settings(&self, gp_settings: GpSettings) -> Result<(), Error> {
+        let (chip_settings, _) = self.sram_read_settings()?;
+        self.sram_write_settings(SramSettingsChanges::new().with_gp_modes(
+            gp_settings,
+            Some(chip_settings.dac_reference),
+            Some(chip_settings.adc_reference),
+        ))
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // Flash settings
+    ////////////////////////////////////////////////////////////////////////////////
+
+    /// Read chip settings from flash memory.
+    ///
+    /// The chip settings collect several important but unrelated configuration options.
+    /// See the fields of [`ChipSettings`] and table 3-15 of the datasheet for details
+    /// about each one.
+    ///
+    /// Settings in flash memory take effect on power-up.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 1.4 for information on the configuration process. See section
+    /// 3.1.2 for the underlying Read Flash Data HID command and table 3-5 for the
+    /// relevant subcommand.
+    pub fn flash_read_chip_settings(&self) -> Result<ChipSettings, Error> {
+        let command = McpCommand::ReadFlashData(FlashDataSubCode::ChipSettings);
+        let buf = self
+            .transfer(&UsbReport::new(command))?
+            .expect("Always has response buffer.");
+        Ok(ChipSettings::from_buffer(&buf))
+    }
+
+    /// Write chip settings to flash memory.
+    ///
+    /// The chip settings collect several important but unrelated configuration options.
+    /// See the fields of [`ChipSettings`] and table 3-12 of the datasheet for details
+    /// about each one.
+    ///
+    /// Settings stored in the flash memory of the MCP2221 take effect when the device
+    /// is powered-up.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 1.4 for information on the configuration process. See section
+    /// 3.1.3 for the underlying Write Flash Data HID command and table 3-12 for the
+    /// relevant subcommand.
+    pub fn flash_write_chip_settings(&self, cs: ChipSettings) -> Result<(), Error> {
+        let mut command =
+            UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::ChipSettings));
+        cs.apply_to_flash_buffer(&mut command.write_buffer);
+        self.transfer(&command)?;
+        Ok(())
+    }
+
+    /// Read GP pin settings from flash memory.
+    ///
+    /// These are the initial settings for the GP pins when the device is powered-up.
+    ///
+    /// Settings in flash memory take effect on power-up.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 1.4 for information on the configuration process. See section
+    /// 3.1.2 for the underlying Read Flash Data HID command and table 3-6 for the
+    /// relevant subcommand.
+    pub fn flash_read_gp_settings(&self) -> Result<GpSettings, Error> {
+        let command = McpCommand::ReadFlashData(FlashDataSubCode::GPSettings);
+        let buf = self
+            .transfer(&UsbReport::new(command))?
+            .expect("Always has response buffer.");
+        GpSettings::try_from_flash_buffer(&buf)
+    }
+
+    /// Write GP pin settings to flash memory.
+    ///
+    /// This can be used to set appropriate defaults for the pin functions for your
+    /// use case, and further (temporary) changes can be made at run time via the
+    /// methods [`MCP2221::sram_write_settings`] (for changing pin functions) and
+    /// [`MCP2221::gpio_write`] (for changing digital output direction and level).
+    ///
+    /// Settings stored in the flash memory of the MCP2221 take effect when the device
+    /// is powered-up.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 1.4 for information on the configuration process. See section
+    /// 3.1.3 for the underlying Write Flash Data HID command and table 3-13 for
+    /// the relevant subcommand.
+    pub fn flash_write_gp_settings(&self, gp: GpSettings) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::WriteFlashData(FlashDataSubCode::GPSettings));
+        gp.apply_to_flash_buffer(&mut command.write_buffer);
+        self.transfer(&command)?;
+        Ok(())
+    }
+
+    /// Read the USB manufacturer descriptor string from flash memory.
+    ///
+    /// The manufacturer descriptor string is used to identify a device to a
+    /// USB host.
+    ///
+    /// If you wish to read the USB vendor ID number (VID), see
+    /// [`MCP2221::flash_read_chip_settings`].
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.2 for the underlying Read Flash Data HID command, and
+    /// table 3-7 for the relevant subcommand.
+    pub fn usb_manufacturer(&self) -> Result<DeviceString, Error> {
+        let command = McpCommand::ReadFlashData(FlashDataSubCode::UsbManufacturerDescriptor);
+        let buf = self
+            .transfer(&UsbReport::new(command))?
+            .expect("Always has response buffer.");
+        DeviceString::try_from_buffer(&buf)
+    }
+
+    /// Change the USB manufacturer descriptor string.
+    ///
+    /// The manufacturer descriptor string is used to identify a device to a
+    /// USB host. This setting is stored in flash, so the MCP2221 will have to
+    /// be reset (and re-enumerate) for the change to take effect.
+    ///
+    /// The manufacturer string can be at most 30 UTF-16 code points long.
+    ///
+    /// If you wish to change the USB vendor ID number (VID), see
+    /// [`MCP2221::flash_write_chip_settings`].
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.3 for the underlying Write Flash Data HID command, and
+    /// table 3-14 for the relevant subcommand.
+    pub fn usb_change_manufacturer(&self, s: &DeviceString) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::WriteFlashData(
+            FlashDataSubCode::UsbManufacturerDescriptor,
+        ));
+        s.apply_to_flash_buffer(&mut command.write_buffer);
+        self.transfer(&command)?;
+        Ok(())
+    }
+
+    /// Read the USB product descriptor string from flash memory.
+    ///
+    /// The product descriptor string is used to identify a device to a USB host.
+    ///
+    /// If you wish to read the USB product ID number (VID), see
+    /// [`MCP2221::flash_read_chip_settings`].
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.2 for the underlying Read Flash Data HID command, and
+    /// table 3-8 for the relevant subcommand.
+    pub fn usb_product(&self) -> Result<DeviceString, Error> {
+        let command = McpCommand::ReadFlashData(FlashDataSubCode::UsbProductDescriptor);
+        let buf = self
+            .transfer(&UsbReport::new(command))?
+            .expect("Always has response buffer.");
+        DeviceString::try_from_buffer(&buf)
+    }
+
+    /// Change the USB product descriptor string.
+    ///
+    /// The product descriptor string is used to identify a device to a USB host.
+    /// This setting is stored in flash, so the MCP2221 will have to be reset
+    /// (and re-enumerate) for the change to take effect.
+    ///
+    /// The product string can be at most 30 UTF-16 code points long.
+    ///
+    /// If you wish to change the USB product ID number (PID), see
+    /// [`MCP2221::flash_write_chip_settings`].
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.3 for the underlying Write Flash Data HID command, and
+    /// table 3-15 for the relevant subcommand.
+    pub fn usb_change_product(&self, s: &DeviceString) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::WriteFlashData(
+            FlashDataSubCode::UsbProductDescriptor,
+        ));
+        s.apply_to_flash_buffer(&mut command.write_buffer);
+        self.transfer(&command)?;
+        Ok(())
+    }
+
+    /// Read the USB serial number descriptor string from flash memory.
+    ///
+    /// The serial number descriptor string is used to identify a device to a USB host.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.2 for the underlying Read Flash Data HID command, and
+    /// table 3-9 for the relevant subcommand.
+    pub fn usb_serial_number(&self) -> Result<DeviceString, Error> {
+        let command = McpCommand::ReadFlashData(FlashDataSubCode::UsbSerialNumberDescriptor);
+        let buf = self
+            .transfer(&UsbReport::new(command))?
+            .expect("Always has response buffer.");
+        DeviceString::try_from_buffer(&buf)
+    }
+
+    /// Change the USB serial number descriptor string.
+    ///
+    /// The serial number descriptor string is used to identify a device to a USB host.
+    /// This setting is stored in flash, so the MCP2221 will have to be reset (and
+    /// re-enumerate) for the change to take effect.
+    ///
+    /// The serial number string can be at most 30 UTF-16 code points long.
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.3 for the underlying Write Flash Data HID command, and
+    /// table 3-16 for the relevant subcommand.
+    pub fn usb_change_serial_number(&self, s: &DeviceString) -> Result<(), Error> {
+        let mut command = UsbReport::new(McpCommand::WriteFlashData(
+            FlashDataSubCode::UsbSerialNumberDescriptor,
+        ));
+        s.apply_to_flash_buffer(&mut command.write_buffer);
+        self.transfer(&command)?;
+        Ok(())
+    }
+
+    /// Read chip factory serial number.
+    ///
+    /// Read the factory-set device serial number. For the MCP2221A, this appears to
+    /// always be "01234567" in ASCII. It cannot be changed.
+    ///
+    /// This function uses [`String::from_utf8_lossy`], so if you read a serial number
+    /// with Unicode replacement characters, your device has an unexpected, non-ASCII
+    /// factory serial number and you should [file an issue].
+    ///
+    /// [file an issue]: https://github.com/robjwells/mcp2221-hal/issues
+    ///
+    /// # Datasheet
+    ///
+    /// See section 3.1.2 for the underlying Read Flash Data HID command, and
+    /// table 3-10 for the relevant subcommand.
+    pub fn factory_serial_number(&self) -> Result<String, Error> {
+        let command = McpCommand::ReadChipFactorySerialNumber;
+        let buf = self
+            .transfer(&UsbReport::new(command))?
+            .expect("Always has response buffer.");
+        let length = buf[2] as usize;
+        let serial_number_portion = &buf[4..(4 + length)];
+        Ok(String::from_utf8_lossy(serial_number_portion).into())
     }
 
     ////////////////////////////////////////////////////////////////////////////////
