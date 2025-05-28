@@ -174,7 +174,7 @@ The driver cannot be used across threads (it is `!Sync`). The driver uses the [`
 crate, which in turn uses the [hidapi C library]. Creating multiple drivers in different
 threads _should_ fail with an error (`Result::Err`), but it might not and you may end up
 with a crash later on. You can see this for yourself by running the project's tests with
-`cargo test` (we use `cargo nextest` in serial mode to avoid this).
+`cargo test` (we use `cargo nextest` in sequential mode to avoid this).
 
 [hidapi C library]: https://github.com/signal11/hidapi/
 

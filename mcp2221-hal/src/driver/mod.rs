@@ -20,8 +20,203 @@ mod i2c_eh;
 ///
 /// # Overview
 ///
-/// <!-- TODO -->.
+/// All of the functionality of this crate is exposed by methods on this struct. You
+/// will likely prefer to use the [`embedded_hal`] trait implementations, howver,
+/// and certainly if you are using the MCP2221 for driver development.
 ///
+/// There are _a lot_ of methods. All of the MCP2221's functions are exposed through
+/// USB HID commands, so it made sense to have this be the single object that performs
+/// those USB command transfers.
+///
+/// To help group methods, they are prefixed with their general function, at the
+/// expense of making the names slightly awkward:
+///
+/// - I2C-related methods start with `i2c_`.
+/// - GPIO-related methods start with `gpio_`.
+/// - Analog IO methods start with `analog_`.
+/// - Settings-related methods are named for their location.
+///     - Flash memory settings, which generally affect the initial device behaviour,
+///       can be read and altered with the `flash_` methods.
+///     - SRAM settings, which affect the behaviour of the running chip but are not
+///       persisted across reset, can be read and altered with the `sram_` methods.
+/// - Methods to check the MCP2221 interrupt flag start with `interrupt_`.
+/// - Strings that affect the USB device enumeration can be read and changed with
+///   the `usb_` methods.
+///
+/// # Construction
+///
+/// Construct an instance an instance of this driver with [`MCP2221::connect`], which
+/// will attempt to open a USB device with the default vendor ID (VID) and product ID
+/// (PID). If you have changed either the VID or PID, use
+/// [`MCP2221::connect_with_vid_and_pid`].
+///
+/// It is _not yet_ supported to connect to the USB device by serial number, so that you
+/// may have multiple MCP2221 devices with the same VID and PID but connect based on
+/// differing serials.
+///
+/// # `embedded-hal`
+///
+/// ## I2C
+///
+/// This struct implements the [blocking I2c trait](embedded_hal::i2c::I2c) as well as
+/// the [async I2C trait](embedded_hal_async::i2c::I2c). It has no mutable state, so you
+/// can pass a `&MCP2221` to anything expecting `impl I2c`. The async trait
+/// implementation blocks, but it allows you to use or write async drivers that work as
+/// expected.
+///
+/// Please note the limitation of the [`I2c::transaction`] implementation mentioned in
+/// the [crate docs](crate), in that reads cannot precede writes due to the limitations
+/// of the MCP2221's available commands. In practice, we've found `transaction` is used
+/// to perform a write-read or to write from multiple buffers, both of which work as you
+/// would expect.
+///
+/// [`I2c::transaction`]: embedded_hal::i2c::I2c::transaction
+///
+/// ## GPIO (digital IO)
+///
+/// The [`Input`] struct implements [`embedded_hal::digital::InputPin`], and [`Output`]
+/// implements both [`OutputPin`] and [`StatefulOutputPin`].
+///
+/// [`embedded_hal_async::digital::Wait`] is _not_ supported. It would be possible to
+/// implement at the expense of busy-waiting. If you need this, please [open an issue].
+///
+/// You can get instances of each by taking the pins from the driver with
+/// [`MCP2221::gpio_take_pins`], which can be called only once (so you don't end up with
+/// two structs trying to control the same pin). The returned structure contains a
+/// [`GpPin`] for each of the four GP pins on the MCP2221; this is a pin with an
+/// unspecified mode. Call `try_into()` or either of the two conversion methods, which
+/// will put the pin into GPIO mode and return an [`Input`] or [`Output`] as desired.
+///
+/// Be warned that you can still use the GPIO methods of this driver struct to change
+/// pin modes or GPIO direction while holding onto the pin structs, which will lead
+/// to errors. See the [`gpio`] module for more information and usage examples.
+///
+/// # Settings
+///
+/// Settings are divided between [`GpSettings`], which control the behaviour of the four
+/// GP (general-purpose) pins, and [`ChipSettings`], which control everything else.
+/// Settings stored in flash take effect only after reset, and only at power-up, while
+/// changes to the SRAM settings affect the behaviour of the running device. See the
+/// [`settings`](crate::settings) module documentation for more details.
+///
+/// The following settings methods are available:
+///
+/// - [`MCP2221::flash_read_chip_settings`]
+/// - [`MCP2221::flash_write_chip_settings`]
+/// - [`MCP2221::flash_read_gp_settings`]
+/// - [`MCP2221::flash_write_gp_settings`]
+/// - [`MCP2221::sram_read_settings`]
+/// - [`MCP2221::sram_write_settings`]
+/// - [`MCP2221::sram_write_gp_settings`]
+///
+/// Reflecting the underlying interface, chip and GP settings are separately read from
+/// (and written to) flash, while they are read together from SRAM. There is a method
+/// to separately write the GP settings to flash; this is to work around a bug that
+/// otherwise resets the analog voltage references.
+///
+/// As well, there are three strings that are presented on USB enumeration. Because
+/// these are changed individually they have their own methods:
+///
+/// - [`MCP2221::usb_manufacturer`]
+/// - [`MCP2221::usb_change_manufacturer`]
+/// - [`MCP2221::usb_product`]
+/// - [`MCP2221::usb_change_product`]
+/// - [`MCP2221::usb_serial_number`]
+/// - [`MCP2221::usb_change_serial_number`]
+///
+/// If you enable [CDC serial number enumeration], the serial port presented by the
+/// MCP2221 USB CDC device will have a stable name (which, at least on POSIX systems,
+/// you can customise by changing the serial number).
+///
+/// Note that these USB-related strings all use [`DeviceString`], which is just a
+/// Unicode string that must be 60 bytes or fewer when encoded as UTF-16.
+///
+/// # GPIO
+///
+/// Outside of the [`embedded_hal`] traits, access to the pins in GPIO mode goes
+/// through [`MCP2221::gpio_read`] and [`MCP2221::gpio_write`], which respectively
+/// read and write potentially all the pins at once.
+///
+/// # Analog IO
+///
+/// The MCP2221 has a three-channel 10-bit analog-to-digital converter (ADC) for reading
+/// voltages on pins GP1, GP2, and GP3. It has a single-output 5-bit digital-to-analog
+/// converter that can set a voltage level on GP2 or GP3. See the [`analog`] module
+/// for details.
+///
+/// Analog voltages can be read with [`MCP2221::analog_read`], and the output of the
+/// DAC can be set with [`MCP2221::analog_write`]. You can configure the range of
+/// each in SRAM (ie not persisted) with [`MCP2221::analog_set_input_reference`]
+/// and [`MCP2221::analog_set_output_reference`]. Changing the references in flash is
+/// done through the usual writing of [`ChipSettings`] to flash.
+///
+/// Please note the firmware bugs mentioned in the [`analog`] module documentation,
+/// as well as the notes there on the DAC's output range.
+///
+/// # I2C
+///
+/// This driver exposes all of the different read and write options offered by the
+/// MCP2221:
+///
+/// - [`MCP2221::i2c_read`] performs a normal read with a Start and Stop condition.
+/// - [`MCP2221::i2c_read_repeated_start`] is intended to follow an I2C operation with
+///   no final Stop condition, though it's actual behaviour is not entirely clear.
+/// - [`MCP2221::i2c_write`] performs a normal write with a Start and Stop condition.
+/// - [`MCP2221::i2c_write_repeated_start`] is intended to follow an I2C operation with
+///   no final Stop condition, but again its actual behaviour is unclear.
+/// - [`MCP2221::i2c_write_no_stop`] performs a write with no final stop condition.
+///
+/// Please see the documentation for each method. In particular, the semantics of the
+/// repeated-Start methods as understood by Microchip are not clear from the datasheet.
+/// Note that there is no method to read without a final Stop condition, which is why
+/// this driver cannot fulfil the contract of [`embedded_hal::i2c::I2c::transaction`]
+/// in its most general case.
+///
+/// The I2C bus speed can be set with [`MCP2221::i2c_set_bus_speed`]. The standard
+/// speeds of 400 kbit/s and 100 kbit/s work as expected. However, the slowest possible
+/// speed is just under 47 kbit/s, and not every speed between that and 400 kbit/s can
+/// be achieved exactly due to the way the speed is set internally.
+///
+/// Should the I2C bus gets into a bad state, [`MCP2221::i2c_cancel_transfer`] may help.
+/// If you wish to check that a device responds to its address, use
+/// [`MCP2221::i2c_check_address`].
+///
+/// # Interrupt detection
+///
+/// Please note that interrupts as you normally understand them cannot be achieved with
+/// this driver. Rather, the MCP2221 can detect positive and negative edges when GP1 is
+/// set to the appropriate mode, and then set a flag which can be checked.
+///
+/// Use [`MCP2221::interrupt_detected`] to check the interrupt flag, and then
+/// [`MCP2221::interrupt_clear`] to clear the flag. Interrupt settings (GP1 mode, which
+/// edges to trigger on) are configured through the usual settings methods.
+///
+/// # Miscellaneous
+///
+/// The MCP2221 can be reset with [`MCP2221::reset`], after which you will need to
+/// attempt to reconnect to the device.
+///
+/// The current status of the device can be read with [`MCP2221::status`]. The only
+/// information in the returned [`Status`] struct that isn't exposed through more
+/// convenient methods is I2C engine state of questionable usefulness, and the device
+/// hardware and firmware revision codes.
+///
+/// The device's USB information _as seen by the host_ can be accessed through the
+/// [`MCP2221::usb_device_info`] method.
+///
+/// The device's factory serial number (not the USB serial number) can be read through
+/// the [`MCP2221::factory_serial_number`] method. It seems this is always the ASCII
+/// text "01234567".
+///
+/// [open an issue]: https://github.com/robjwells/mcp2221-hal/issues
+/// [`gpio`]: crate::gpio
+/// [`Input`]: crate::gpio::Input
+/// [`Output`]: crate::gpio::Input
+/// [`OutputPin`]: embedded_hal::digital::OutputPin
+/// [`StatefulOutputPin`]: embedded_hal::digital::StatefulOutputPin
+/// [`GpPin`]: crate::gpio::GpPin
+/// [`analog`]: crate::analog
+/// [CDC serial number enumeration]: ChipSettings::cdc_serial_number_enumeration_enabled
 #[derive(Debug)]
 pub struct MCP2221 {
     /// Underlying [`hidapi`] device.
