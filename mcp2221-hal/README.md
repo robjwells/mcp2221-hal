@@ -1,151 +1,192 @@
 # mcp2221-hal
 
-A driver for the [Microchip MCP2221][microchip] USB to I2C, UART and GPIO converter.
-This driver typically refers to the "MCP2221", however, please note that the
-MCP2221**A** is the typical part and differs only from the original MCP2221
-in fixing [a bug with UART registers][errata] and allowing faster UART baud rates.
+A driver for the [Microchip MCP2221][microchip] and MCP2221A USB to I2C, UART and GPIO
+converter. It supports the `embedded-hal` I2C and GPIO traits.
 
-[microchip]: https://www.microchip.com/en-us/product/mcp2221a
+This crate uses the name "MCP2221", however please note that the MCP2221**A** is the
+typical part and differs only from the original chip in fixing [a bug with UART
+registers][errata] and allowing faster UART baud rates.
+
 [errata]: https://www.microchip.com/en-us/product/mcp2221#Documentation
 
-## Supported features
+Our aim is that this crate is well enough documented that you can use it succesfully
+without having to look things up in the MCP2221 datasheet. We do frequently refer to the
+appropriate sections, so if you wish to know the underlying details, [you can find the
+latest revision (rev E) of the MCP2221 datasheet here][datasheet]. If you find a method
+or field that you were only able to understand by referring to the datasheet, please
+[open an issue].
 
-- [x] Read and write settings
-    + [x] Power-up settings in flash memory
-    + [x] Run-time settings in SRAM
-- [x] GP pin modes
-    + [x] Digital input and output (GPIO)
-    + [x] Analog input and output
-    + [x] Clock output, LED indicator output, interrupt detection
-- [x] I2C
-    + [x] Write
-        - [x] 3.1.5 I2C Write Data
-        - [x] 3.1.6 I2C Write Data Repeated Start
-        - [x] 3.1.7 I2C Write Data No Stop
-    + [x] Read
-        - [x] 3.1.8 I2C Read Data
-        - [x] 3.1.9 I2C Read Data Repeated Start
-    + [x] WriteRead
-    + [x] Standard I2C bus speeds (100k/400k)
-    + [x] Custom I2C bus speeds (47k–400k)
-- [x] [embedded-hal] traits
-    - [x] `embedded_hal::i2c::I2c`
-    - [x] `embedded_hal_async::i2c::I2c`
-    - [x] `embedded_hal::digital::*`
+[datasheet]: https://ww1.microchip.com/downloads/aemDocuments/documents/APID/ProductDocuments/DataSheets/MCP2221A-Data-Sheet-20005565E.pdf
 
-[embedded-hal]: https://github.com/rust-embedded/embedded-hal
+# Quick start
 
-## Unsupported features
+Create the driver struct with default values by calling [`MCP2221::connect`].
 
-Currently there is no plan to support the following features.
+```rust,no_run
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
+let mut device = mcp2221_hal::MCP2221::connect()?;
+# Ok(())
+# }
+```
 
-- UART serial
-    + This library interacts with the MCP2221 via USB HID commands, opening the device
-      via vendor ID and product ID, but there does not appear to be a straightforward
-      way to find a serial port by its USB properties.
+It implements the [blocking][i2c-b] and [async][i2c-a] I2C traits from `embedded-hal`.
+It has no mutable state, so you can pass a shared reference to drivers expecting `impl
+I2c`.
 
-      If you need programmatic access to the MCP2221 UART, for eg driver development, 
-      I'd recommend you use [`embedded-io`] with your preferred serial library since
-      it has blanket implementations for types that implement the `std::io` traits.
-      If you enable USB CDC serial number enumeration in the MCP2221 settings, you
-      should be able to find the MCP2221 serial port at a stable path.
-- `embedded_hal_async::digital::Wait`
-    + While the async I2C trait is faked (by just calling the blocking API), the async
-      GPIO trait would require busy-waiting, which is an unacceptable tradeoff.
-- SMBus (System Management Bus)
-    + In practice SMBus is supported as well as the MCP2221 hardware can, via its I2C
-      support. But no software support is present in this library for SMBUS-specific
-      transfer formats or packet error checking.
-- Password protected or permanently locked settings
-    + I don't need this feature, and other developers [have locked their MCP2221] by
-      accident, so it doesn't seem worthwhile. If you do need this feature, and have
-      a device you're willing to risk, [open an issue] and we can work on it.
+[i2c-b]: embedded_hal::i2c::I2c
+[i2c-a]: embedded_hal_async::i2c::I2c
+
+```rust,no_run
+use embedded_hal::i2c::I2c;
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
+#    let mut device = mcp2221_hal::MCP2221::connect()?;
+let mut buf = [0u8; 2];
+device.write_read(0x26, &[40, 2], &mut buf)?;
+#    Ok(())
+# }
+```
+
+For GPIO digital input and output, use the [`MCP2221::gpio_take_pins`] method, and
+convert the [`GpPin`] objects into [`Input`] or [`Output`] types, which implement
+the appropriate traits from [`embedded_hal::digital`].
+
+[`GpPin`]: crate::gpio::GpPin
+[`Input`]: crate::gpio::Input
+[`Output`]: crate::gpio::Output
+
+
+```rust,no_run
+use embedded_hal::digital::{InputPin, OutputPin};
+# use mcp2221_hal::gpio::{Pins, Input, Output};
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
+#    let mut device = mcp2221_hal::MCP2221::connect()?;
+let Pins { gp0, gp1, .. } = device.gpio_take_pins().expect("take once");
+let mut gp0: Input = gp0.try_into()?;
+let mut gp1: Output = gp1.try_into()?;
+if gp0.is_high()? {
+    gp1.set_low()?;
+}
+#    Ok(())
+# }
+```
+
+See the [`MCP2221`] struct documentation for more usage information.
+
+[microchip]: https://www.microchip.com/en-us/product/mcp2221a
+
+# Features
+
+This driver supports all hardware functionality of the MCP2221, with the two exceptions
+(discussed below) of the chip protection setting and UART (in a sense).
+
+- Read and write settings (both SRAM and flash memory)
+- GP pin functionality (GPIO, analog, and special modes)
+    - [`embedded_hal::digital`] GPIO traits
+- I2C
+    - `embedded-hal` [blocking][i2c-b] and [async][i2c-a] traits
+
+## Not-yet-supported
+
+These features are not currently supported but could be with your help!
+
+[open an issue]: https://github.com/robjwells/mcp2221-hal/issues
+
+### Chip protection settings
+
+The datasheet is not particularly clear how the password-protection mechanism
+works, and other developers [have locked their MCP2221] by accident. If you have a
+spare MCP2221 and would like this feature, please [open an issue].
 
 [have locked their MCP2221]: https://forum.microchip.com/s/topic/a5C3l000000Mb3HEAS/t372487
 
-## `embedded-hal` support
+### I2C: 10-bit addresses
 
-Note that the MCP2221 cannot support the full generality of the `I2c::transaction`
-method of the `embedded-hal::i2c::I2c` trait, because there is no command to issue
-a read without issuing a Stop condition at the end.
+The MCP2221 does not natively support 10-bit addresses, so this must be done in
+software. However, I don't have an I2C device with a 10-bit address to test this.
+Please [open an issue] if you do.
 
-## Deviations from the datasheet
+## Out of scope
 
-### Vrm level selection
+These features are better solved outside this library.
 
-The HID commands allow for setting the Vrm level when using Vdd as a voltage reference.
-This driver always sets the Vrm level to "off" when using Vdd as the reference.
+### UART serial
 
-### Vrm and Vdd selection
+The MCP2221 exposes a USB serial port (a CDC device), so you can use it as a
+USB-to-serial converter and communicate with a connected device via UART. This is
+entirely separate to the HID device used to perform all the other functionality, and
+there is not a straightforward way for this library to identify which serial port
+belongs to the MCP2221.
 
-The datasheet is inconsistent as to whether, when selecting a voltage reference source,
-1 means Vrm or Vdd (and 0 the opposite). Generally, the datasheet says that 1 means Vrm
-and 0 means Vdd, except when writing the DAC reference to flash (table 3-12) or when
-reading the ADC reference from flash (table 3-5).
+Instead, manually identify which serial port is that of the MCP2221, and connect to it
+with your preferred serial port library. [`embedded-io`] has blanket implementations
+for types that implement the [`std::io`] traits, so you can treat your serial port
+library interface as if it was a device UART.
 
-In practice, 1 is Vrm and 0 is Vdd, and it appears the cases where this is reversed are
-typos. (There are also odd typos where the ADC is described as the DAC, and one in table
-3-36 where both Vrm and Vdd appear in the description of a bit setting.)
+If you [enable USB CDC serial number enumeration][cdc-sn] (and optionally [customise the
+serial number][sn-set]), you will be able to connect to the MCP2221 serial port at a stable
+location.
 
-## Unexpected behaviour
+[cdc-sn]: crate::settings::ChipSettings::cdc_serial_number_enumeration_enabled
+[sn-set]: crate::MCP2221::usb_change_serial_number
 
-Certain actions may cause the MCP2221 to behave strangely.
-(This list is likely incomplete!)
+### SMBus extra features
 
-### DAC and Vrm
+This driver supports SMBus as well as the MCP2221 does itself (via its I2C support), but
+has no SMBus-specific software support for, eg, special transfer formats or packet error
+checking. You should use an SMBus library on top of this driver's I2C support.
 
-Setting the DAC to use Vrm with a level of "off" (also referred to in the datasheet
-as setting Vrm to reference Vdd) will cause the DAC to output a very low voltage level
-regardless of the set output value.
+# `embedded-hal` notes
 
-Setting the DAC's power-up reference (ie, setting the DAC reference in flash memory)
-to Vrm at _any_ level starts the DAC in the above described low-voltage Vrm-off mode.
+## `I2c::transaction` not fully fully supported
+ 
+The MCP2221 cannot support the full generality of the `I2c::transaction` method of the
+[`embedded_hal::i2c::I2c`] trait, because there is no command to perform a read without
+issuing a Stop condition at the end. This means you cannot issue a transaction where a
+read precedes a write, and will receive an error if you try to do so.
 
-Neither of these are documented in the datasheet.
+## Async `I2c` blocks
 
-### ADC and Vrm
+The driver supports the [async `I2c`][i2c-a] trait, but there is no async access to the
+USB device, so the async trait methods just call the blocking trait methods.
 
-Setting the ADC's power-up reference (ie, setting the ADC reference in flash memory)
-to Vrm at _any_ level starts the ADC in Vrm-off mode.
+However, this still allows you to, for example, develop an async `embedded-hal` driver
+using the MCP2221.
 
-However, the ADC works as the datasheet describes in this mode, that is it appears to
-be equivalent to using Vdd as the voltage reference.
+# Strange behaviour
 
-The ADC power-up behaviour is not documented in the datasheet.
+We have identified strange behaviours of the MCP2221 that may be firmware bugs.
 
-### Changing GP pin settings in SRAM changes Vrm level
+- Settings read from SRAM may not reflect the current device behaviour. (See the
+  [`settings`] module documentation.)
+- Trying to cancel an I2C transfer when the I2C engine is idle makes the I2C engine busy
+  (this library tries to work around this.)
+- DAC reference set to Vrm with a level of Vdd/"off" outputs 0V. (See the [`analog`] module
+  documentation.)
+- Setting ADC or DAC reference to Vrm (any level) in flash memory starts the device with
+  Vrm set to Vdd/"off" (See the [`analog`] module documentation.)
+- Changing GP pin settings in SRAM sets the ADC and DAC references to Vrm with a level
+  of Vdd/"off". (See the note in section 1.8.1.1 of the datasheet. This library attempts
+  to work around this bug.)
 
-Changing the GP pin settings in SRAM without also explicitly setting the Vrm level
-for the ADC and DAC causes the Vrm level for both to be set to "off". This affects
-the Set SRAM Settings HID command.
+# Thread safety
 
-This is documented in a note in section 1.8.1.1 since datasheet revision D. This driver
-tries to mitigate this by taking optional voltage references when altering the GP pin
-settings in SRAM.
+The driver cannot be used across threads (it is `!Sync`). The driver uses the [`hidapi`]
+crate, which in turn uses the [hidapi C library]. Creating multiple drivers in different
+threads _should_ fail with an error (`Result::Err`), but it might not and you may end up
+with a crash later on. You can see this for yourself by running the project's tests with
+`cargo test` (we use `cargo nextest` in serial mode to avoid this).
 
-### Stale SRAM settings
+[hidapi C library]: https://github.com/signal11/hidapi/
 
-The SRAM settings read from the device may not reflect the current behaviour of the
-device. Two causes have been discovered so far:
+# Related libraries
 
-- Changing GP pin settings as mentioned above. The SRAM settings for the ADC and DAC
-  references do not change to reflect the Vdd-off behaviour.
-- Changing GPIO pin direction or output value via the Set GPIO Output Values HID
-  command. The SRAM settings will not reflect the changed values. (However, this
-  command does not trigger the voltage reference reset.)
+- [mcp2221-rs][]: supports the `embedded-hal` 0.2 I2C trait, and has some GPIO features.
 
-If you wish to rely on the read SRAM settings to accurately reflect the current
-behaviour of the MCP2221, change GP pin settings via the Set SRAM Settings command
-and always explicitly set the Vrm levels.
+  Thank you to David Lattimore for writing this crate, it's what got me up and running
+  with the MCP2221. David is now writing [wild][], a very fast linker.
 
-The stale settings behaviour is not documented in the datasheet.
+- [ftdi-embedded-hal][]: a similar library for FTDI USB converters.
 
-### I2C transfer cancellation causes an idle engine to become busy
-
-The Status/Set Parameters has a subcommand to cancel an ongoing I2C transfer. However,
-issuing this command to the MCP2221 when the I2C engine is _not_ performing a transfer
-puts the engine into a busy state. It appears that device must be reset to return the
-I2C engine to idle.
-
-This behaviour is not documented in the datasheet. This driver works around it by only
-issuing a cancellation if the engine is not idle (as read from the Status command).
+[mcp2221-rs]: https://github.com/google/mcp2221-rs
+[wild]: https://github.com/davidlattimore/wild
+[ftdi-embedded-hal]: https://github.com/ftdi-rs/ftdi-embedded-hal

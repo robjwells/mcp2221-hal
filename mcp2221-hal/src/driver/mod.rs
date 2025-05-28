@@ -18,31 +18,6 @@ mod i2c_eh;
 
 /// Driver for the MCP2221.
 ///
-/// # Quick start
-///
-/// Create the driver struct with default values by calling [`MCP2221::connect`], or
-/// [`MCP2221::connect_with_vid_and_pid`] if you have changed either of the USB vendor
-/// ID (VID) or product ID (VID).
-///
-/// For I2C communication, this struct implements the [blocking][blocking I2C] and
-/// [async][async I2C] I2C traits from [`embedded_hal`]. It has no mutable state, so
-/// you can pass a shared reference to drivers expecting `impl I2c`.
-///
-/// [blocking I2C]: embedded_hal::i2c::I2c
-/// [async I2C]: embedded_hal_async::i2c::I2c
-///
-/// <!-- TODO: I2C example -->
-///
-/// For GPIO digital input and output, use the [`MCP2221::gpio_take_pins`] method, and
-/// convert the [`GpPin`] objects into [`Input`] or [`Output`] types, which implement
-/// the appropriate traits from [`embedded_hal::digital`].
-///
-/// [`GpPin`]: crate::gpio::GpPin
-/// [`Input`]: crate::gpio::Input
-/// [`Output`]: crate::gpio::Output
-///
-/// <!-- TODO: GPIO example -->
-///
 /// # Overview
 ///
 /// <!-- TODO -->.
@@ -79,6 +54,8 @@ impl MCP2221 {
     pub fn connect() -> Result<Self, Error> {
         MCP2221::connect_with_vid_and_pid(MICROCHIP_VID, MCP2221_PID)
     }
+
+    // TODO: connect to a device via serial number.
 
     /// Connect to the first USB device found with the given vendor and product ID.
     ///
