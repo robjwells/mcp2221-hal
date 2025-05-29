@@ -64,6 +64,7 @@ impl<'a> From<Output<'a>> for GpPin<'a> {
 /// A GP pin in GPIO input mode.
 ///
 /// This struct is intended for use with the [`embedded_hal::digital::InputPin`] trait.
+#[derive(Debug)]
 pub struct Input<'a>(GpPin<'a>);
 
 impl<'a> Input<'a> {
@@ -136,6 +137,7 @@ impl embedded_hal::digital::InputPin for Input<'_> {
 ///
 /// This struct is intended for use with the [`embedded_hal::digital::OutputPin`] and
 /// [`embedded_hal::digital::StatefulOutputPin`] traits.
+#[derive(Debug)]
 pub struct Output<'a>(GpPin<'a>);
 
 impl<'a> Output<'a> {

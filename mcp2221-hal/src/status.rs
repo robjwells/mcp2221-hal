@@ -25,7 +25,7 @@ use crate::i2c::I2cStatus;
 /// See section 3.1.1 for the underlying Status/Set Parameters HID command. The field
 /// descriptions of the response structure are the source for the documentation of
 /// the fields here.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Status {
     /// I2C engine status
     pub i2c: I2cStatus,
@@ -99,6 +99,7 @@ impl Status {
 /// Two-part revision number.
 ///
 /// Used for the hardware and firmware revisions in the MCP2221 status report.
+#[derive(Clone, Copy)]
 pub struct Revision {
     /// Major component of the revision number. (x.0)
     pub major: char,
@@ -135,7 +136,7 @@ impl std::fmt::Display for Revision {
 /// See bytes `50..=55` in table 3-2 for the source of these values, table 1-1 and
 /// table 1-5 for the mapping of ADC channels to GP pins, and section 1.8 for general
 /// information about the ADC.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct RawAdcValues {
     /// ADC reading of channel 1 (GP1).
     pub ch1: u16,

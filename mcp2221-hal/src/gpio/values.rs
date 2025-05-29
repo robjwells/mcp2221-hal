@@ -14,7 +14,7 @@ use super::{GpioDirection, LogicLevel};
 /// ## Datasheet
 ///
 /// See section 3.1.12 for the underlying Get GPIO Values HID command.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct GpioValues {
     /// GP0 GPIO values.
     pub gp0: Option<(GpioDirection, LogicLevel)>,
@@ -117,7 +117,7 @@ fn direction_from_byte(byte: u8) -> Option<GpioDirection> {
 /// ## Datasheet
 ///
 /// See section 3.1.11 for the underlying Set GPIO Output Values HID command.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct GpioChanges {
     gp0_direction: Option<GpioDirection>,
     gp0_level: Option<LogicLevel>,

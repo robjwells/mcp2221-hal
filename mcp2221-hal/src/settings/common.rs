@@ -159,8 +159,6 @@ impl From<ClockDutyCycle> for u8 {
     }
 }
 
-#[allow(non_camel_case_types)]
-#[derive(Debug, Default, Clone, Copy)]
 /// Clock output frequency.
 ///
 /// The frequency options and their 3-bit representation suggests this is a shift value
@@ -171,6 +169,8 @@ impl From<ClockDutyCycle> for u8 {
 ///
 /// See register 1-2 (ChipSettings1) in the datasheet for the details of the frequency
 /// options and bit pattern.
+#[allow(non_camel_case_types)]
+#[derive(Debug, Default, Clone, Copy)]
 pub enum ClockFrequency {
     /// 375 kHz clock output.
     _375_kHz,

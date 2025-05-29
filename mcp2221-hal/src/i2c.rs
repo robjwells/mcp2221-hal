@@ -21,7 +21,7 @@ use crate::commands::McpCommand;
 ///
 /// See the return value of the Status/Set Parameters HID command in table 3-2 of
 /// section 3.1.1 for the definition of the fields.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct I2cStatus {
     /// I2C engine communication state.
     ///
@@ -43,7 +43,9 @@ pub struct I2cStatus {
     /// It does not seem to be a length of time after which timeout occurs, perhaps
     /// it is some internal enum value.
     pub timeout_value: u8,
-    /// I2C target address used most recently.
+    /// I2C target full address used most recently.
+    ///
+    /// Note this is the 8-bit "address": the 7-bit address with a read/_write bit.
     pub target_address: u16,
     /// I2C target acknowledged its address.
     ///
@@ -75,7 +77,7 @@ pub struct I2cStatus {
 /// Most of the cases are guesswork from constant names in the Microchip C and Android
 /// Java drivers, and their meaning is not documented. The datasheet only says that a
 /// state other than 0 is a timeout.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum I2cCommunicationState {
     /// Engine is idle.
     Idle,
@@ -140,7 +142,7 @@ impl From<u8> for I2cCommunicationState {
 }
 
 /// Response from the MCP2221 to an attempt to cancel an I2C transfer.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum I2cCancelTransferResponse {
     /// Cancellation successful.
     Done,
@@ -176,7 +178,7 @@ pub enum I2cCancelTransferResponse {
 ///
 /// Note that Microchips’s own drivers (which predate the inclusion of the above
 /// formula in the datasheet) instead subtract 3. It is unclear why they differ.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct I2cSpeed(
     /// Desired bus speed in bit/s
     u32,
@@ -211,7 +213,7 @@ impl I2cSpeed {
 
     /// Convert the speed in bit/s into a clock divider suitable for the
     /// Status/Set Parameters HID command.
-    pub(crate) fn to_clock_divider(&self) -> u8 {
+    pub(crate) fn to_clock_divider(self) -> u8 {
         match self.0 {
             400_000 => Self::FAST_DIVIDER,
             100_000 => Self::STANDARD_DIVIDER,

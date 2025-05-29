@@ -3,7 +3,6 @@ use crate::settings::common::ClockOutputSetting;
 
 use bit_field::BitField;
 
-#[derive(Debug)]
 /// Various chip configuration settings.
 ///
 /// This struct gathers together several important but somewhat unrelated settings.
@@ -34,6 +33,7 @@ use bit_field::BitField;
 ///
 /// See table 3-5 in section 3.1.2 (Read Flash Data) or table 3-39 in section 3.1.14
 /// (Get SRAM Settings) for the datasheet's listing of each returned value.
+#[derive(Debug, Clone, Copy)]
 pub struct ChipSettings {
     /// Whether the USB serial number string will be presented during USB enumeration.
     ///

@@ -9,7 +9,6 @@ repository = "https://github.com/robjwells/mcp2221-hal/"
 license = "MIT OR Apache-2.0"
 keywords = ["hal", "embedded", "embedded-hal"]
 categories = ["embedded", "hardware-support"]
-exclude = ["assets/"]
 
 [features]
 async = ["dep:embedded-hal-async"]

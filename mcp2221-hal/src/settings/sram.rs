@@ -20,7 +20,7 @@ use crate::settings::{ClockOutputSetting, GpSettings};
 /// If you only want to clear the interrupt flag, prefer [`MCP2221::interrupt_clear`].
 ///
 /// [`MCP2221::interrupt_clear`]: crate::MCP2221::interrupt_clear
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct InterruptSettingsChanges {
     /// Clear the interrupt flag if true.
     clear_interrupt_flag: bool,
@@ -60,7 +60,7 @@ impl InterruptSettingsChanges {
 ///
 /// Only a subset of the full chip settings can be changed in SRAM. The rest can be
 /// changed in flash memory, to take effect after the device is reset.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct SramSettingsChanges {
     /// Clock output settings.
     clock_output: Option<ClockOutputSetting>,

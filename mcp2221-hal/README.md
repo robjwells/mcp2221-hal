@@ -9,7 +9,7 @@ registers][errata] and allowing faster UART baud rates.
 
 [errata]: https://www.microchip.com/en-us/product/mcp2221#Documentation
 
-Our aim is that this crate is well enough documented that you can use it succesfully
+Our aim is that this crate is well enough documented that you can use it successfully
 without having to look things up in the MCP2221 datasheet. We do frequently refer to the
 appropriate sections, so if you wish to know the underlying details, [you can find the
 latest revision (rev E) of the MCP2221 datasheet here][datasheet]. If you find a method
@@ -29,9 +29,9 @@ let mut device = mcp2221_hal::MCP2221::connect()?;
 # }
 ```
 
-It implements the [blocking][i2c-b] and [async][i2c-a] I2C traits from `embedded-hal`.
-It has no mutable state, so you can pass a shared reference to drivers expecting `impl
-I2c`.
+It implements the [blocking][i2c-b] and [async][i2c-a] (with the `async` feature) I2C
+traits from `embedded-hal`. It has no mutable state, so you can pass a shared reference
+to drivers expecting `impl I2c`.
 
 [i2c-b]: embedded_hal::i2c::I2c
 [i2c-a]: embedded_hal_async::i2c::I2c
@@ -84,6 +84,11 @@ This driver supports all hardware functionality of the MCP2221, with the two exc
     - [`embedded_hal::digital`] GPIO traits
 - I2C
     - `embedded-hal` [blocking][i2c-b] and [async][i2c-a] traits
+
+## Feature flags
+
+- `async`: enables the implementation of [`embedded_hal_async::i2c::I2c`]. This is not
+  on by default.
 
 ## Not-yet-supported
 

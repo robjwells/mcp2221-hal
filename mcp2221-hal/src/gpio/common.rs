@@ -1,8 +1,8 @@
-#[derive(Debug, Clone, Copy)]
 /// GPIO pin logic level.
 ///
 /// When used with input pins, this is the level read on the pin. With output
 /// pins it is the level output on that pin by the MCP2221.
+#[derive(Debug, Clone, Copy)]
 pub enum LogicLevel {
     /// A high logic level (nominally the supply voltage).
     High,
@@ -56,8 +56,8 @@ impl From<LogicLevel> for u8 {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
 /// GPIO pin direction.
+#[derive(Debug, Clone, Copy)]
 pub enum GpioDirection {
     /// Digital input.
     Input,

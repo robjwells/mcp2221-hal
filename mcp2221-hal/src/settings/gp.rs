@@ -28,7 +28,7 @@ use bit_field::BitField;
 ///
 /// See table 1-5 of the datasheet for an overview of the pin modes available for each
 /// pin and section 1.7 for the details of each function.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct GpSettings {
     /// GP0 pin mode.
     pub gp0_mode: Gp0Mode,
