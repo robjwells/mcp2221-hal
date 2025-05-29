@@ -66,7 +66,7 @@ pub struct I2cStatus {
     /// MCP2221 still has to read from a slave device", with possible values of 0, 1
     /// or 2. The meaning of those values is not explained in the datasheet.
     ///
-    /// Neither the Microship C or Java drivers read this value.
+    /// Neither the Microchip C or Java drivers read this value.
     pub read_pending_value: u8,
 }
 

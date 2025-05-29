@@ -21,7 +21,7 @@ mod i2c_eh;
 /// # Overview
 ///
 /// All of the functionality of this crate is exposed by methods on this struct. You
-/// will likely prefer to use the [`embedded_hal`] trait implementations, howver,
+/// will likely prefer to use the [`embedded_hal`] trait implementations, however,
 /// and certainly if you are using the MCP2221 for driver development.
 ///
 /// There are _a lot_ of methods. All of the MCP2221's functions are exposed through
@@ -414,7 +414,7 @@ impl MCP2221 {
     /// See section 3.11 of the datasheet for the underlying Status/Set Parameters
     /// HID command.
     pub fn i2c_cancel_transfer(&self) -> Result<I2cCancelTransferResponse, Error> {
-        // Only issue the cancellation command if the I2Cengine is busy to avoid it
+        // Only issue the cancellation command if the I2C engine is busy to avoid it
         // _becoming_ busy by issuing the cancellation.
         if self.status()?.i2c.communication_state.is_idle() {
             return Ok(I2cCancelTransferResponse::NoTransfer);
