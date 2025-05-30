@@ -3,7 +3,7 @@ name = "mcp2221-cli"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.86.0"
-description = "CLI for the MCP2221 USB to UART, I2C and GPIO converter"
+description = "CLI for the MCP2221 USB to I2C and GPIO converter"
 # readme = "README.md" # TODO
 repository = "https://github.com/robjwells/mcp2221-hal/"
 license = "MIT OR Apache-2.0"
@@ -11,7 +11,6 @@ keywords = ["embedded", "cli"]
 categories = ["embedded", "hardware-support", "command-line-utilities"]
 
 [dependencies]
-anyhow = "1.0.98"
 clap = { version = "4.5.37", features = ["cargo", "derive"] }
 hidapi = "2.6.3"
 mcp2221-hal = "0.1.0"
