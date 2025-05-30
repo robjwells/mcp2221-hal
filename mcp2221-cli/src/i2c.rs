@@ -5,37 +5,53 @@ use mcp2221_hal::{
 
 #[derive(Debug, clap::Parser)]
 pub(crate) enum I2cCommand {
-    /// Set the I2C bus clock speed in kbps.
+    /// Read a given number of bytes from an I2C address.
+    Read {
+        /// I2C target 7-bit address.
+        #[arg(value_parser = crate::util::seven_bit_address)]
+        address: u8,
+        /// Number of bytes to read from the target.
+        length: u16,
+    },
+    /// Write bytes (given in hex) to an I2C address.
+    Write {
+        /// I2C target 7-bit address.
+        #[arg(value_parser = crate::util::seven_bit_address)]
+        address: u8,
+        /// Bytes (in hex) to write to the target.
+        #[arg(last = true, num_args = 1..=65_535, value_parser = crate::util::u8_from_hex)]
+        data: Vec<u8>,
+    },
+    /// Write bytes (given in hex) to an I2C address, and read back the specified number
+    /// of bytes.
     ///
-    /// Standard I2C bus speeds are 400 kbps and 100 kbps. The MCP2221 can use bus
-    /// speeds from 47 kbps to 400 kbps.
+    /// No Stop condition occurs between the write and the read.
+    WriteRead {
+        /// I2C target 7-bit address.
+        #[arg(value_parser = crate::util::seven_bit_address)]
+        address: u8,
+        /// Number of bytes to read from the target.
+        read_length: u16,
+        /// Bytes (in hex) to write to the target.
+        #[arg(last = true, num_args = 1..=65_535, value_parser = crate::util::u8_from_hex)]
+        write_data: Vec<u8>,
+    },
+    /// Check if a device acknowledges an address.
+    CheckAddress {
+        /// I2C target 7-bit address.
+        #[arg(value_parser = crate::util::seven_bit_address)]
+        address: u8,
+    },
+    /// Set the I2C bus clock speed in kbit/s.
+    ///
+    /// Standard I2C bus speeds are 400 kbit/s and 100 kbit/s. The MCP2221 can use bus
+    /// speeds from 47 kbit/s to 400 kbit/s.
     Speed {
-        /// Desired I2C bus speed in kbps.
+        /// Desired I2C bus speed in kbit/s.
         kbps: u32,
     },
     /// Cancel the current I2C transfer and attempt to free the bus.
     Cancel,
-    Read {
-        #[arg(value_parser = crate::util::seven_bit_address)]
-        address: u8,
-        length: u16,
-    },
-    Write {
-        #[arg(value_parser = crate::util::seven_bit_address)]
-        address: u8,
-        data: Vec<u8>,
-    },
-    WriteRead {
-        #[arg(value_parser = crate::util::seven_bit_address)]
-        address: u8,
-        #[arg(short, long)]
-        read_length: u16,
-        write_data: Vec<u8>,
-    },
-    CheckAddress {
-        #[arg(value_parser = crate::util::seven_bit_address)]
-        address: u8,
-    },
 }
 
 pub(crate) fn action(device: &MCP2221, command: I2cCommand) -> Result<(), mcp2221_hal::Error> {

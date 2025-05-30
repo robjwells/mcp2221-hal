@@ -17,7 +17,7 @@ fn main() -> Result<(), mcp2221_hal::Error> {
     match cli.command {
         Commands::Status => println!("{:#?}", device.status()?),
         Commands::Settings(command) => settings::action(&device, command)?,
-        Commands::Usb => usb::print_info(&device)?,
+        Commands::Usb(command) => usb::action(&device, command)?,
         Commands::Dac(command) => analog::dac_action(&device, command)?,
         Commands::Adc(command) => analog::adc_action(&device, command)?,
         Commands::Reset => device.reset()?,

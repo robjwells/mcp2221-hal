@@ -4,6 +4,7 @@ use mcp2221_hal::{
     analog::{VoltageReference, VrmVoltage::*},
 };
 
+/// Configure analog output.
 #[derive(Debug, Parser)]
 #[command(flatten_help = true)]
 pub(crate) enum DacCommand {
@@ -76,6 +77,7 @@ pub(crate) enum VrmLevel {
     Off,
 }
 
+/// Read or configure analog input.
 #[derive(Debug, Parser)]
 #[command(flatten_help = true)]
 pub(crate) enum AdcCommand {
@@ -102,10 +104,7 @@ pub(crate) enum AdcCommand {
     },
 }
 
-pub(crate) fn dac_action(
-    device: &MCP2221,
-    command: DacCommand,
-) -> Result<(), mcp2221_hal::Error> {
+pub(crate) fn dac_action(device: &MCP2221, command: DacCommand) -> Result<(), mcp2221_hal::Error> {
     match command {
         DacCommand::Write { flash: true, value } => {
             let mut cs = device.flash_read_chip_settings()?;

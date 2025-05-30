@@ -2,23 +2,7 @@ use clap::{Parser, ValueEnum};
 use mcp2221_hal::gpio::{GpioDirection, LogicLevel};
 use mcp2221_hal::settings::{self as hal, GpSettings};
 
-/// Set the mode for each of the GPx pins.
-///
-/// Each pin supports digital input and output, as well as pin-specific
-/// alternate functions (aka designations). If the pin is set to digital
-/// output, its output value is also set.
-///
-/// For GPIO (digital) input and output, the following aliases are recognised
-/// for each pin and are not repeated in the per-option help text:
-///
-/// - gpio-output-high:  high
-/// - gpio-output-low:   low
-/// - gpio-input:        input, in
-///
-/// Further aliases are available for each function either as a convenience or
-/// to match the pin function name(s) in the datasheet.
 #[derive(Debug, Parser)]
-#[command(verbatim_doc_comment)]
 pub(crate) struct GpModes {
     #[arg(long, default_value = "false")]
     /// Set the GP pin configuration in flash memory rather than SRAM.
@@ -34,39 +18,15 @@ pub(crate) struct GpModes {
 #[group(required = true, multiple = true)]
 pub(crate) struct PinModes {
     /// GP0 pin settings
-    ///
-    /// Note the following additional aliases:
-    ///
-    /// - uart-receive-led:  led_uart_rx, led_urx
-    /// - usb-suspend-state: suspend, sspnd
     #[arg(short = '0', long, id = "GP0_MODE", verbatim_doc_comment)]
     pub gp0: Option<Gp0Mode>,
     /// GP1 pin settings
-    ///
-    /// Note the following additional aliases:
-    ///
-    /// - clock-output:       clkr, clock
-    /// - analog-input:       adc, adc1
-    /// - uart-transmit-led:  led_uart_tx
-    /// - interrupt:          ioc
     #[arg(short = '1', long, id = "GP1_MODE", verbatim_doc_comment)]
     pub gp1: Option<Gp1Mode>,
     /// GP2 pin settings
-    ///
-    /// Note the following additional aliases:
-    ///
-    /// - usb-device-configured: usbcfg
-    /// - analog-input:          adc, adc2
-    /// - analog-output:         dac
     #[arg(short = '2', long, id = "GP2_MODE", verbatim_doc_comment)]
     pub gp2: Option<Gp2Mode>,
     /// GP3 pin settings
-    ///
-    /// Note the following additional aliases:
-    ///
-    /// - i2c-led:        led_i2c
-    /// - analog-input:   adc, adc3
-    /// - analog-output:  dac
     #[arg(short = '3', long, id = "GP3_MODE", verbatim_doc_comment)]
     pub gp3: Option<Gp3Mode>,
 }
@@ -118,20 +78,15 @@ impl PinModes {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub(crate) enum Gp0Mode {
-    /// UART receive indicator (LED_UART_RX)
-    #[value(aliases = ["led_uart_rx", "led_urx"])]
+    /// UART receive indicator (LED_URX)
     UartReceiveLed,
     /// USB Suspend state indicator (SSPND)
-    #[value(aliases = ["suspend", "sspnd"])]
     UsbSuspendState,
     /// Digital output, set high.
-    #[value(aliases = ["high"])]
     GpioOutputHigh,
     /// Digital output, set low.
-    #[value(aliases = ["low"])]
     GpioOutputLow,
     /// Digital input.
-    #[value(aliases = ["input", "in"])]
     GpioInput,
 }
 
@@ -150,25 +105,19 @@ impl Gp0Mode {
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub(crate) enum Gp1Mode {
-    /// Clock reference output (CLKR).
-    #[value(aliases = ["clock", "clkr"])]
+    /// Clock reference output (CLK OUT or CLKR).
     ClockOutput,
     /// Analog input (ADC channel 1).
-    #[value(aliases = ["adc", "adc1"])]
     AnalogInput,
-    /// Indicates UART traffic sent by the MCP2221.
-    #[value(aliases = ["led_uart_tx", "led_utx"])]
+    /// UART transmit indicator (LED_UTX).
     UartTransmitLed,
     /// Edge-triggered interrupt detection (IOC).
     Interrupt,
     /// Digital output, set high.
-    #[value(aliases = ["high"])]
     GpioOutputHigh,
     /// Digital output, set low.
-    #[value(aliases = ["low"])]
     GpioOutputLow,
     /// Digital input.
-    #[value(aliases = ["input", "in"])]
     GpioInput,
 }
 
@@ -190,22 +139,16 @@ impl Gp1Mode {
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub(crate) enum Gp2Mode {
     /// USB device-configured status indicator (USBCFG).
-    #[value(aliases = ["usbcfg"])]
     UsbDeviceConfigured,
     /// Analog input (ADC channel 2).
-    #[value(aliases = ["adc", "adc2"])]
     AnalogInput,
     /// Analog output (DAC).
-    #[value(aliases = ["dac"])]
     AnalogOutput,
     /// Digital output, set high.
-    #[value(aliases = ["high"])]
     GpioOutputHigh,
     /// Digital output, set low.
-    #[value(aliases = ["low"])]
     GpioOutputLow,
     /// Digital input.
-    #[value(aliases = ["input", "in"])]
     GpioInput,
 }
 
@@ -226,22 +169,16 @@ impl Gp2Mode {
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub(crate) enum Gp3Mode {
     /// I2C activity indicator (LED_I2C).
-    #[value(aliases = ["led_i2c"])]
     I2cLed,
     /// Analog input (ADC channel 3).
-    #[value(aliases = ["adc", "adc3"])]
     AnalogInput,
     /// Analog output (DAC).
-    #[value(aliases = ["dac"])]
     AnalogOutput,
     /// Digital output, set high.
-    #[value(aliases = ["high"])]
     GpioOutputHigh,
     /// Digital output, set low.
-    #[value(aliases = ["low"])]
     GpioOutputLow,
     /// Digital input.
-    #[value(aliases = ["input", "in"])]
     GpioInput,
 }
 

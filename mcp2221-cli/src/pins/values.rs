@@ -4,13 +4,10 @@ use mcp2221_hal::gpio::{GpioChanges, GpioDirection, LogicLevel};
 #[derive(Debug, Clone, Copy, ValueEnum)]
 enum GpioSetting {
     /// GPIO output, set high.
-    #[value(aliases = ["high"])]
     OutputHigh,
     /// GPIO output, set low.
-    #[value(aliases = ["low"])]
     OutputLow,
     /// GPIO input.
-    #[value(aliases = ["in"])]
     Input,
 }
 

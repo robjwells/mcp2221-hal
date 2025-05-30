@@ -10,9 +10,25 @@ mod values;
 #[derive(Debug, Parser)]
 #[command(flatten_help = true)]
 pub(crate) enum PinsCommand {
+    /// Read current GPIO pin values.
+    ///
+    /// For GP pins set as GPIO inputs, the logic level read is the level on that pin.
+    /// For outputs, it is the set output level.
+    ///
+    /// GP pins that are not in GPIO mode are listed as None.
     Read,
+    /// Set GPIO pin direction and output levels.
+    ///
+    /// Note this does not put pins into GPIO mode, only configure pins that are
+    /// already set to GPIO mode. Use the set-mode subcommand to put the pins into
+    /// GPIO mode if needed.
     #[command(flatten_help = true)]
     Write(PinValues),
+    /// Set the mode for each of the GP pins.
+    ///
+    /// Each pin supports GPIO (digital) input and output, as well as pin-specific
+    /// alternate modes. If the pin is set as a GPIO output, its output value is also
+    /// set.
     #[command(flatten_help = true)]
     SetMode(GpModes),
 }

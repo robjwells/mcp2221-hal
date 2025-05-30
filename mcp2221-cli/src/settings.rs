@@ -1,5 +1,5 @@
 use clap::{Parser, ValueEnum};
-use mcp2221_hal::{MCP2221, settings::DeviceString};
+use mcp2221_hal::MCP2221;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub(crate) enum SettingsType {
@@ -7,53 +7,24 @@ pub(crate) enum SettingsType {
     Flash,
 }
 
+/// Read device settings.
+///
+/// Specify whether you want to read the settings from SRAM, which affect the current
+/// behaviour of the device, or the settings in flash memory that affect the initial
+/// behaviour of the device on power-up.
+///
+/// Note that the GP pin settings read from SRAM may not reflect the current status
+/// of GPIO pins. This appears to be a bug in the MCP2221 firmware.
 #[derive(Debug, Parser)]
-#[command(flatten_help = true)]
-pub(crate) enum SettingsCommand {
-    /// Read device settings.
-    Read {
-        /// Whether to read the current SRAM settings or the power-on settings
-        /// written to the MCP2221's flash memory.
-        which: SettingsType,
-    },
-    /// Change device settings.
-    #[command(subcommand, flatten_help = true)]
-    Write(SettingsWriteCommand),
+pub(crate) struct SettingsCommand {
+    /// Current SRAM settings or initial settings in flash memory.
+    which: SettingsType,
 }
 
-#[derive(Debug, Parser)]
-pub(crate) enum SettingsWriteCommand {
-    /// Set the USB manufacturer descriptor string in flash.
-    ///
-    /// The device must be reset and re-enumerated for this to be shown.
-    Manufacturer {
-        /// Must be 60 bytes or fewer when encoded as UTF-16.
-        string: DeviceString,
-    },
-    /// Set the USB product descriptor string in flash.
-    ///
-    /// The device must be reset and re-enumerated for this to be shown.
-    Product {
-        /// Must be 60 bytes or fewer when encoded as UTF-16.
-        string: DeviceString,
-    },
-}
-
-pub(crate) fn action(
-    device: &MCP2221,
-    command: SettingsCommand,
-) -> Result<(), mcp2221_hal::Error> {
-    match command {
-        SettingsCommand::Read { which } => match which {
-            SettingsType::Flash => print_all_flash_data(device)?,
-            SettingsType::Sram => println!("{:#?}", device.sram_read_settings()?),
-        },
-        SettingsCommand::Write(write_command) => match write_command {
-            SettingsWriteCommand::Manufacturer { string } => {
-                device.usb_change_manufacturer(&string)?
-            }
-            SettingsWriteCommand::Product { string } => device.usb_change_product(&string)?,
-        },
+pub(crate) fn action(device: &MCP2221, command: SettingsCommand) -> Result<(), mcp2221_hal::Error> {
+    match command.which {
+        SettingsType::Flash => print_all_flash_data(device)?,
+        SettingsType::Sram => print_sram_settings(device)?,
     }
     Ok(())
 }
@@ -68,5 +39,11 @@ fn print_all_flash_data(device: &mcp2221_hal::MCP2221) -> Result<(), mcp2221_hal
         r#"Factory serial:    "{}""#,
         device.factory_serial_number()?
     );
+    Ok(())
+}
+
+fn print_sram_settings(device: &MCP2221) -> Result<(), mcp2221_hal::Error> {
+    let (cs, gp) = device.sram_read_settings()?;
+    println!("{cs:#?}\n{gp:#?}");
     Ok(())
 }
