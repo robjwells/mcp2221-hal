@@ -1,5 +1,8 @@
 use clap::{Parser, ValueEnum, value_parser};
-use mcp2221_hal::analog::{VoltageReference, VrmVoltage::*};
+use mcp2221_hal::{
+    MCP2221,
+    analog::{VoltageReference, VrmVoltage::*},
+};
 
 #[derive(Debug, Parser)]
 #[command(flatten_help = true)]
@@ -97,4 +100,63 @@ pub(crate) enum AdcCommand {
         #[arg(default_value = "off")]
         vrm_level: VrmLevel,
     },
+}
+
+pub(crate) fn dac_action(
+    device: &MCP2221,
+    command: DacCommand,
+) -> Result<(), mcp2221_hal::Error> {
+    match command {
+        DacCommand::Write { flash: true, value } => {
+            let mut cs = device.flash_read_chip_settings()?;
+            cs.dac_value = value;
+            device.flash_write_chip_settings(cs)?;
+        }
+        DacCommand::Write {
+            flash: false,
+            value,
+        } => {
+            // do sram write
+            device.analog_write(value)?;
+        }
+
+        DacCommand::Configure {
+            flash: true,
+            reference,
+            vrm_level,
+        } => {
+            let mut cs = device.flash_read_chip_settings()?;
+            cs.dac_reference = reference.into_mcp_vref(vrm_level);
+            device.flash_write_chip_settings(cs)?;
+        }
+        DacCommand::Configure {
+            flash: false,
+            reference,
+            vrm_level,
+        } => {
+            device.analog_set_output_reference(reference.into_mcp_vref(vrm_level))?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn adc_action(device: &MCP2221, command: AdcCommand) -> Result<(), mcp2221_hal::Error> {
+    match command {
+        AdcCommand::Read => println!("{:#?}", device.analog_read()?),
+        AdcCommand::Configure {
+            flash: false,
+            reference,
+            vrm_level,
+        } => device.analog_set_input_reference(reference.into_mcp_vref(vrm_level))?,
+        AdcCommand::Configure {
+            flash: true,
+            reference,
+            vrm_level,
+        } => {
+            let mut cs = device.flash_read_chip_settings()?;
+            cs.adc_reference = reference.into_mcp_vref(vrm_level);
+            device.flash_write_chip_settings(cs)?;
+        }
+    }
+    Ok(())
 }

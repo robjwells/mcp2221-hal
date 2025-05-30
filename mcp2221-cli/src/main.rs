@@ -1,14 +1,7 @@
-use analog::{AdcCommand, DacCommand};
-use cli::Commands;
-use i2c::I2cCommand;
-use pins::GpModes;
-use settings::{SettingsCommand, SettingsType, SettingsWriteCommand};
-use usb::UsbInfo;
-
-use mcp2221_hal::MCP2221;
-use mcp2221_hal::i2c::{I2cCancelTransferResponse, I2cSpeed};
-
 use clap::Parser;
+use mcp2221_hal::MCP2221;
+
+use cli::Commands;
 
 mod analog;
 mod cli;
@@ -18,175 +11,20 @@ mod settings;
 mod usb;
 mod util;
 
-type McpResult<T> = Result<T, mcp2221_hal::Error>;
-
-fn main() -> McpResult<()> {
+fn main() -> Result<(), mcp2221_hal::Error> {
     let cli = cli::Cli::parse();
     let device = MCP2221::connect_with_vid_and_pid(cli.vid, cli.pid)?;
     match cli.command {
         Commands::Status => println!("{:#?}", device.status()?),
-        Commands::Settings(settings_command) => match settings_command {
-            SettingsCommand::Read { which } => match which {
-                SettingsType::Flash => print_all_flash_data(&device)?,
-                SettingsType::Sram => println!("{:#?}", device.sram_read_settings()?),
-            },
-            SettingsCommand::Write(write_command) => match write_command {
-                SettingsWriteCommand::Manufacturer { string } => {
-                    device.usb_change_manufacturer(&string)?
-                }
-                SettingsWriteCommand::Product { string } => device.usb_change_product(&string)?,
-            },
-        },
-        Commands::Usb => {
-            println!("{:#?}", UsbInfo::from(&device.usb_device_info()?));
-        }
-        Commands::Dac(dac_command) => match dac_command {
-            DacCommand::Write { flash: true, value } => {
-                let mut cs = device.flash_read_chip_settings()?;
-                cs.dac_value = value;
-                device.flash_write_chip_settings(cs)?;
-            }
-            DacCommand::Write {
-                flash: false,
-                value,
-            } => {
-                // do sram write
-                device.analog_write(value)?;
-            }
-
-            DacCommand::Configure {
-                flash: true,
-                reference,
-                vrm_level,
-            } => {
-                let mut cs = device.flash_read_chip_settings()?;
-                cs.dac_reference = reference.into_mcp_vref(vrm_level);
-                device.flash_write_chip_settings(cs)?;
-            }
-            DacCommand::Configure {
-                flash: false,
-                reference,
-                vrm_level,
-            } => {
-                device.analog_set_output_reference(reference.into_mcp_vref(vrm_level))?;
-            }
-        },
-        Commands::Adc(adc_command) => match adc_command {
-            AdcCommand::Read => println!("{:#?}", device.analog_read()?),
-            AdcCommand::Configure {
-                flash: false,
-                reference,
-                vrm_level,
-            } => device.analog_set_input_reference(reference.into_mcp_vref(vrm_level))?,
-            AdcCommand::Configure {
-                flash: true,
-                reference,
-                vrm_level,
-            } => {
-                let mut cs = device.flash_read_chip_settings()?;
-                cs.adc_reference = reference.into_mcp_vref(vrm_level);
-                device.flash_write_chip_settings(cs)?;
-            }
-        },
+        Commands::Settings(command) => settings::action(&device, command)?,
+        Commands::Usb => usb::print_info(&device)?,
+        Commands::Dac(command) => analog::dac_action(&device, command)?,
+        Commands::Adc(command) => analog::adc_action(&device, command)?,
         Commands::Reset => device.reset()?,
-        Commands::I2c(i2c_command) => match i2c_command {
-            I2cCommand::Cancel => match device.i2c_cancel_transfer()? {
-                I2cCancelTransferResponse::MarkedForCancellation => {
-                    println!("Transfer marked for cancellation.")
-                }
-                I2cCancelTransferResponse::NoTransfer => {
-                    println!("There was no ongoing I2C transfer to cancel.")
-                }
-                I2cCancelTransferResponse::Done => {
-                    println!("Transfer cancelled.");
-                }
-            },
-            I2cCommand::Speed { kbps } => device.i2c_set_bus_speed(I2cSpeed::new(kbps * 1000))?,
-            I2cCommand::Read { address, length } => {
-                // Length as u16 ensures it's within the MCP2221's limits, even if
-                // we immediately convert it to a usize.
-                let mut data = vec![0; length as usize];
-                device.i2c_read(address, data.as_mut_slice())?;
-                print_bytes(&data);
-            }
-            I2cCommand::Write { address, data } => {
-                device.i2c_write(address, data.as_slice())?;
-            }
-            I2cCommand::CheckAddress { address } => match device.i2c_check_address(address) {
-                Ok(true) => println!("Device found at {address:#04X}"),
-                Ok(false) => println!("No device found at {address:#04X}"),
-                Err(e) => {
-                    eprintln!("{e}")
-                }
-            },
-            I2cCommand::WriteRead {
-                address,
-                read_length,
-                write_data,
-            } => {
-                // read_length as u16 ensures it's within the MCP2221's limits, even if
-                // we immediately convert it to a usize.
-                let mut read_data = vec![0; read_length as usize];
-                device.i2c_write_read(address, &write_data, &mut read_data)?;
-                print_bytes(&read_data);
-            }
-        },
-        Commands::Pins(pins_command) => match pins_command {
-            pins::PinsCommand::Read => {
-                println!("{:#?}", device.gpio_read()?);
-            }
-            pins::PinsCommand::SetMode(GpModes {
-                flash: true,
-                pin_configs,
-            }) => {
-                let mut gp_settings = device.flash_read_gp_settings()?;
-                pin_configs.merge_into_existing(&mut gp_settings);
-                device.flash_write_gp_settings(gp_settings)?;
-            }
-            pins::PinsCommand::SetMode(GpModes {
-                flash: false,
-                pin_configs,
-            }) => {
-                let (_, mut gp_settings) = device.sram_read_settings()?;
-                pin_configs.merge_into_existing(&mut gp_settings);
-                device.sram_write_gp_settings(gp_settings)?;
-            }
-            pins::PinsCommand::Write(pin_values) => {
-                device.gpio_write(&pin_values.into())?;
-            }
-        },
+        Commands::I2c(command) => i2c::action(&device, command)?,
+        Commands::Pins(command) => pins::action(&device, command)?,
     }
-
     Ok(())
-}
-
-fn print_all_flash_data(device: &mcp2221_hal::MCP2221) -> McpResult<()> {
-    println!("{:#?}", device.flash_read_chip_settings()?);
-    println!("{:#?}", device.flash_read_gp_settings()?);
-    println!(
-        r#"USB Manufacturer:  "{}""#,
-        device.usb_manufacturer()?
-    );
-    println!(r#"USB Product:       "{}""#, device.usb_product()?);
-    println!(
-        r#"USB Serial Number: "{}""#,
-        device.usb_serial_number()?
-    );
-    println!(
-        r#"Factory serial:    "{}""#,
-        device.factory_serial_number()?
-    );
-    Ok(())
-}
-
-fn print_bytes(data: &[u8]) {
-    eprintln!("{} bytes read", data.len());
-    for chunk in data.chunks(8) {
-        for byte in chunk {
-            print!("{byte:02X} ");
-        }
-        println!();
-    }
 }
 
 #[cfg(test)]

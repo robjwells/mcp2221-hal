@@ -14,4 +14,4 @@ categories = ["embedded", "hardware-support", "command-line-utilities"]
 anyhow = "1.0.98"
 clap = { version = "4.5.37", features = ["cargo", "derive"] }
 hidapi = "2.6.3"
-mcp2221-hal = { path = "../mcp2221-hal/"}
+mcp2221-hal = "0.1.0"

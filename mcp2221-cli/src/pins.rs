@@ -1,4 +1,5 @@
 use clap::{Parser, ValueEnum};
+use mcp2221_hal::MCP2221;
 use mcp2221_hal::gpio::{GpioChanges, GpioDirection, LogicLevel};
 use mcp2221_hal::settings::GpSettings;
 use mcp2221_hal::settings::{self as hal};
@@ -344,4 +345,32 @@ impl From<PinValues> for GpioChanges {
         }
         s
     }
+}
+
+pub(crate) fn action(device: &MCP2221, command: PinsCommand) -> Result<(), mcp2221_hal::Error> {
+    match command {
+        PinsCommand::Read => {
+            println!("{:#?}", device.gpio_read()?);
+        }
+        PinsCommand::SetMode(GpModes {
+            flash: true,
+            pin_configs,
+        }) => {
+            let mut gp_settings = device.flash_read_gp_settings()?;
+            pin_configs.merge_into_existing(&mut gp_settings);
+            device.flash_write_gp_settings(gp_settings)?;
+        }
+        PinsCommand::SetMode(GpModes {
+            flash: false,
+            pin_configs,
+        }) => {
+            let (_, mut gp_settings) = device.sram_read_settings()?;
+            pin_configs.merge_into_existing(&mut gp_settings);
+            device.sram_write_gp_settings(gp_settings)?;
+        }
+        PinsCommand::Write(pin_values) => {
+            device.gpio_write(&pin_values.into())?;
+        }
+    }
+    Ok(())
 }

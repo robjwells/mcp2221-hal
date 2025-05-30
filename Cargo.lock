@@ -178,7 +178,7 @@ dependencies = [
  "anyhow",
  "clap",
  "hidapi",
- "mcp2221-hal",
+ "mcp2221-hal 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -188,6 +188,17 @@ dependencies = [
  "bit_field",
  "embedded-hal",
  "embedded-hal-async",
+ "hidapi",
+]
+
+[[package]]
+name = "mcp2221-hal"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9921b08f5c0c6458a43e782251eaddd470067cac5b524f0fe8e1e54c85589d46"
+dependencies = [
+ "bit_field",
+ "embedded-hal",
  "hidapi",
 ]
 
