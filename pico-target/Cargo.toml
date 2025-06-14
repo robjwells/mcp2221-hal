@@ -1,0 +1,52 @@
+[package]
+edition = "2024"
+name = "pico_target"
+version = "0.1.0"
+authors = ["Rob Wells <rob@robjwells.com>"]
+resolver = "2"
+
+[[bin]]
+name = "pico_target"
+test = false
+bench = false
+
+[dependencies]
+defmt = "0.3"
+defmt-rtt = "0.4"
+panic-probe = { version = "0.3", features = ["print-defmt"] }
+
+embedded-hal = "1.0.0"
+embedded-hal-async = "1.0.0"
+embedded-io = "0.6.1"
+embedded-io-async = "0.6.1"
+embedded-storage = "0.3.1"
+
+cortex-m-rt = "0.7.3"
+
+embassy-executor = { version = "0.7", features = ["task-arena-size-2048", "arch-cortex-m", "executor-thread", "defmt", "executor-interrupt"] }
+embassy-sync = { version = "0.6" }
+embassy-time = { version = "0.4", features = ["defmt", "defmt-timestamp-uptime"] }
+cortex-m = { version = "0.7.6" }
+embassy-rp = { version = "0.4", features = ["defmt", "unstable-pac", "time-driver", "critical-section-impl", "rp2040"] }
+
+embedded-graphics = { version = "0.8.1", features = ["defmt"] }
+embedded-text = { version = "0.7.2" }
+heapless = "0.8.0"
+embassy-futures = { version = "0.1.1", features = ["defmt"] }
+
+# For the explorer base module
+embedded-hal-bus = { version = "0.3.0", features = ["async"] }
+mipidsi = { version = "0.9.0" }
+static_cell = "2.1.0"
+# Depend on portable-atomic to enable CAS via critical section in static_cell.
+portable-atomic = { version = "1.5.1", features = ["critical-section"]}
+
+# [profile.release]
+# debug = 2
+# lto = true
+# opt-level = 'z'
+#
+# [profile.dev]
+# debug = 2
+# lto = true
+# opt-level = "z"

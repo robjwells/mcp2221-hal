@@ -21,6 +21,11 @@ board][adafruit], product number 4471.
   of the MCP2221 to your Rust programs.
 - **`mcp2221-cli`** is a command-line program that uses the `mcp2221-hal` crate to
   allow you to interact with a connected MCP2221 from your terminal or a shell script.
+- `pico-target` is firmware for a Raspberry Pi Pico (at the moment, specifically one
+  plugged into a [Pimoroni Pico Explorer Base][]) that provides a target with which
+  to communicate via the MCP2221 in the `mcp2221-hal` tests.
+
+[Pimoroni Pico Explorer Base]: https://shop.pimoroni.com/products/pico-explorer-base
 
 ## Part name
 
