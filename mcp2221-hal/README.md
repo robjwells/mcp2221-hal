@@ -34,7 +34,7 @@ let mut device = mcp2221_hal::MCP2221::connect()?;
 use embedded_hal::i2c::I2c;
 let mut buf = [0u8; 2];
 device.write_read(0x26, &[40, 2], &mut buf)?;
-println!("{buf}");
+println!("{buf:?}");
 
 // GPIO
 use embedded_hal::digital::{InputPin, OutputPin};
