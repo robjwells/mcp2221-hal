@@ -31,7 +31,7 @@ pub type ExplorerDisplay = Display<
 /// Set up the display driver for the ST7789 on the Pico Explorer Base.
 ///
 /// Note that the LCD `DC` pin is listed as `SPI MISO` on the back of the PCB.
-pub fn create_pico_explorer_base_display<'a>(
+pub fn create_display<'a>(
     spi_peripheral: SPI0,
     mosi: PIN_19,
     clk: PIN_18,

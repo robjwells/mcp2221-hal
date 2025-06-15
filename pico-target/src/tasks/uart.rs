@@ -3,6 +3,9 @@ use embassy_rp::{
     uart::{self, Uart},
 };
 
+/// UART character echo
+///
+/// This task just echoes every character received on the UART.
 #[embassy_executor::task]
 pub(crate) async fn echo(mut driver: Uart<'static, UART0, uart::Async>) -> ! {
     defmt::info!("Writing hello message to Uart...");

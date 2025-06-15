@@ -1,3 +1,31 @@
+//! # I2C target task
+//!
+//! This module provides a task that operates an I2C target for the MCP2221 to read
+//! and write from.
+//!
+//! ## Read
+//!
+//! A read from this target will provide sequential bytes from the OUR_DATA array.
+//! This functions as a sort of counter, with the value of the byte received being
+//! its index in the array.
+//!
+//! A read of 10 bytes, for example, will receive bytes 0x00 up to and including 0x09.
+//!
+//! ## Write
+//!
+//! Writes to this target are accepted up to 512 bytes (note the MCP2221 maximum
+//! transfer length is the much higher 65,535 bytes). Currently these are just logged
+//! on the RTT channel.
+//!
+//! ## Write-Read
+//!
+//! A Write-Read should write 2 bytes, a start index for OUR_DATA and the number of
+//! bytes to read from it (stopping at the end of the array if length is too long).
+//!
+//! ## General Call
+//!
+//! This target acknowledges the General Call, and just logs any written bytes to
+//! the RTT channel.
 use embassy_rp::i2c_slave::{self, I2cSlave};
 use embassy_rp::peripherals::I2C0;
 
@@ -76,6 +104,7 @@ async fn write_read(driver: &mut I2cSlave<'static, I2C0>, n: usize, receive_buff
         n,
         receive_buffer[..n]
     );
+    // TODO: What if only 1 byte is written?
     let start = receive_buffer[0] as usize;
     let length = (receive_buffer[1] as usize).clamp(0, 256 - start);
     defmt::info!(
@@ -93,6 +122,7 @@ async fn write_read(driver: &mut I2cSlave<'static, I2C0>, n: usize, receive_buff
 }
 
 fn write(n: usize, receive_buffer: &[u8]) {
+    // TODO: The MCP2221 should be able to query previously written bytes.
     defmt::info!(
         "Write: Received {:?} bytes\t{=[u8]:#X}",
         n,

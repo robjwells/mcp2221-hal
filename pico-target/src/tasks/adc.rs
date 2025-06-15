@@ -2,6 +2,10 @@ use embassy_rp::adc::{self, Adc, Channel};
 
 use crate::signals::ADC_SIGNAL;
 
+/// Analog input voltage monitor.
+///
+/// This task monitors the voltage on the given pin and updates the static signal
+/// with the current value every 500ms.
 #[embassy_executor::task]
 pub(crate) async fn monitor(mut adc: Adc<'static, adc::Async>, mut pin: Channel<'static>) -> ! {
     const ADC_DIVIDER: f32 = 4_095.0 / 3.3;
