@@ -104,9 +104,13 @@ async fn write_read(driver: &mut I2cSlave<'static, I2C0>, n: usize, receive_buff
         n,
         receive_buffer[..n]
     );
-    // TODO: What if only 1 byte is written?
     let start = receive_buffer[0] as usize;
-    let length = (receive_buffer[1] as usize).clamp(0, 256 - start);
+    let length = if n == 1 || receive_buffer[1] == 0 {
+        // Default length is the rest of the buffer.
+        256 - start
+    } else {
+        (receive_buffer[1] as usize).clamp(0, 256 - start)
+    };
     defmt::info!(
         "Responding with {} bytes of our data starting at {}: {:?}",
         length,
