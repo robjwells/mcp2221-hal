@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = [ "mcp2221-cli","mcp2221-hal", "pico-target"]
+members = [ "mcp2221-cli","mcp2221-hal", "pico-explorer-base", "pico-target"]

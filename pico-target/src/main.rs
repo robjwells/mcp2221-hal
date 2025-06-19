@@ -12,11 +12,10 @@ use embassy_rp::peripherals::{I2C0, UART0};
 use embassy_rp::uart;
 use {defmt_rtt as _, panic_probe as _};
 
-mod explorer_base;
 mod signals;
 mod tasks;
 
-use explorer_base::screen::create_display;
+use pico_explorer_base::screen::create_display;
 
 bind_interrupts!(struct UartInterrupts {
     UART0_IRQ => uart::InterruptHandler<UART0>;

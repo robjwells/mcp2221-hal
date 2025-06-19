@@ -11,7 +11,7 @@ use embedded_graphics::text::Text;
 use embedded_text::TextBox;
 use heapless::String;
 
-use crate::explorer_base::screen::ExplorerDisplay;
+use pico_explorer_base::screen::ExplorerDisplay;
 use crate::signals::{ADC_SIGNAL, I2C_SIGNAL, PIN_INPUT_SIGNAL};
 
 /// Show Pico target status on the Explorer Base display
